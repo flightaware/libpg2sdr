@@ -1,0 +1,3 @@
+[submodule "lpcsdr_firmware"]
+	path = lpcsdr_firmware
+	url = git@github.flightaware.com:flightaware/lpcsdr_firmware.git
