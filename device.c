@@ -39,7 +39,7 @@ int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d) {
     *d = dev;
     return LPCSDR_SUCCESS;
 
-cleanup:
+// cleanup:
     // if (dev->baseband_filter)
         // lpcsdr_dsp_ifir_free(dev->baseband_filter);
 

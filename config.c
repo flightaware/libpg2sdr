@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <limits.h>
 #include "internal.h"
-#include "lpcsdr_firmware/include/lpcsdr_protocol.h"
 #include <endian.h>
 
 int n_value(uint32_t n) {

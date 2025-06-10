@@ -1,4 +1,5 @@
 #include "lpcsdr.h"
+#include "lpcsdr_firmware/include/lpcsdr_protocol.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
@@ -70,17 +71,6 @@ enum dfu_error {
     DFU_ERROR_NON_IDLE_STATE = -215, // During DFU download after GET_STATUS request, state is NOT in dfuDNLOAD-IDLE  state.
 };
 
-typedef enum {
-    EP0_IN_COMMS_CHECK = 0x01,        /* basic comms check */
-    EP0_IN_FLASH_DEVICE_ID = 0x02,    /* read device/manufacturer ID from SPI flash */
-    EP0_IN_FLASH_UNIQUE_ID = 0x03,    /* read unique ID from SPI flash */
-    EP0_IN_FLASH_READ = 0x04,         /* read data from SPI flash; valueAndIndex = start address */
-    EP0_IN_FLASH_READ_QUAD = 0x05,    /* read data from SPI flash, quad mode; valueAndIndex = start address */
-    EP0_IN_MEMORY_READ = 0x0B,        /* read arbitrary memory; valueAndIndex = start address */
-    EP0_IN_TUNER_READ = 0x0C,         /* read tuner regs; value = first reg to read; index = cache mode (0=use cache if possible, 1=bypass cache, 2=refresh cache) */
-    EP0_IN_BOARD_STATUS = 0x0D,       /* read misc board status; valueAndIndex != 0 to also measure clock frequencies (takes longer) */
-} ep0_in_request_t;
-
 int lpcsdr_comms_check(libusb_device_handle *device_handle);
 int dfu_download_firmware(libusb_device_handle *handle, int block , u_int32_t *buffer, int count);
 int dfu_get_status(libusb_device_handle *dev, dfu_status **status);
@@ -90,6 +80,7 @@ int translate_dfu_status(int dfu_status);
 
 int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
+int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t **status);
 
 
 int n_value(uint32_t n);

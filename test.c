@@ -2,13 +2,18 @@
 #include <stdlib.h>
 #include <endian.h>
 
+int close_handle(lpcsdr_device_handle **handle);
+int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle);
+int test_calculate_adc_clock_divisors();
+int test_transfer_start_and_capture(lpcsdr_device_handle *handle);
+
 static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message) { fprintf(stderr, "lpcsdr: %s\n", message); }
 
 int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
     int error = 1;
     if ((error = lpcsdr_start_transfer(handle, (uint32_t) 9.6e6)) < 0)
         return error;
-    if ((error = lpcsdr_capture_adc_output(handle,(uint32_t) 9.6e6)) < 0)
+    if ((error = lpcsdr_capture_adc_output(handle, (uint32_t) 9.6e6)) < 0)
         return error;
 
     return error;
