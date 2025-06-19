@@ -283,15 +283,15 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
         int16_t unpacked[status->usb_samples_per_block];
         for (uint32_t i = 0, unpacked_index = 0; i < (total_samples_size_in_bytes/4); i += 3, unpacked_index += 8) {
             uint32_t first = packed[i], second = packed[i + 1], third = packed[i + 2];
-            unpacked[unpacked_index]        =   (first  &   0x0FFF0000) >> 16;
-            unpacked[unpacked_index + 1]    =   (first  &   0x00000FFF);
-            unpacked[unpacked_index + 2]    =   (second &   0x0FFF0000) >> 16;
-            unpacked[unpacked_index + 3]    =   (second &   0x00000FFF);
+            unpacked[unpacked_index]        =   (first  &   0x00000FFF);
+            unpacked[unpacked_index + 1]    =   (first  &   0x0FFF0000) >> 16;
+            unpacked[unpacked_index + 2]    =   (second &   0x00000FFF);
+            unpacked[unpacked_index + 3]    =   (second &   0x0FFF0000) >> 16;
 
-            unpacked[unpacked_index + 4]    =   (third  &   0x0FFF0000) >> 16;
-            unpacked[unpacked_index + 5]    =   (third  &   0x00000FFF);
-            unpacked[unpacked_index + 6]    =   ((first &   0xF0000000) >> 20) | ((second & 0xF0000000) >> 24)  | ((third & 0xF0000000) >> 28);
-            unpacked[unpacked_index + 7]    =   ((first &   0x0000F000) >> 4)  | ((second & 0x0000F000) >> 8)   | ((third & 0x0000F000) >> 12);
+            unpacked[unpacked_index + 4]    =   (third  &   0x00000FFF);
+            unpacked[unpacked_index + 5]    =   (third  &   0x0FFF0000) >> 16;
+            unpacked[unpacked_index + 6]    =   ((first &   0x0000F000) >> 4)  | ((second & 0x0000F000) >> 8)   | ((third & 0x0000F000) >> 12);
+            unpacked[unpacked_index + 7]    =   ((first &   0xF0000000) >> 20) | ((second & 0xF0000000) >> 24)  | ((third & 0xF0000000) >> 28);
 
             for (int z = unpacked_index; z < unpacked_index + 8; z++) {
                 int16_t extended = unpacked[z] & 0b0000111111111111;

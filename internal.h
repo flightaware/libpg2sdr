@@ -1,5 +1,5 @@
 #include "lpcsdr.h"
-#include "lpcsdr_firmware/include/lpcsdr_protocol.h"
+#include "lpcsdr_protocol.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
