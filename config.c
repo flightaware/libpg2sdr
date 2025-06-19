@@ -196,18 +196,19 @@ int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_samples) {
+int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_samples, int16_t **adc_capture) {
 
     ep0_in_board_status_t *status = NULL;
     uint8_t *data = NULL;
     uint32_t *num_bytes_actually_read = NULL;
+    int16_t *extended_unpacked = NULL;
     int error = LPCSDR_SUCCESS;
 
     if ((error = lpcsdr_get_status(device_handle, &status)) < 0) {
         goto cleanup;
     }
 
-    uint32_t num_blocks = ceil((double)num_samples / (double)status->usb_samples_per_block) + 8;
+    uint32_t num_blocks = ceil((double)num_samples / (double)status->usb_samples_per_block);
     uint32_t total = num_blocks * status->usb_bytes_per_block;
     uint32_t blocks_per_chunk = 128;
 
@@ -217,6 +218,8 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
     uint32_t captured_bytes = 0;
     num_bytes_actually_read = calloc(1, sizeof(uint32_t));
     data = calloc(total, sizeof(uint8_t));
+
+    printf("num blocks %u total %u chunk_size %u", num_blocks, total, chunk_size);
 
     while (captured_bytes < total) {
 
@@ -243,6 +246,7 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
 
     FILE *file = fopen("adc_capture_output.tsv", "w");
     int index = 0;
+    extended_unpacked = calloc(num_blocks * status->usb_samples_per_block, sizeof(int16_t));
     for(uint32_t current_block = 8 * status->usb_bytes_per_block; current_block < total; current_block+=status->usb_bytes_per_block) {
         uint8_t header[sizeof(ep1_header_t)];
         for (uint32_t hx = 0; hx < sizeof(ep1_header_t); hx++) {
@@ -269,19 +273,21 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
         }
 
         uint8_t block_body[status->usb_bytes_per_block];
-        for (uint32_t bx = current_block + sizeof(ep1_header_t), x = 0; bx < current_block + sizeof(ep1_header_t)+ status->usb_bytes_per_block; bx++, x++){
-            block_body[x] = data[bx];
+        uint32_t current_offset = current_block + sizeof(ep1_header_t);
+        for (uint32_t bx = current_offset, new_block_body_offset = 0; bx < current_offset + status->usb_bytes_per_block; bx++, new_block_body_offset++){
+            block_body[new_block_body_offset] = data[bx];
         }
 
         uint32_t total_samples_size_in_bytes = (uint32_t)floor(status->usb_samples_per_block * 12 / 8);
-        uint32_t packed[total_samples_size_in_bytes / 4];
-            
+        uint32_t packed_size = total_samples_size_in_bytes / 4;
+        uint32_t packed[packed_size];
+
         for (uint32_t bx = 0, packed_index = 0; bx < total_samples_size_in_bytes; bx+=4, packed_index++){
             packed[packed_index] = (block_body[bx + 3] << 24) | (block_body[bx + 2] << 16) | (block_body[bx + 1] << 8) | block_body[bx];
         }
 
         int16_t unpacked[status->usb_samples_per_block];
-        for (uint32_t i = 0, unpacked_index = 0; i < (total_samples_size_in_bytes/4); i += 3, unpacked_index += 8) {
+        for (uint32_t i = 0, unpacked_index = 0; i < packed_size; i += 3, unpacked_index += 8) {
             uint32_t first = packed[i], second = packed[i + 1], third = packed[i + 2];
             unpacked[unpacked_index]        =   (first  &   0x00000FFF);
             unpacked[unpacked_index + 1]    =   (first  &   0x0FFF0000) >> 16;
@@ -294,17 +300,15 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
             unpacked[unpacked_index + 7]    =   ((first &   0xF0000000) >> 20) | ((second & 0xF0000000) >> 24)  | ((third & 0xF0000000) >> 28);
 
             for (int z = unpacked_index; z < unpacked_index + 8; z++) {
-                int16_t extended = unpacked[z] & 0b0000111111111111;
-                if (unpacked[z] & 0x800) {
-                    extended = extended | 0xF800;
-                }
-                // uint16_t extended = (unpacked[z] & 0x7FF) - (unpacked[z] & 0x800);
-
-                fprintf(file, "%d\t%x\n", index, extended);
+                uint16_t extended_value = (unpacked[z] & 0x7FF) - (unpacked[z] & 0x800);
+                extended_unpacked[index] = extended_value;
+                fprintf(file, "%d\t%x\n", index, extended_value);
                 index += 1;
             }
         }
     }
+
+    *adc_capture = extended_unpacked;
 
 cleanup:
     if (num_bytes_actually_read)
@@ -313,6 +317,8 @@ cleanup:
         free(data);
     if (status)
         free(status);
+    if (extended_unpacked)
+        free(extended_unpacked);
     return error;
 }
 

@@ -13,7 +13,9 @@ int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
     int error = 1;
     if ((error = lpcsdr_start_transfer(handle, (uint32_t) 9.6e6)) < 0)
         return error;
-    if ((error = lpcsdr_capture_adc_output(handle, (uint32_t) 9.6e6)) < 0)
+    
+    int16_t *adc_capture_data;
+    if ((error = lpcsdr_capture_adc_output(handle, 960000, &adc_capture_data)) < 0)
         return error;
 
     return error;
