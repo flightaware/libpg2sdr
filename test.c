@@ -1,4 +1,4 @@
-#include "lpcsdr.h"
+#include "internal.h"
 #include <stdlib.h>
 #include <endian.h>
 
@@ -10,15 +10,13 @@ int test_transfer_start_and_capture(lpcsdr_device_handle *handle);
 static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message) { fprintf(stderr, "lpcsdr: %s\n", message); }
 
 int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
-    int error = 1;
-    if ((error = lpcsdr_start_transfer(handle, (uint32_t) 9.6e6)) < 0)
-        return error;
-    
-    int16_t *adc_capture_data;
-    if ((error = lpcsdr_capture_adc_output(handle, 960000, &adc_capture_data)) < 0)
-        return error;
+    // lpcsdr_capture(handle, 960000, (uint32_t) 9.6e6);
 
-    return error;
+    int16_t test[6 * 2];
+    for (uint32_t i = 0; i < 6*2; i++)
+        test[i] = i;
+    lpcsdr_convert_adc_capture_to_complex_baseband(test, 6* 2, 6);
+    return -1;
 }
 
 int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle) {

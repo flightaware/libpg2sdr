@@ -218,8 +218,8 @@ int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_hand
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
 // Setting various peripherals
+int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency);
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
-int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_samples, int16_t **adc_capture);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
 int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **int_divisors, pll_divisors **frac_divisors);
 

@@ -9,10 +9,10 @@ LIBS += $(shell pkg-config --libs libusb-1.0) -lpthread
 $(OBJDIR):
 	mkdir -p $@
 
-test: test.o errors.o boot.o config.o external.o device.o
+test: test.o errors.o boot.o config.o external.o device.o dsp.o
 	$(CC) -g -o $@ $(addprefix $(OBJDIR)/, $^) $(LDFLAGS) $(LIBS)
 
-libsdr.a: errors.o boot.o config.o external.o device.o
+libsdr.a: errors.o boot.o config.o external.o device.o dsp.o
 	rm -f $@
 	$(AR) rcs $@ $(addprefix $(OBJDIR)/, $^)
 

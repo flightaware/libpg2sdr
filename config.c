@@ -196,17 +196,39 @@ int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_samples, int16_t **adc_capture) {
+int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency) {
+    int error = LPCSDR_SUCCESS;
+
+    if ((error = lpcsdr_start_transfer(device_handle, target_frequency)) < 0)
+        goto cleanup;
 
     ep0_in_board_status_t *status = NULL;
+    if ((error = lpcsdr_get_status(device_handle, &status)) < 0)
+        goto cleanup;
+
+    int16_t *adc_capture = NULL;
+    uint32_t adc_capture_length;
+    if ((error = lpcsdr_capture_adc_output(device_handle, status, 2 * num_samples, &adc_capture, &adc_capture_length)) < 0)
+        goto cleanup;
+
+    if ((error = lpcsdr_convert_adc_capture_to_complex_baseband(adc_capture, adc_capture_length, num_samples)) < 0)
+        goto cleanup;
+
+cleanup:
+    if (status)
+        free(status);
+    if (adc_capture)
+        free(adc_capture);
+
+    return error;
+}
+
+int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, int16_t **adc_capture, uint32_t *adc_capture_length) {
+
     uint8_t *data = NULL;
     uint32_t *num_bytes_actually_read = NULL;
     int16_t *extended_unpacked = NULL;
     int error = LPCSDR_SUCCESS;
-
-    if ((error = lpcsdr_get_status(device_handle, &status)) < 0) {
-        goto cleanup;
-    }
 
     uint32_t num_blocks = ceil((double)num_samples / (double)status->usb_samples_per_block);
     uint32_t total = num_blocks * status->usb_bytes_per_block;
@@ -219,7 +241,7 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
     num_bytes_actually_read = calloc(1, sizeof(uint32_t));
     data = calloc(total, sizeof(uint8_t));
 
-    printf("num blocks %u total %u chunk_size %u", num_blocks, total, chunk_size);
+    printf("num blocks %u total %u chunk_size %u samples_per_block %u\n", num_blocks, total, chunk_size, status->usb_samples_per_block);
 
     while (captured_bytes < total) {
 
@@ -245,9 +267,9 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
     lpcsdr_stop_transfer(device_handle);
 
     FILE *file = fopen("adc_capture_output.tsv", "w");
-    int index = 0;
+    int num_received_samples = 0;
     extended_unpacked = calloc(num_blocks * status->usb_samples_per_block, sizeof(int16_t));
-    for(uint32_t current_block = 8 * status->usb_bytes_per_block; current_block < total; current_block+=status->usb_bytes_per_block) {
+    for(uint32_t current_block = 0; current_block < total; current_block+=status->usb_bytes_per_block) {
         uint8_t header[sizeof(ep1_header_t)];
         for (uint32_t hx = 0; hx < sizeof(ep1_header_t); hx++) {
             header[hx] = data[current_block + hx];
@@ -301,24 +323,22 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, uint32_t num_
 
             for (int z = unpacked_index; z < unpacked_index + 8; z++) {
                 uint16_t extended_value = (unpacked[z] & 0x7FF) - (unpacked[z] & 0x800);
-                extended_unpacked[index] = extended_value;
-                fprintf(file, "%d\t%x\n", index, extended_value);
-                index += 1;
+                extended_unpacked[num_received_samples] = extended_value;
+                fprintf(file, "%d\t%x\n", num_received_samples, extended_value);
+                num_received_samples += 1;
             }
         }
     }
-
+    printf("length of adc_capture %d \n", num_received_samples);
+    //maybe return the actual full length of adc_capture
     *adc_capture = extended_unpacked;
+    *adc_capture_length = num_received_samples;
 
 cleanup:
     if (num_bytes_actually_read)
         free(num_bytes_actually_read);
     if (data)
         free(data);
-    if (status)
-        free(status);
-    if (extended_unpacked)
-        free(extended_unpacked);
     return error;
 }
 

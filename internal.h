@@ -90,3 +90,6 @@ int divider_comparator(int error, int n, pll_divisors *b);
 
 int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
+
+int lpcsdr_convert_adc_capture_to_complex_baseband(int16_t *adc_capture_data, uint32_t adc_capture_data_length, uint32_t required_samples);
+int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, int16_t **adc_capture, uint32_t *adc_capture_length);
