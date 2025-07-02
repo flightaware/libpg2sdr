@@ -211,7 +211,9 @@ int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, ui
     if ((error = lpcsdr_capture_adc_output(device_handle, status, 2 * num_samples, &adc_capture, &adc_capture_length)) < 0)
         goto cleanup;
 
-    if ((error = lpcsdr_convert_adc_capture_to_complex_baseband(adc_capture, adc_capture_length, num_samples)) < 0)
+    cs16_t *out = NULL;
+
+    if ((error = lpcsdr_decimate_complex_baseband(device_handle->decimation_filter, adc_capture, adc_capture_length, &out, num_samples)) < 0)
         goto cleanup;
 
 cleanup:

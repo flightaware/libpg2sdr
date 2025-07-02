@@ -95,6 +95,14 @@ struct hotplug_callback_state {
     libusb_device *device;
 };
 
+struct lpcsdr_ifir {
+    unsigned ntaps;
+    int16_t *taps;
+    int16_t qtap;
+    int16_t *history_i;
+    int16_t *history_q;
+};
+
 typedef struct lpcsdr_device_handle lpcsdr_device_handle;
 
 struct lpcsdr_device_handle {
@@ -135,10 +143,10 @@ struct lpcsdr_device_handle {
     uint16_t actual_if_filter_high;
 
     /* baseband filter */
-    // struct pxsdr_ifir *baseband_filter;
+    struct lpcsdr_ifir *baseband_filter;
 
     /* decimation filters */
-    // struct pxsdr_decimate *decimation_filter; /* prototype decimation filter used for each stage */
+    struct lpcsdr_decimate *decimation_filter; /* prototype decimation filter used for each stage */
     int decimation_setting;                   /* if <0: select decimation automatically. if >=0: decimate by 2**N */
     unsigned decimation_log2;                 /* actual decimation in use, 2**N */
     // struct pxsdr_decimate **decimation_stage; /* decimation filter stages */

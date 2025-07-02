@@ -1,18 +1,28 @@
 #include "internal.h"
 #include <complex.h>
+#include <math.h>
 
-float standard_filter_taps[] = {
+float lpcsdr_standard_filter_taps[] = {
     0, -0.00105091, 0, 0.00250767, 0, -0.0048923, 0, 0.00855213, 0, -0.0139827, 0, 0.0220117,  0, -0.0343224, 0, 0.0552597,  0, -0.100878,   0, 0.316537, 0.5, 0.316537,
     0, -0.100878,   0, 0.0552597,  0, -0.0343224, 0, 0.0220117,  0, -0.0139827, 0, 0.00855213, 0, -0.0048923, 0, 0.00250767, 0, -0.00105091, 0,
 };
 
-int lpcsdr_convert_adc_capture_to_complex_baseband(int16_t *adc_capture_data, uint32_t adc_capture_data_length, uint32_t required_samples) {
+unsigned lpcsdr_standard_filter_ntaps = sizeof(lpcsdr_standard_filter_taps) / sizeof(lpcsdr_standard_filter_taps[0]);
+
+int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, int16_t *adc_capture_data, uint32_t adc_capture_data_length, cs16_t **out, uint32_t required_samples) {
     int error = LPCSDR_SUCCESS;
-    // quarter_sample_frequency_complex signal
+
+    const unsigned ntaps = decimate->ntaps & ~3; /* always a multiple of 4 */
+    const int16_t *taps = decimate->taps;
+    cs16_t *history = decimate->history;
+    const unsigned history_len = decimate->history_len;
+    const unsigned history_max = decimate->history_max;
+    const int16_t center_tap = decimate->center_tap;
+
+    printf("decimate  %d  %d %d %d", taps[0], taps[1], taps[2], taps[3]);
     
     // samples per block
     uint32_t samples_per_block = 13616/2;
-    // uint32_t num_samples = 1024;
 
     double complex c_signal[samples_per_block];
 
@@ -23,9 +33,10 @@ int lpcsdr_convert_adc_capture_to_complex_baseband(int16_t *adc_capture_data, ui
         c_signal[i + 3] =   0 - 1 * I;
     }
 
-    for (uint32_t i = 0; i < samples_per_block; i++) {
-        c_signal[i] = c_signal[i]/ 2048;
-    }
+    // THIS is important for scaling the ADC values? I'm not sure if the ADC values are getting scale currently
+    // for (uint32_t i = 0; i < samples_per_block; i++) {
+        // c_signal[i] = c_signal[i]/ 2048;
+    // }
 
     uint32_t mixed_length =  required_samples * 2 + samples_per_block;
     double complex *mixed = calloc(mixed_length, sizeof(*mixed));
@@ -42,50 +53,32 @@ int lpcsdr_convert_adc_capture_to_complex_baseband(int16_t *adc_capture_data, ui
 
     printf("mixed offset %d, required_samples * 2 %d\n", mixed_offset, required_samples * 2);
 
-    
-    // for (uint32_t mixed_offset = 0; mixed_offset < ; mixed_offset += samples_per_block) {
+    // uint32_t filter_length = 3;
 
-    //     // uint32_t sample_index = mixed_offset, c_signal_index = 0
-    //     for (uint32_t sample_index = mixed_offset, c_signal_index = 0; sample_index < mixed_offset + samples_per_block; sample_index++, c_signal_index++) {
-    //         // printf("sample index %d\n", sample_index);
-    //         mixed[sample_index] = adc_capture_data[sample_index] * c_signal[c_signal_index];
-    //     }
-    // }
+    cs16_t *values = calloc(adc_capture_data_length - ntaps, sizeof(cs16_t));
 
-    //Decimate
-    // uint32_t filter_length = sizeof(standard_filter_taps)/sizeof(standard_filter_taps[0]);
-    uint32_t filter_length = 3;
-    // minus filter length?
-    double complex first_step_dec[adc_capture_data_length - filter_length];
+    for (uint32_t index = 0, out_index = 0; index < adc_capture_data_length - ntaps; index+=2, out_index++) {
 
-
-    for (uint32_t index = 0; index < adc_capture_data_length - filter_length; index++) {
-    // printf("adc %d, fl %d, index %d\n", adc_capture_data_length, filter_length, index);
-
-        double complex result = 0;
-        for (uint32_t filter_offset = 0; filter_offset < filter_length; filter_offset++) {
-            result += standard_filter_taps[filter_offset] * mixed[index + filter_offset];
+        int32_t q_sum = 0;
+        int32_t i_sum = 0;
+        for (uint32_t filter_offset = 0; filter_offset < ntaps; filter_offset++) {
+            
+            q_sum +=  (int32_t) taps[filter_offset] * cimag(mixed[index + filter_offset]);
+            i_sum +=  (int32_t) taps[filter_offset] * creal(mixed[index + filter_offset]);
+            printf("i %i, q %i, index %u, filter_o %u \n", i_sum, q_sum, index, filter_offset);
         }
-        first_step_dec[index] = result;
+        printf("overall i %i, q %i, index %u\n", i_sum, q_sum, index);
+
+        values[out_index].i = (i_sum >> 15);
+        values[out_index].q = (q_sum >> 15);
     }
     
-    for (int i = 0; i < sizeof(first_step_dec)/sizeof(first_step_dec[0]); i++) {
-        printf("%f %f\n", creal(first_step_dec[i]), cimag(first_step_dec[i]));
+    for (int i = 0; i < adc_capture_data_length/2; i++) {
+        printf("real: %d, image: %d\n", values[i].i, values[i].q);
     }
 
+    *out = values;
     return error;
 }
 
 
-//0, -0.00105091, 0,
-// 0         ,1      ,2,3,4,5,6,7,8,9,10,11
-
-// 0.000000 -0.000001
-// 0.000001 0.000000
-// 0.000000 0.000002
-// -0.000002 0.000000
-// 0.000000 -0.000003
-// 0.000003 0.000000
-// 0.000000 0.000004
-// -0.000004 0.000000
-// 0.000000 -0.000005

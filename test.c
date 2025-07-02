@@ -10,12 +10,14 @@ int test_transfer_start_and_capture(lpcsdr_device_handle *handle);
 static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message) { fprintf(stderr, "lpcsdr: %s\n", message); }
 
 int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
-    // lpcsdr_capture(handle, 960000, (uint32_t) 9.6e6);
+    // lpcsdr_capture(handle, 10, (uint32_t) 9.6e6);
 
     int16_t test[6 * 2];
     for (uint32_t i = 0; i < 6*2; i++)
         test[i] = i;
-    lpcsdr_convert_adc_capture_to_complex_baseband(test, 6* 2, 6);
+    cs16_t *out;
+    handle->decimation_filter->ntaps = 4;
+    lpcsdr_decimate_complex_baseband(handle->decimation_filter, test, 6* 2, &out,6);
     return -1;
 }
 

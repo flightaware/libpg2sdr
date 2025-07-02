@@ -1,5 +1,7 @@
 #include "internal.h"
 #include <pthread.h>
+#include <math.h>
+#include <string.h>
 
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device) {
     
@@ -20,6 +22,73 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
     return LPCSDR_ERROR_NOT_FOUND;
 }
 
+void lpcsdr_dsp_decimate_reset(struct lpcsdr_decimate *decimate)
+{
+    if (!decimate)
+        return;
+
+    memset_elements(decimate->history, 0, decimate->history_max);
+    decimate->history_len = decimate->ntaps - 1;
+}
+
+
+int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, struct lpcsdr_decimate **result)
+{
+    if (halfband_ntaps % 2 != 1)
+        return LPCSDR_ERROR_BAD_ARGUMENT; /* must have an odd number of taps */
+
+    float center_tap = halfband_taps[(halfband_ntaps - 1) / 2];
+    if (center_tap == 0)
+        return LPCSDR_ERROR_BAD_ARGUMENT; /* center tap must be nonzero */
+
+    float sum_taps = 0; /* sum of absolute tap values; used to scale coefficients to avoid overflow */
+    for (unsigned i = 0; i < halfband_ntaps / 2; ++i) {
+        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0)
+            return LPCSDR_ERROR_BAD_ARGUMENT; /* doesn't follow the expected halfband filter structure */
+        if (halfband_taps[i] != halfband_taps[halfband_ntaps - i - 1])
+            return LPCSDR_ERROR_BAD_ARGUMENT; /* must be symmetric */
+        if (fabs(halfband_taps[i]) > fabs(center_tap))
+            return LPCSDR_ERROR_BAD_ARGUMENT; /* no tap should be larger than the center tap */
+        sum_taps += fabs(halfband_taps[i]) * 2;
+    }
+
+    sum_taps += center_tap;
+
+    /* pad at both ends of the filter so the total number of taps is a multiple of 8 + 1, so we get a multiple of 4 taps for the primary filter */
+    unsigned halfpad = 0;
+    if (halfband_ntaps % 8 != 1) /* possible values: 1, 3, 5, 7 */
+        halfpad = (9 - halfband_ntaps % 8) / 2;
+
+    struct lpcsdr_decimate *decimate;
+    if (!(decimate = calloc(1, sizeof(*decimate))))
+        return LPCSDR_ERROR_NO_MEMORY;
+
+    /* excluding the center tap, we have an exact multiple of 8 taps; half of them are zero and will be discarded */
+    decimate->ntaps = (halfpad + halfband_ntaps + halfpad - 1) / 2;
+    decimate->history_max = decimate->ntaps * 2 + 2;
+
+    if (!(decimate->taps = malloc(decimate->ntaps * sizeof(int16_t))) || !(decimate->history = malloc(decimate->history_max * sizeof(cs16_t)))) {
+        free(decimate);
+        return LPCSDR_ERROR_NO_MEMORY;
+    }
+
+    /* scale taps so that the output cannot ever overflow a Q15 representation */
+    float scale = 32767 / sum_taps;
+    for (unsigned i = 0; i < decimate->ntaps; ++i) {
+        int source = i * 2 + 1 - halfpad;
+        if (source >= 0 && source < halfband_ntaps)
+            decimate->taps[i] = (int16_t)(halfband_taps[source] * scale + 0.5);
+        else
+            decimate->taps[i] = 0;
+    }
+
+    decimate->center_tap = (int16_t)(center_tap * scale + 0.5);
+
+    lpcsdr_dsp_decimate_reset(decimate);
+    *result = decimate;
+    return LPCSDR_SUCCESS;
+}
+
 int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d) {
 
     lpcsdr_device_handle *dev = calloc(1, sizeof(lpcsdr_device_handle));
@@ -36,15 +105,18 @@ int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d) {
         goto cleanup_nomutex;
     }
 
+    if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
+        goto cleanup;
+
     *d = dev;
     return LPCSDR_SUCCESS;
 
-// cleanup:
+cleanup:
     // if (dev->baseband_filter)
         // lpcsdr_dsp_ifir_free(dev->baseband_filter);
 
-    // if (dev->decimation_filter)
-        // lpcsdr_dsp_decimate_free(dev->decimation_filter);
+    if (dev->decimation_filter)
+        lpcsdr_dsp_decimate_free(dev->decimation_filter);
 
     pthread_mutex_destroy(&dev->mutex);
 
@@ -53,6 +125,16 @@ cleanup_nomutex:
 
     return error;
 
+}
+
+void lpcsdr_dsp_decimate_free(struct lpcsdr_decimate *decimate)
+{
+    if (!decimate)
+        return;
+
+    free(decimate->taps);
+    free(decimate->history);
+    free(decimate);
 }
 
 int lpcsdr_free_device_list(lpc_device **device_list)
