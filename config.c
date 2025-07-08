@@ -213,7 +213,7 @@ int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, ui
 
     cs16_t *out = NULL;
 
-    if ((error = lpcsdr_decimate_complex_baseband(device_handle->decimation_filter, adc_capture, adc_capture_length, &out, num_samples)) < 0)
+    if ((error = lpcsdr_decimate_complex_baseband(device_handle->decimation_filter, adc_capture, adc_capture_length, &out, num_samples, NULL)) < 0)
         goto cleanup;
 
 cleanup:
@@ -232,7 +232,9 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, ep0_in_board_
     int16_t *extended_unpacked = NULL;
     int error = LPCSDR_SUCCESS;
 
-    uint32_t num_blocks = ceil((double)num_samples / (double)status->usb_samples_per_block);
+
+    // ADD CEIL!!!!!!!!
+    uint32_t num_blocks = ((double)num_samples / (double)status->usb_samples_per_block);
     uint32_t total = num_blocks * status->usb_bytes_per_block;
     uint32_t blocks_per_chunk = 128;
 

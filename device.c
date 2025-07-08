@@ -34,17 +34,20 @@ void lpcsdr_dsp_decimate_reset(struct lpcsdr_decimate *decimate)
 
 int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, struct lpcsdr_decimate **result)
 {
+
     if (halfband_ntaps % 2 != 1)
         return LPCSDR_ERROR_BAD_ARGUMENT; /* must have an odd number of taps */
 
     float center_tap = halfband_taps[(halfband_ntaps - 1) / 2];
     if (center_tap == 0)
         return LPCSDR_ERROR_BAD_ARGUMENT; /* center tap must be nonzero */
+    
 
     float sum_taps = 0; /* sum of absolute tap values; used to scale coefficients to avoid overflow */
     for (unsigned i = 0; i < halfband_ntaps / 2; ++i) {
-        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0)
+        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0) {
             return LPCSDR_ERROR_BAD_ARGUMENT; /* doesn't follow the expected halfband filter structure */
+        }
         if (halfband_taps[i] != halfband_taps[halfband_ntaps - i - 1])
             return LPCSDR_ERROR_BAD_ARGUMENT; /* must be symmetric */
         if (fabs(halfband_taps[i]) > fabs(center_tap))
@@ -76,14 +79,22 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
     float scale = 32767 / sum_taps;
     for (unsigned i = 0; i < decimate->ntaps; ++i) {
         int source = i * 2 + 1 - halfpad;
-        if (source >= 0 && source < halfband_ntaps)
+        if (source >= 0 && source < halfband_ntaps) {
             decimate->taps[i] = (int16_t)(halfband_taps[source] * scale + 0.5);
-        else
+            printf("halfband scale factor %f and add 0.5. source %d %d \n", scale, source, decimate->taps[i]);
+        }
+        else {
+            printf("zero index %d \n", i);
             decimate->taps[i] = 0;
+        }
+    }
+
+    for (uint16_t x = 0; x < decimate->ntaps; x++) {
+        printf("tap %d %d \n ", x, decimate->taps[x]);
     }
 
     decimate->center_tap = (int16_t)(center_tap * scale + 0.5);
-
+    printf("scaling taps \n");
     lpcsdr_dsp_decimate_reset(decimate);
     *result = decimate;
     return LPCSDR_SUCCESS;

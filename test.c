@@ -1,6 +1,7 @@
 #include "internal.h"
 #include <stdlib.h>
 #include <endian.h>
+#include <stdio.h>
 
 int close_handle(lpcsdr_device_handle **handle);
 int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle);
@@ -12,12 +13,31 @@ static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char
 int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
     // lpcsdr_capture(handle, 10, (uint32_t) 9.6e6);
 
-    int16_t test[6 * 2];
-    for (uint32_t i = 0; i < 6*2; i++)
-        test[i] = i;
+    FILE* file = fopen("./python-capture.tsv", "r");
+    if (file == NULL) {
+        printf("file is null");
+        return -1;
+    }
+    char line[30];
+    int16_t test[1926663];
+    uint64_t x = 0;
+    fgets(line, 30, file);
+    while (fgets(line, sizeof(line), file)) {
+        
+        uint16_t index = 0;
+        while (index < 30 && line[index] != '\t')
+            index++;
+        index++;
+
+        test[x] = line[index] - '0';
+        // printf("%d %c\n", test[x] ,line[index]);
+        x++;
+    }
+    // printf("%d\n", test[0]);
+    fclose(file);
     cs16_t *out;
-    handle->decimation_filter->ntaps = 4;
-    lpcsdr_decimate_complex_baseband(handle->decimation_filter, test, 6* 2, &out,6);
+    uint16_t output_to_file = 1;
+    lpcsdr_decimate_complex_baseband(handle->decimation_filter, test, 1920000, &out, 960000, &output_to_file);
     return -1;
 }
 
