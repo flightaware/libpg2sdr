@@ -18,26 +18,40 @@ int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
         printf("file is null");
         return -1;
     }
-    char line[30];
+    char line[100];
     int16_t test[1926663];
     uint64_t x = 0;
-    fgets(line, 30, file);
+    // fgets(line, 100, file);
     while (fgets(line, sizeof(line), file)) {
         
         uint16_t index = 0;
         while (index < 30 && line[index] != '\t')
-            index++;
+            index+=1;
         index++;
+        // printf("fill line %s %d \n", line, index);
+        if (line[index] == '-') {
+            uint16_t end = index;
+            char slicedFoo[7];
+            uint16_t f= 0;
+            while (line[index] != '\0') {
+                slicedFoo[f++] = line[index++];
+            }
 
-        test[x] = line[index] - '0';
-        // printf("%d %c\n", test[x] ,line[index]);
+            // printf("negative %s \n", slicedFoo);
+            test[x] = atoi(slicedFoo);
+        }else {
+
+            test[x] = (line[index] - '0');
+        }
+        // printf("test %d %d %c\n", x, test[x] ,line[index]);
         x++;
     }
     // printf("%d\n", test[0]);
+    // return -1;
     fclose(file);
     cs16_t *out;
     uint16_t output_to_file = 1;
-    lpcsdr_decimate_complex_baseband(handle->decimation_filter, test, 1920000, &out, 960000, &output_to_file);
+    lpcsdr_decimate_complex_baseband(handle->decimation_filter, test, 1926663, &out, 960000, &output_to_file);
     return -1;
 }
 

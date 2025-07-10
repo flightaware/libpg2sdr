@@ -233,8 +233,7 @@ int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, ep0_in_board_
     int error = LPCSDR_SUCCESS;
 
 
-    // ADD CEIL!!!!!!!!
-    uint32_t num_blocks = ((double)num_samples / (double)status->usb_samples_per_block);
+    uint32_t num_blocks = ceil((double)num_samples / (double)status->usb_samples_per_block);
     uint32_t total = num_blocks * status->usb_bytes_per_block;
     uint32_t blocks_per_chunk = 128;
 

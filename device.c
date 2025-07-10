@@ -45,9 +45,8 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
 
     float sum_taps = 0; /* sum of absolute tap values; used to scale coefficients to avoid overflow */
     for (unsigned i = 0; i < halfband_ntaps / 2; ++i) {
-        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0) {
+        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0)
             return LPCSDR_ERROR_BAD_ARGUMENT; /* doesn't follow the expected halfband filter structure */
-        }
         if (halfband_taps[i] != halfband_taps[halfband_ntaps - i - 1])
             return LPCSDR_ERROR_BAD_ARGUMENT; /* must be symmetric */
         if (fabs(halfband_taps[i]) > fabs(center_tap))
@@ -57,17 +56,11 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
 
     sum_taps += center_tap;
 
-    /* pad at both ends of the filter so the total number of taps is a multiple of 8 + 1, so we get a multiple of 4 taps for the primary filter */
-    unsigned halfpad = 0;
-    if (halfband_ntaps % 8 != 1) /* possible values: 1, 3, 5, 7 */
-        halfpad = (9 - halfband_ntaps % 8) / 2;
-
     struct lpcsdr_decimate *decimate;
     if (!(decimate = calloc(1, sizeof(*decimate))))
         return LPCSDR_ERROR_NO_MEMORY;
 
-    /* excluding the center tap, we have an exact multiple of 8 taps; half of them are zero and will be discarded */
-    decimate->ntaps = (halfpad + halfband_ntaps + halfpad - 1) / 2;
+    decimate->ntaps = halfband_ntaps;
     decimate->history_max = decimate->ntaps * 2 + 2;
 
     if (!(decimate->taps = malloc(decimate->ntaps * sizeof(int16_t))) || !(decimate->history = malloc(decimate->history_max * sizeof(cs16_t)))) {
@@ -78,23 +71,9 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
     /* scale taps so that the output cannot ever overflow a Q15 representation */
     float scale = 32767 / sum_taps;
     for (unsigned i = 0; i < decimate->ntaps; ++i) {
-        int source = i * 2 + 1 - halfpad;
-        if (source >= 0 && source < halfband_ntaps) {
-            decimate->taps[i] = (int16_t)(halfband_taps[source] * scale + 0.5);
-            printf("halfband scale factor %f and add 0.5. source %d %d \n", scale, source, decimate->taps[i]);
-        }
-        else {
-            printf("zero index %d \n", i);
-            decimate->taps[i] = 0;
-        }
+        decimate->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
     }
 
-    for (uint16_t x = 0; x < decimate->ntaps; x++) {
-        printf("tap %d %d \n ", x, decimate->taps[x]);
-    }
-
-    decimate->center_tap = (int16_t)(center_tap * scale + 0.5);
-    printf("scaling taps \n");
     lpcsdr_dsp_decimate_reset(decimate);
     *result = decimate;
     return LPCSDR_SUCCESS;

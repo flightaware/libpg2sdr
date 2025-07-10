@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 typedef struct {
-    int16_t i;
-    int16_t q;
+    double i;
+    double q;
 } __attribute__((packed)) cs16_t;
 
 typedef struct {
