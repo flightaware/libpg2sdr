@@ -95,4 +95,4 @@ int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
 void lpcsdr_dsp_decimate_free(struct lpcsdr_decimate *decimate);
 
-int lpcsdr_capture_adc_output(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, int16_t **adc_capture, uint32_t *adc_capture_length);
+int lpcsdr_read(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, uint8_t **out, uint32_t *out_length, char *output_to_file);

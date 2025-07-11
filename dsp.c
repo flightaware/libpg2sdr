@@ -9,17 +9,14 @@ float lpcsdr_standard_filter_taps[] = {
 
 unsigned lpcsdr_standard_filter_ntaps = sizeof(lpcsdr_standard_filter_taps) / sizeof(lpcsdr_standard_filter_taps[0]);
 
-int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, int16_t *adc_capture_data, uint32_t adc_capture_data_length, cs16_t **out, uint32_t required_samples, uint16_t *output_to_file) {
+int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples_per_block, int16_t *adc_capture_data, uint32_t adc_capture_data_length, cs16_t **out, uint32_t required_samples, const char *output_file_path) {
     int error = LPCSDR_SUCCESS;
-
     const unsigned ntaps = decimate->ntaps;
     const int16_t *taps = decimate->taps;
     cs16_t *history = decimate->history;
     const unsigned history_len = decimate->history_len;
     const unsigned history_max = decimate->history_max;
     const int16_t center_tap = decimate->center_tap;
-
-    uint32_t samples_per_block = 13616/2;
 
     double complex c_signal[samples_per_block];
 
@@ -67,11 +64,14 @@ int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, int16_t *adc_cap
 
     }
     
-    if (output_to_file != NULL && *output_to_file == 1) {
-        FILE *file = fopen("liblpcsdr-decimate-output.tsv", "w");
+    if (output_file_path) {
+        FILE *file = fopen(output_file_path, "w");
         for (int i = 0; i < out_index; i++) {
+            // printf("%f,%f %d %d\n", (values[i].i), (values[i].q), i, out_index);
             fprintf(file, "%f,%f\n", (values[i].i), (values[i].q));
         }
+
+        fclose(file);
     }
 
     *out = values;

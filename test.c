@@ -1,34 +1,45 @@
-#include "internal.h"
-#include <stdlib.h>
-#include <endian.h>
-#include <stdio.h>
+#include "test.h"
 
-int close_handle(lpcsdr_device_handle **handle);
-int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle);
-int test_calculate_adc_clock_divisors();
-int test_transfer_start_and_capture(lpcsdr_device_handle *handle);
+int test_read(lpcsdr_device_handle *handle) {
 
-static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message) { fprintf(stderr, "lpcsdr: %s\n", message); }
+    ep0_in_board_status_t *status;
 
-int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
-    // lpcsdr_capture(handle, 10, (uint32_t) 9.6e6);
+    lpcsdr_start_transfer(handle, 9600000);
 
-    FILE* file = fopen("./python-capture.tsv", "r");
-    if (file == NULL) {
-        printf("file is null");
-        return -1;
+    lpcsdr_get_status(handle, &status);
+
+    uint32_t num_samples = 960000 * 2;
+    uint8_t *out = calloc(sizeof(uint8_t), num_samples);
+    uint32_t out_length;
+
+    int error = lpcsdr_read(handle, status, num_samples, &out, &out_length, "test_read");
+    if (error < 0) {
+        printf("%d \n", error);
     }
+}
+
+int get_unpacked_adc_data_for_baseband_decimation(const char *file_path, int16_t **test_data, uint32_t num_lines) {
+
+    if (file_path == NULL) {
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+    }
+
+    int16_t *buffer = calloc(num_lines, sizeof(int16_t));
+    uint32_t cursor = 0;
     char line[100];
-    int16_t test[1926663];
-    uint64_t x = 0;
-    // fgets(line, 100, file);
-    while (fgets(line, sizeof(line), file)) {
+
+    FILE* file = fopen(file_path, "r");
+    if (file == NULL) {
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+    }
+
+    while (fgets(line, sizeof(line), file) && cursor < num_lines) {
         
         uint16_t index = 0;
         while (index < 30 && line[index] != '\t')
-            index+=1;
+            index++;
         index++;
-        // printf("fill line %s %d \n", line, index);
+
         if (line[index] == '-') {
             uint16_t end = index;
             char slicedFoo[7];
@@ -36,23 +47,57 @@ int test_transfer_start_and_capture(lpcsdr_device_handle *handle) {
             while (line[index] != '\0') {
                 slicedFoo[f++] = line[index++];
             }
+            buffer[cursor] = atoi(slicedFoo);
+        } else {
 
-            // printf("negative %s \n", slicedFoo);
-            test[x] = atoi(slicedFoo);
-        }else {
-
-            test[x] = (line[index] - '0');
+            buffer[cursor] = (line[index] - '0');
         }
-        // printf("test %d %d %c\n", x, test[x] ,line[index]);
-        x++;
+        cursor++;
     }
-    // printf("%d\n", test[0]);
-    // return -1;
+
+    *test_data = buffer;
+
     fclose(file);
-    cs16_t *out;
-    uint16_t output_to_file = 1;
-    lpcsdr_decimate_complex_baseband(handle->decimation_filter, test, 1926663, &out, 960000, &output_to_file);
-    return -1;
+    return LPCSDR_SUCCESS;
+
+}
+
+int test_complex_baseband_decimation(lpcsdr_device_handle *handle) {
+    int error = LPCSDR_SUCCESS;
+
+    baseband_decimation_test_case test_cases[] = {
+        {
+            .name = "Complex Baseband Decimation: Default Test Case",
+            .decimate = handle->decimation_filter,
+            .num_lines = 1926663,
+            .usb_samples_per_block = 13616/2,
+            .required_samples = 960000,
+            .input_file_path = "./python-capture.tsv",
+            .output_file_path = "test_data.tsv"
+        }
+    };
+
+    for (uint32_t current_test_case = 0; current_test_case < sizeof(test_cases)/sizeof(test_cases[0]); current_test_case++) {
+
+        lpcsdr_decimate *decimate = test_cases[current_test_case].decimate;
+        uint32_t num_lines = test_cases[current_test_case].num_lines;
+        uint32_t usb_samples_per_block = test_cases[current_test_case].usb_samples_per_block;
+        uint32_t required_samples = test_cases[current_test_case].required_samples;
+        const char *input_file_path = test_cases[current_test_case].input_file_path;
+        const char *output_file_path = test_cases[current_test_case].output_file_path;
+        int16_t *test_data;
+        cs16_t *out;
+
+        if ((error = get_unpacked_adc_data_for_baseband_decimation(input_file_path, &test_data, num_lines)) < 0) {
+            printf("Baseband decimation: Could not get data for %s", error);
+            return error;
+        }   
+
+        if ((error = lpcsdr_decimate_complex_baseband(decimate, usb_samples_per_block, test_data, num_lines, &out, required_samples, output_file_path)) < 0) {
+            return error;
+        }
+    }
+    return error;
 }
 
 int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle) {
@@ -125,6 +170,8 @@ int main(int argc, char **argv) {
     if (initialize_handle(argc, argv, &handle) < 0)
         printf("Initialize handle failed\n");
 
-    test_transfer_start_and_capture(handle);
+    test_complex_baseband_decimation(handle);
+
+    // test_transfer_start_and_capture(handle);
     close_handle(&handle);
 }
