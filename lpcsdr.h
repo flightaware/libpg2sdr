@@ -10,6 +10,7 @@
 #include <endian.h>
 #include <string.h>
 #include <errno.h>
+#include "lpcsdr_protocol.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -226,10 +227,12 @@ int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_hand
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
 // Setting various peripherals
-int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency);
+int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
 int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **int_divisors, pll_divisors **frac_divisors);
+int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, uint8_t **out, uint32_t *out_length, const char *output_file_path);
+int unpack_raw_adc_data(lpcsdr_device_handle *handle, ep0_in_board_status_t *status, uint8_t *in, uint32_t in_length, uint32_t num_samples, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
 
 #if defined(__cplusplus)
 }

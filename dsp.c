@@ -9,7 +9,7 @@ float lpcsdr_standard_filter_taps[] = {
 
 unsigned lpcsdr_standard_filter_ntaps = sizeof(lpcsdr_standard_filter_taps) / sizeof(lpcsdr_standard_filter_taps[0]);
 
-int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples_per_block, int16_t *adc_capture_data, uint32_t adc_capture_data_length, cs16_t **out, uint32_t required_samples, const char *output_file_path) {
+int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples_per_block, int16_t *in, uint32_t in_length, cs16_t **out, uint32_t required_samples, const char *output_file_path) {
     int error = LPCSDR_SUCCESS;
     const unsigned ntaps = decimate->ntaps;
     const int16_t *taps = decimate->taps;
@@ -36,11 +36,11 @@ int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples
     double complex *mixed = calloc(mixed_length, sizeof(*mixed));
 
     uint32_t mixed_offset = 0;
-    for (uint32_t c_signal_index = 0; mixed_offset < adc_capture_data_length; mixed_offset++, c_signal_index++) {
-        mixed[mixed_offset] = adc_capture_data[mixed_offset] * c_signal[c_signal_index % samples_per_block];
+    for (uint32_t c_signal_index = 0; mixed_offset < in_length; mixed_offset++, c_signal_index++) {
+        mixed[mixed_offset] = in[mixed_offset] * c_signal[c_signal_index % samples_per_block];
     }
 
-    uint32_t complex_baseband_length = adc_capture_data_length - ntaps + 1;
+    uint32_t complex_baseband_length = in_length - ntaps + 1;
     cs16_t *values = calloc(complex_baseband_length, sizeof(cs16_t));
 
     uint32_t window_end = 0;
@@ -61,14 +61,15 @@ int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples
 
         values[out_index].i = (i_sum);
         values[out_index].q = (q_sum);
-
     }
     
     if (output_file_path) {
         FILE *file = fopen(output_file_path, "w");
-        for (int i = 0; i < out_index; i++) {
-            // printf("%f,%f %d %d\n", (values[i].i), (values[i].q), i, out_index);
-            fprintf(file, "%f,%f\n", (values[i].i), (values[i].q));
+        if (file == NULL) {
+            printf("Could not output to file %s\n", output_file_path);
+        } else {
+            for (int i = 0; i < out_index; i++)
+                fprintf(file, "%f,%f\n", (values[i].i), (values[i].q));
         }
 
         fclose(file);

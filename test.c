@@ -2,23 +2,25 @@
 
 int test_read(lpcsdr_device_handle *handle) {
 
-    ep0_in_board_status_t *status;
+    // ep0_in_board_status_t *status;
 
-    lpcsdr_start_transfer(handle, 9600000);
+    // lpcsdr_start_transfer(handle, 9600000);
 
-    lpcsdr_get_status(handle, &status);
+    // lpcsdr_get_status(handle, &status);
 
-    uint32_t num_samples = 960000 * 2;
-    uint8_t *out = calloc(sizeof(uint8_t), num_samples);
-    uint32_t out_length;
+    // uint32_t num_samples = 960000 * 2;
+    // uint8_t *out;
+    // uint32_t out_length;
 
-    int error = lpcsdr_read(handle, status, num_samples, &out, &out_length, "test_read");
-    if (error < 0) {
-        printf("%d \n", error);
-    }
+    // int error = lpcsdr_read(handle, status, num_samples, &out, &out_length, "test_read");
+    // if (error < 0) {
+    //     printf("%d \n", error);
+    // }
+
+    return -1;
 }
 
-int get_unpacked_adc_data_for_baseband_decimation(const char *file_path, int16_t **test_data, uint32_t num_lines) {
+int read_unpacked_file(const char *file_path, int16_t **test_data, uint32_t num_lines) {
 
     if (file_path == NULL) {
         return LPCSDR_ERROR_BAD_ARGUMENT;
@@ -59,50 +61,68 @@ int get_unpacked_adc_data_for_baseband_decimation(const char *file_path, int16_t
 
     fclose(file);
     return LPCSDR_SUCCESS;
-
 }
 
-int test_complex_baseband_decimation(lpcsdr_device_handle *handle) {
+int read_complex_baseband_file(const char *file_path, cs16_t **out) {
+    return LPCSDR_ERROR_NOT_IMPLEMENTED;
+}
+
+int test_complex_baseband_decimation() {
     int error = LPCSDR_SUCCESS;
 
+    lpcsdr_decimate *default_filter;
+
+    assert(lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &default_filter) == LPCSDR_SUCCESS);
     baseband_decimation_test_case test_cases[] = {
         {
-            .name = "Complex Baseband Decimation: Default Test Case",
-            .decimate = handle->decimation_filter,
+            .name = "Default Test Case",
+            .decimate = default_filter,
             .num_lines = 1926663,
             .usb_samples_per_block = 13616/2,
             .required_samples = 960000,
-            .input_file_path = "./python-capture.tsv",
-            .output_file_path = "test_data.tsv"
+            .input_file_path = "./test_files/inputs/default-test-case-input.tsv",
+            .output_file_path = "./test_files/outputs/default-test-case-output.tsv",
+            .expected_file_path = "./test_files/expected_outputs/defaut-test-case-expected.tsv"
         }
     };
 
     for (uint32_t current_test_case = 0; current_test_case < sizeof(test_cases)/sizeof(test_cases[0]); current_test_case++) {
+        printf("Complex Baseband Decimation Tests \n");
 
+        char *name = test_cases[current_test_case].name;
         lpcsdr_decimate *decimate = test_cases[current_test_case].decimate;
         uint32_t num_lines = test_cases[current_test_case].num_lines;
         uint32_t usb_samples_per_block = test_cases[current_test_case].usb_samples_per_block;
         uint32_t required_samples = test_cases[current_test_case].required_samples;
         const char *input_file_path = test_cases[current_test_case].input_file_path;
         const char *output_file_path = test_cases[current_test_case].output_file_path;
-        int16_t *test_data;
+        const char *expected_file_path = test_cases[current_test_case].expected_file_path;
+        cs16_t *test_data;
         cs16_t *out;
 
-        if ((error = get_unpacked_adc_data_for_baseband_decimation(input_file_path, &test_data, num_lines)) < 0) {
-            printf("Baseband decimation: Could not get data for %s", error);
-            return error;
-        }   
-
-        if ((error = lpcsdr_decimate_complex_baseband(decimate, usb_samples_per_block, test_data, num_lines, &out, required_samples, output_file_path)) < 0) {
+        if (input_file_path != NULL && (error = read_unpacked_file(input_file_path, &test_data, num_lines)) < 0) {
+            printf("Could not get data for test case %s. Got error %s\n", name, error);
             return error;
         }
+
+        if ((error = lpcsdr_decimate_complex_baseband(decimate, usb_samples_per_block, test_data, num_lines, &out, required_samples, output_file_path)) < 0) {
+            printf("Could not complete decimation for %s. Got error  %s\n", name, error);
+            return error;
+        }
+
+        if ((error = read_complex_baseband_file(expected_file_path, &test_data))< 0) {
+            // printf("Could not read for %s. Got error  %s\n", name, error);
+            return error;
+        }
+
+
     }
     return error;
 }
 
 int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle) {
     lpcsdr_context *ctx;
-    int error;
+    int error = LPCSDR_SUCCESS;
     if ((error = lpcsdr_init(&ctx) < 0)) {
         printf("Error initing lpc_context\n");
         return -1;
@@ -128,16 +148,16 @@ int initialize_handle(int argc, char **argv, lpcsdr_device_handle **handle) {
 
     *handle = h;
    
-    return 1;
+    return error;
 }
 
 int close_handle(lpcsdr_device_handle **handle) {
-    int error;
+    int error = LPCSDR_SUCCESS;
     if ((error = lpcsdr_close_device(*handle)) < 0){
         fprintf(stderr, "lpcsdr_close_single_device: %s\n", lpcsdr_strerror(NULL, error));
-        return -1;
+        return error;
     }
-    return 1;
+    return error;
 }
 
 int test_calculate_adc_clock_divisors() {
@@ -164,14 +184,14 @@ int test_calculate_adc_clock_divisors() {
 }
 
 int main(int argc, char **argv) {
-    if (test_calculate_adc_clock_divisors() < 0)
-        printf("Calculating target frequency dividers failed\n");
+    assert(test_calculate_adc_clock_divisors() == LPCSDR_SUCCESS);
+
     lpcsdr_device_handle *handle;
-    if (initialize_handle(argc, argv, &handle) < 0)
-        printf("Initialize handle failed\n");
+    assert(initialize_handle(argc, argv, &handle) == LPCSDR_SUCCESS);
 
-    test_complex_baseband_decimation(handle);
+    // test_read(handle);
+    lpcsdr_capture(handle, 960000, 9600000, 8);
+    // assert(test_complex_baseband_decimation() == LPCSDR_SUCCESS);
 
-    // test_transfer_start_and_capture(handle);
     close_handle(&handle);
 }
