@@ -1,5 +1,13 @@
 .vscode
+.DS_Store
+*.tsv
 *.o
 test
 libsdr.a
 build/
+debug/
+local/
+
+src/CMake*
+tests/CMake*
+CTestTestfile.cmake
