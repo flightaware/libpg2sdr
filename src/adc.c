@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include "internal.h"
 
-uint32_t n_divisors_length;
+uint32_t n_divisors_length = 256;
 uint32_t *n_divisors;
 
-uint32_t p_divisors_length;
+uint32_t p_divisors_length = 33;
 uint32_t *p_divisors;
 
-uint32_t i_divisors_length;
+uint32_t i_divisors_length = 256;
 uint32_t *i_divisors;
 
 uint32_t **p_i_divisors_map;
@@ -58,18 +58,13 @@ int candidate_is_better(pll_divisors *current_best, pll_divisors *candidate, uin
         return !(current_best->m <= candidate->m * 4);
 }
 
-int init_adc_divisors() {
-    return init_adc_divisor_tables(&n_divisors, &n_divisors_length, &p_divisors, &p_divisors_length, &i_divisors, &i_divisors_length, &p_i_divisors_map);
+int init_global_adc_divisor_tables() {
+    return calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map);
 }
 
-int init_adc_divisor_tables(uint32_t **n_out, uint32_t *n_length, uint32_t **p_out, uint32_t *p_length, uint32_t **i_out, uint32_t *i_length, uint32_t ***p_i_divisor_out) {
-    uint32_t n_divisors_length = 256;
+int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisor_out) {
     uint32_t *n_divisors = calloc(n_divisors_length, sizeof(uint32_t));
-
-    uint32_t p_divisors_length = 33;
     uint32_t *p_divisors = calloc(p_divisors_length, sizeof(uint32_t));
-    
-    uint32_t i_divisors_length = 256;
     uint32_t *i_divisors = calloc(i_divisors_length, sizeof(uint32_t));
 
     n_divisors[0] = 0;
@@ -87,15 +82,8 @@ int init_adc_divisor_tables(uint32_t **n_out, uint32_t *n_length, uint32_t **p_o
 
     uint32_t largest_p_divisor = p_divisors[p_divisors_length - 1];
     uint32_t largest_i_divisor = i_divisors[i_divisors_length - 1];
-
-
     uint32_t num_divisors = effective_p_divisor(largest_p_divisor) * effective_i_divisor(largest_i_divisor);
     num_divisors += 1;
-
-    printf("Num divisors %u \n", num_divisors);
-
-    //[num_divisors][2]
-    // /uint32_t **p_i_divisors_map;
 
     uint32_t **p_i_divisors_map = (uint32_t **) calloc(num_divisors, sizeof(uint32_t *));
 
@@ -103,9 +91,6 @@ int init_adc_divisor_tables(uint32_t **n_out, uint32_t *n_length, uint32_t **p_o
         p_i_divisors_map[current_pair] = calloc(2, sizeof(uint32_t));
         memset(p_i_divisors_map[current_pair], UINT16_MAX, 2 * sizeof(uint32_t));
     }
-
-
-    printf("123\n");
 
     for (uint16_t p = 0; p < p_divisors_length; p++) {
         for (uint16_t i = 0; i < i_divisors_length; i++) {
@@ -117,17 +102,9 @@ int init_adc_divisor_tables(uint32_t **n_out, uint32_t *n_length, uint32_t **p_o
         }
     }
 
-    // for(uint16_t i = 0; i < num_divisors; i++) {
-    //     if (p_i_divisors_map[i][0] == UINT16_MAX || p_i_divisors_map[i][1] == UINT16_MAX)
-    //         printf("p i map %u %u\n", p_i_divisors_map[i][0], p_i_divisors_map[i][1]);
-    // }
-
     *n_out = n_divisors;
-    *n_length = n_divisors_length;
     *p_out = p_divisors;
-    *p_length = p_divisors_length;
     *i_out = i_divisors;
-    *i_length = i_divisors_length;
     *p_i_divisor_out = p_i_divisors_map;
 
     return LPCSDR_SUCCESS;
@@ -187,9 +164,7 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
             else if (test_fcco > max_fcco)
                 scaled_m -= 1;
 
-
             uint32_t fractional_m =  scaled_m / (1<<15);
-
             uint32_t actual_fcco = 2 * fractional_m * reference_frequency;
             uint32_t actual_frequency = actual_fcco / s;
             double error = (abs(actual_frequency - target_frequency));
@@ -204,11 +179,9 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
                 .actual_fcco = actual_fcco,
                 .actual_frequency = actual_frequency,
             };
-
             if (candidate_is_better(current_best, &candidate, min_fcco, max_fcco, minimize_error, error_threshold)) {
                 populate_new_current_best(&current_best, &candidate);
             }
-
         }
 
 
@@ -230,15 +203,11 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
                 .actual_fcco = actual_fcco,
                 .actual_frequency = actual_frequency,
             };
-
-            printf("current_best pointer %u candidate pointer %u \n", current_best, &candidate);
-
             if (candidate_is_better(current_best, &candidate, min_fcco, max_fcco, minimize_error, error_threshold)) {
                 populate_new_current_best(&current_best, &candidate);
             }
         }
     }
     *divisors = current_best;
-
     return LPCSDR_SUCCESS;
 }

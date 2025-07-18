@@ -8,4 +8,4 @@ add_compile_definitions(BINDIR="${CMAKE_BINARY_DIR}")
 ## Add the tests
 add_executable(adc_tests.exe adc_test.cc ${CMAKE_SOURCE_DIR}/src/adc.c)
 target_link_libraries(adc_tests.exe GTest::gtest_main)
-add_test(NAME adc_tests COMMAND adc_tests)
+add_test(NAME adc_tests.exe COMMAND adc_tests.exe)

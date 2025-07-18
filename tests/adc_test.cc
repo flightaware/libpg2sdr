@@ -1,11 +1,224 @@
 #include <gtest/gtest.h>
+using namespace std;
 
 extern "C" { /* Because our code is in C */
   #include "internal.h"
 }
 
-TEST (ADCTest, Test) {
-    EXPECT_EQ(init_adc_divisors(), LPCSDR_SUCCESS);
+struct candidate_is_better_test_case {
+    string name;
+    pll_divisors *current_best;
+    pll_divisors *candidate;
+    uint32_t min_fcco;
+    uint32_t max_fcco;
+    bool minimize_error;
+    float error_threshold;
+    bool expected;
+} typedef candidate_is_better_test_case;
+
+TEST(ADCTEST, Test_candidate_is_better) {
+    candidate_is_better_test_case test_cases[10] = {
+        {
+            .name = "candidate actual_fcco below min",
+            .current_best = NULL,
+            .candidate = new pll_divisors{
+                .actual_fcco = 0,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 0,
+            .expected = false
+        },
+        {
+            .name = "candidate actual_fcco above max",
+            .current_best = NULL,
+            .candidate = new pll_divisors{
+                .actual_fcco = 7,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 0,
+            .expected = false
+        },
+        {
+            .name = "candidate not fractional, m < 1",
+            .current_best = NULL,
+            .candidate = new pll_divisors{
+                .fractional = false,
+                .m = -1,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 0,
+            .expected = false
+        },
+        {
+            .name = "candidate fractional, m < fixed_point",
+            .current_best = NULL,
+            .candidate = new pll_divisors{
+                .fractional = true,
+                .m = .00000000000000001,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 0,
+            .expected = false
+        },
+        {
+            .name = "error > error_threshold",
+            .current_best = NULL,
+            .candidate = new pll_divisors{
+                .fractional = false,
+                .m = 2,
+                .error = 5,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 1,
+            .expected = false
+        },
+        {
+            .name = "candidate is good, current is null",
+            .current_best = NULL,
+            .candidate = new pll_divisors{
+                .fractional = false,
+                .m = 2,
+                .error = 1,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 2,
+            .expected = true
+        },
+        {
+            .name = "candidate error < current best error",
+            .current_best = new pll_divisors{
+                .error = 5,
+            },
+            .candidate = new pll_divisors{
+                .fractional = false,
+                .m = 2,
+                .error = 1,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = true,
+            .error_threshold = 2,
+            .expected = true
+        },
+        {
+            .name = "same type, candidate m < current best m",
+            .current_best = new pll_divisors{
+                .fractional = true,
+                .m = 10,
+                .error = 5,
+            },
+            .candidate = new pll_divisors{
+                .fractional = false,
+                .m = 2,
+                .error = 1,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 2,
+            .expected = true
+        },
+        {
+            .name = "current_best fractional, candidate m <= current best m * 4",
+            .current_best = new pll_divisors{
+                .fractional = true,
+                .m = 4,
+                .error = 5,
+            },
+            .candidate = new pll_divisors{
+                .fractional = false,
+                .m = 1,
+                .error = 1,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 2,
+            .expected = true
+        }, 
+        {
+            .name = "candidate integer, not candidate m <= current best m * 4",
+            .current_best = new pll_divisors{
+                .fractional = false,
+                .m = 4,
+                .error = 5,
+            },
+            .candidate = new pll_divisors{
+                .fractional = true,
+                .m = 1,
+                .error = 1,
+                .actual_fcco = 3,
+            },
+            .min_fcco = 1,
+            .max_fcco = 5,
+            .minimize_error = false,
+            .error_threshold = 2,
+            .expected = false
+        }
+    };
+    
+    for (uint16_t cur = 0; cur < sizeof(test_cases)/sizeof(test_cases[0]); cur++) {
+        candidate_is_better_test_case t = test_cases[cur];
+        printf("Tests %s\n",t.name.c_str());
+        EXPECT_EQ(candidate_is_better(t.current_best, t.candidate, t.min_fcco, t.max_fcco, t.minimize_error, t.error_threshold), t.expected);
+    }
+}
+
+TEST(ADCTEST, Test_calculate_adc_divisor_tables) {
+
+    uint32_t *n_divisors;
+    uint32_t *p_divisors;
+    uint32_t *i_divisors;
+
+    uint32_t **p_i_divisors_map;
+
+    uint32_t expected_n_i_divisor_length = 256;
+    uint32_t expected_p_divisor_length = 33;
+    uint32_t expected_n_i_divisors[expected_n_i_divisor_length] = {0};
+    for (uint32_t n = 1; n < expected_n_i_divisor_length; n++)
+        expected_n_i_divisors[n] = n + 1;
+
+    uint32_t expected_p_dividers[expected_p_divisor_length] = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 
+        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+
+    EXPECT_EQ(calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map), LPCSDR_SUCCESS);
+
+    for (uint32_t n = 0; n < 33; n++){
+        EXPECT_EQ(p_divisors[n], expected_p_dividers[n]);
+    }
+
+    for (uint32_t index = 0; index < 256; index++){
+        EXPECT_EQ(n_divisors[index], expected_n_i_divisors[index]);
+        EXPECT_EQ(i_divisors[index], expected_n_i_divisors[index]);
+    }
+
+    //TODO CHECK p_i_divisor_map
+
+}
+
+TEST(ADCTest, Test_calculate_adc_clock_divisors) {
+    EXPECT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
     uint32_t target_frequency = 5200000; //hz
 
     pll_divisors *int_divisors;

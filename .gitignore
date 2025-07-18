@@ -6,8 +6,10 @@ test
 libsdr.a
 build/
 debug/
-local/
+local_build/
 
 src/CMake*
+src/Makefile
 tests/CMake*
+tests/Makefile
 CTestTestfile.cmake

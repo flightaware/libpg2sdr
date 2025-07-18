@@ -86,8 +86,10 @@ int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
 int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t **status);
 
-int init_adc_divisors();
+int init_global_adc_divisor_tables();
+int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisor_out);
 int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon);
+int candidate_is_better(pll_divisors *current_best, pll_divisors *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold);
 
 int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
