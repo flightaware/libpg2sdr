@@ -1,25 +1,5 @@
 #include "test.h"
 
-int test_read(lpcsdr_device_handle *handle) {
-
-    // ep0_in_board_status_t *status;
-
-    // lpcsdr_start_transfer(handle, 9600000);
-
-    // lpcsdr_get_status(handle, &status);
-
-    // uint32_t num_samples = 960000 * 2;
-    // uint8_t *out;
-    // uint32_t out_length;
-
-    // int error = lpcsdr_read(handle, status, num_samples, &out, &out_length, "test_read");
-    // if (error < 0) {
-    //     printf("%d \n", error);
-    // }
-
-    return -1;
-}
-
 int read_unpacked_file(const char *file_path, int16_t **test_data, uint32_t num_lines) {
 
     if (file_path == NULL) {
@@ -63,26 +43,20 @@ int read_unpacked_file(const char *file_path, int16_t **test_data, uint32_t num_
     return LPCSDR_SUCCESS;
 }
 
-int read_complex_baseband_file(const char *file_path, cs16_t **out) {
-    return LPCSDR_ERROR_NOT_IMPLEMENTED;
-}
-
-int test_complex_baseband_decimation() {
+int test_complex_baseband_decimation_with_files() {
     int error = LPCSDR_SUCCESS;
 
     lpcsdr_decimate *default_filter;
-
     assert(lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &default_filter) == LPCSDR_SUCCESS);
-    baseband_decimation_test_case test_cases[] = {
+    baseband_decimation_test_case_with_file test_cases[] = {
         {
             .name = "Default Test Case",
             .decimate = default_filter,
             .num_lines = 1926663,
             .usb_samples_per_block = 13616/2,
             .required_samples = 960000,
-            .input_file_path = "./test_files/inputs/default-test-case-input.tsv",
-            .output_file_path = "./test_files/outputs/default-test-case-output.tsv",
-            .expected_file_path = "./test_files/expected_outputs/defaut-test-case-expected.tsv"
+            .input_file_path = "../test_files/inputs/default-test-case-input.tsv",
+            .output_file_path = "../test_files/outputs/default-test-case-output.tsv",
         }
     };
 
@@ -96,7 +70,6 @@ int test_complex_baseband_decimation() {
         uint32_t required_samples = test_cases[current_test_case].required_samples;
         const char *input_file_path = test_cases[current_test_case].input_file_path;
         const char *output_file_path = test_cases[current_test_case].output_file_path;
-        const char *expected_file_path = test_cases[current_test_case].expected_file_path;
         cs16_t *test_data;
         cs16_t *out;
 
@@ -109,13 +82,6 @@ int test_complex_baseband_decimation() {
             printf("Could not complete decimation for %s. Got error  %s\n", name, error);
             return error;
         }
-
-        if ((error = read_complex_baseband_file(expected_file_path, &test_data))< 0) {
-            // printf("Could not read for %s. Got error  %s\n", name, error);
-            return error;
-        }
-
-
     }
     return error;
 }
@@ -166,13 +132,15 @@ int test_calculate_adc_clock_divisors() {
     pll_divisors *int_divisors;
     pll_divisors *frac_divisors;
     int error;
-    if ((error = calculate_adc_clock_divisors(target_frequency, &int_divisors, &frac_divisors)) < 0)
+
+    if ((error = calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, NULL)) < 0)
+        return -1;
+    if ((error = calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, NULL)) < 0)
         return -1;
 
-
     printf("Target Frequency %u\n", target_frequency );
-    printf("Int Frequency N %u, M %u, P %u, I %u. \n", int_divisors->n, int_divisors->m, int_divisors->p, int_divisors->i);
-    printf("Freq Frequency N %u, M %u, P %u, I %u. \n", frac_divisors->n, frac_divisors->m, frac_divisors->p, frac_divisors->i);
+    printf("Int Frequency N %u, M %f, P %u, I %u. \n", int_divisors->n, int_divisors->m, int_divisors->p, int_divisors->i);
+    printf("Frac Frequency N %u, M %f, P %u, I %u. \n", frac_divisors->n, frac_divisors->m, frac_divisors->p, frac_divisors->i);
 
     if (int_divisors->error != 0 && int_divisors->i != 0 && int_divisors->m != 13 && int_divisors->n != 0 && int_divisors->p != 30)
         return -1;
@@ -183,15 +151,23 @@ int test_calculate_adc_clock_divisors() {
     return LPCSDR_SUCCESS;
 }
 
-int main(int argc, char **argv) {
+int test_adc() {
+    assert(init_adc_divisors() == LPCSDR_SUCCESS);
+    printf("yayyy\n");
     assert(test_calculate_adc_clock_divisors() == LPCSDR_SUCCESS);
 
+    return LPCSDR_SUCCESS;
+}
+
+int main(int argc, char **argv) {
+
     lpcsdr_device_handle *handle;
-    assert(initialize_handle(argc, argv, &handle) == LPCSDR_SUCCESS);
+    // assert(initialize_handle(argc, argv, &handle) == LPCSDR_SUCCESS);
 
     // test_read(handle);
-    lpcsdr_capture(handle, 960000, 9600000, 8);
-    // assert(test_complex_baseband_decimation() == LPCSDR_SUCCESS);
+    // lpcsdr_capture(handle, 960000, 9600000, 8);
+    assert(test_complex_baseband_decimation_with_files() == LPCSDR_SUCCESS);
+    assert(test_adc() == LPCSDR_SUCCESS);
 
-    close_handle(&handle);
+    // close_handle(&handle);
 }

@@ -22,17 +22,8 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
     return LPCSDR_ERROR_NOT_FOUND;
 }
 
-void lpcsdr_dsp_decimate_reset(struct lpcsdr_decimate *decimate)
-{
-    if (!decimate)
-        return;
 
-    memset_elements(decimate->history, 0, decimate->history_max);
-    decimate->history_len = decimate->ntaps - 1;
-}
-
-
-int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, struct lpcsdr_decimate **result)
+int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, lpcsdr_decimate **result)
 {
 
     if (halfband_ntaps % 2 != 1)

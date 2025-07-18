@@ -32,6 +32,8 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define memset_elements(_dst, _val, _count) memset((_dst), (_val), (_count) * sizeof((_dst)[0]))
+#define memmove_elements(_dst, _src, _count) memmove((_dst), (_src), (_count) * sizeof((_dst)[0]))
+#define memcpy_elements(_dst, _src, _count) memcpy((_dst), (_src), (_count) * sizeof((_dst)[0]))
 
 
 struct lpcsdr_context {
@@ -84,14 +86,9 @@ int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
 int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t **status);
 
-
-int n_value(uint32_t n);
-int i_value(uint32_t n);
-int p_value(uint32_t n);
-int divider_comparator(int error, int n, pll_divisors *b);
+int init_adc_divisors();
+int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon);
 
 int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
 void lpcsdr_dsp_decimate_free(struct lpcsdr_decimate *decimate);
-
-int lpcsdr_read(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, uint8_t **out, uint32_t *out_length, const char *output_file_path);

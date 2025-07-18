@@ -61,7 +61,7 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
 
     // pxsdr_free_blocks(dev);
     // pxsdr_free_decimators(dev);
-    // pxsdr_dsp_ifir_free(dev->baseband_filter);
+    // lpcsdr_dsp_ifir_free(dev->baseband_filter);
     // pxsdr_dsp_decimate_free(dev->decimation_filter);
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;

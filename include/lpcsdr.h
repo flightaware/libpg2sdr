@@ -200,11 +200,16 @@ struct lpcsdr_device_handle {
 
 typedef struct pll_divisors pll_divisors;
 struct pll_divisors {
-    uint32_t error;
+    bool fractional;
+
     uint32_t n;
-    uint32_t m;
+    float m;
     uint32_t p;
     uint32_t i;
+
+    float error;
+    float actual_fcco;
+    float actual_frequency;
 };
 
 int lpcsdr_init(lpcsdr_context **ctx);
@@ -230,9 +235,8 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
 int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
-int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **int_divisors, pll_divisors **frac_divisors);
-int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint32_t num_samples, uint8_t **out, uint32_t *out_length, const char *output_file_path);
-int unpack_raw_adc_data(lpcsdr_device_handle *handle, ep0_in_board_status_t *status, uint8_t *in, uint32_t in_length, uint32_t num_samples, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
+int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint8_t *out, uint32_t total, const char *output_file_path);
+int unpack_raw_adc_data(lpcsdr_device_handle *handle, ep0_in_board_status_t *status, uint8_t *in, uint32_t in_length, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
 
 #if defined(__cplusplus)
 }
