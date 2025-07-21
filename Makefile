@@ -1,8 +1,7 @@
 # Heard you like Makefiles. So I made a Makefile to call your CMake files
 
 clean:
-	rm -rf 	cmake -B ./local_build
-
+	rm -rf local_build
 	rm -rf debug
 
 build:

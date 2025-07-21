@@ -12,6 +12,7 @@ uint32_t i_divisors_length = 256;
 uint32_t *i_divisors;
 
 uint32_t **p_i_divisors_map;
+uint32_t p_i_divisors_map_length;
 
 int effective_n_divisor(uint32_t n) {
     return (n > 0) ? n: 1;
@@ -59,10 +60,10 @@ int candidate_is_better(pll_divisors *current_best, pll_divisors *candidate, uin
 }
 
 int init_global_adc_divisor_tables() {
-    return calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map);
+    return calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map, &p_i_divisors_map_length);
 }
 
-int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisor_out) {
+int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisors_out, uint32_t *p_i_divisors_out_length) {
     uint32_t *n_divisors = calloc(n_divisors_length, sizeof(uint32_t));
     uint32_t *p_divisors = calloc(p_divisors_length, sizeof(uint32_t));
     uint32_t *i_divisors = calloc(i_divisors_length, sizeof(uint32_t));
@@ -89,15 +90,18 @@ int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **
 
     for (uint32_t current_pair = 0; current_pair < num_divisors; current_pair++) {
         p_i_divisors_map[current_pair] = calloc(2, sizeof(uint32_t));
-        memset(p_i_divisors_map[current_pair], UINT16_MAX, 2 * sizeof(uint32_t));
+        memset(p_i_divisors_map[current_pair], UINT32_MAX, 2 * sizeof(uint32_t));
     }
 
     for (uint16_t p = 0; p < p_divisors_length; p++) {
         for (uint16_t i = 0; i < i_divisors_length; i++) {
-            uint16_t d = effective_p_divisor(p_divisors[p]) * effective_i_divisor(i_divisors[i]);
+            uint32_t p_divisor = p_divisors[p];
+            uint32_t i_divisor = i_divisors[i];
+
+            uint32_t d = effective_p_divisor(p_divisors[p]) * effective_i_divisor(i_divisors[i]);
             if (i < p_i_divisors_map[d][1]) {
-                p_i_divisors_map[d][0] = p;
-                p_i_divisors_map[d][1] = i;
+                p_i_divisors_map[d][0] = p_divisor;
+                p_i_divisors_map[d][1] = i_divisor;
             }
         }
     }
@@ -105,7 +109,8 @@ int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **
     *n_out = n_divisors;
     *p_out = p_divisors;
     *i_out = i_divisors;
-    *p_i_divisor_out = p_i_divisors_map;
+    *p_i_divisors_out = p_i_divisors_map;
+    *p_i_divisors_out_length = num_divisors;
 
     return LPCSDR_SUCCESS;
 }
@@ -144,8 +149,9 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
 
     pll_divisors *current_best = NULL;
     for (uint32_t s = range_min; s < range_max; s++) {
-        if (p_i_divisors_map[s][0] == UINT32_MAX)
+        if (p_i_divisors_map[s][0] == UINT32_MAX || s > p_i_divisors_map_length) {
             continue;
+        }
 
         uint32_t p = p_i_divisors_map[s][0];
         uint32_t i = p_i_divisors_map[s][1];
