@@ -9,7 +9,6 @@
 4. README
 
 # Development
-export LPCSDR_FIRMWARE_PATH=/media/psf/soapy_shared_folder/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin 
 
 
 ## Initialize lpcsdr_firmware Submodule

@@ -23,7 +23,7 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
 }
 
 
-int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, lpcsdr_decimate **result)
+int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, lpcsdr_decimate **out)
 {
 
     if (halfband_ntaps % 2 != 1)
@@ -66,7 +66,7 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
     }
 
     lpcsdr_dsp_decimate_reset(decimate);
-    *result = decimate;
+    *out = decimate;
     return LPCSDR_SUCCESS;
 }
 
@@ -108,7 +108,7 @@ cleanup_nomutex:
 
 }
 
-void lpcsdr_dsp_decimate_free(struct lpcsdr_decimate *decimate)
+void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate)
 {
     if (!decimate)
         return;

@@ -231,12 +231,12 @@ int lpcsdr_open_by_address(lpcsdr_context *ctx, uint8_t bus, uint8_t address, lp
 int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_handle **device);
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
-// Setting various peripherals
-int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
 int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint8_t *out, uint32_t total, const char *output_file_path);
 int unpack_raw_adc_data(lpcsdr_device_handle *handle, ep0_in_board_status_t *status, uint8_t *in, uint32_t in_length, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
+int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
+
 
 #if defined(__cplusplus)
 }

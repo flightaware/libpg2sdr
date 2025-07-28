@@ -7,7 +7,7 @@ project(liblpcsdr LANGUAGES C CXX)
 # Set the C standard to C11
 set(CMAKE_C_STANDARD 11)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # Fetch GoogleTest framework and build it
 include(FetchContent)

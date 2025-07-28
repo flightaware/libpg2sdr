@@ -1,3 +1,6 @@
+#ifndef INTERNAL_H
+#define INTERNAL_H
+
 #include "lpcsdr.h"
 #include "dsp.h"
 
@@ -35,6 +38,8 @@
 #define memmove_elements(_dst, _src, _count) memmove((_dst), (_src), (_count) * sizeof((_dst)[0]))
 #define memcpy_elements(_dst, _src, _count) memcpy((_dst), (_src), (_count) * sizeof((_dst)[0]))
 
+extern const uint16_t LPCSDR_FIXED_POINT_SCALE_FACTOR;
+extern const uint16_t ADC_OUTPUT_VALUE_BIT_LENGTH;
 
 struct lpcsdr_context {
     int magic;
@@ -99,4 +104,6 @@ int effective_i_divisor(uint32_t i);
 
 int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
-void lpcsdr_dsp_decimate_free(struct lpcsdr_decimate *decimate);
+void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate);
+
+#endif /* INTERNAL_H */

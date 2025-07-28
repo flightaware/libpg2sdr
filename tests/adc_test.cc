@@ -243,7 +243,8 @@ TEST(ADCTEST, Test_calculate_adc_divisor_tables) {
     }
 }
 
-TEST(ADCTest, Test_calculate_adc_clock_divisors) {
+TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
+    
     EXPECT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
     uint32_t target_frequency = 5200000; //hz
 
@@ -266,7 +267,7 @@ TEST(ADCTest, Test_calculate_adc_clock_divisors) {
     EXPECT_EQ(frac_divisors->actual_frequency, (float) target_frequency);
 }
 
-TEST(ADCTest, Test_populate_new_current_best) {
+TEST(ADCTEST, Test_populate_new_current_best) {
     pll_divisors *b = NULL;
     pll_divisors c = {
         .fractional = true,
@@ -290,4 +291,39 @@ TEST(ADCTest, Test_populate_new_current_best) {
     EXPECT_EQ(b->m, c.m);
     EXPECT_EQ(b->p, c.p);
     EXPECT_EQ(b->n, c.n);
+}
+
+int initialize_handle(lpcsdr_device_handle **handle) {
+    lpcsdr_context *ctx;
+    int error = LPCSDR_SUCCESS;
+    if ((error = lpcsdr_init(&ctx) < 0)) {
+        printf("Error initing lpc_context\n");
+        return -1;
+    }
+
+    if ((error = lpcsdr_set_firmware_path(ctx, "/media/psf/soapy_shared_folder/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin")) < 0) {
+        fprintf(stderr, "lpcsdr_set_firmware_path: %s\n", lpcsdr_strerror(ctx, error));
+        return 1;
+    }
+
+
+    lpcsdr_device_handle *h;
+    if ((error = lpcsdr_open_single_device(ctx, &h)) < 0) {
+        fprintf(stderr, "lpcsdr_open_single_device: %s\n", lpcsdr_strerror(ctx, error));
+        return -1;
+    }
+
+    *handle = h;
+   
+    return error;
+}
+
+TEST(ADCTEST, Test_capture) {
+    lpcsdr_device_handle *handle;
+    assert(initialize_handle(&handle) == LPCSDR_SUCCESS);
+    lpcsdr_capture(handle, 960000, 9600000, 8);
+
+
+
+    // unpack_raw_adc_data();
 }
