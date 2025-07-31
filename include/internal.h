@@ -12,6 +12,7 @@
 
 #define VID_LPCSDR 0xDEAD
 #define PID_LPCSDR 0xBEEF
+#define EXPECTED_BLOCK_HEADER_MAGIC 0xDEADBEEF
 
 #define DFU_DOWNLOAD_REQUEST 0x1
 #define DFU_GET_STATUS_REQUEST 0x3
@@ -89,7 +90,7 @@ int translate_dfu_status(int dfu_status);
 
 int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
-int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t **status);
+int lpcsdr_get_status(libusb_device_handle *usb_handle, ep0_in_board_status_t **status);
 
 // ADC
 int init_global_adc_divisor_tables();
@@ -102,8 +103,9 @@ int effective_p_divisor(uint32_t p);
 int effective_i_divisor(uint32_t i);
 
 
-int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d);
+int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
 void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate);
+void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate);
 
 #endif /* INTERNAL_H */

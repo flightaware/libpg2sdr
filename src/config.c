@@ -62,12 +62,12 @@ int lpcsdr_stop_transfer(lpcsdr_device_handle *handle) {
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_get_status(lpcsdr_device_handle *device_handle, ep0_in_board_status_t **status) {
+int lpcsdr_get_status(libusb_device_handle *usb_handle, ep0_in_board_status_t **status) {
 
     ep0_in_board_status_t *buffer = calloc(1, sizeof(ep0_in_board_status_t));
 
     int error = libusb_control_transfer(
-                                        device_handle->usb_handle, 
+                                        usb_handle, 
                                         LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
                                         EP0_IN_BOARD_STATUS,
                                         0,

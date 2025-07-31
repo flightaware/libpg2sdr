@@ -267,7 +267,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     EXPECT_EQ(frac_divisors->actual_frequency, (float) target_frequency);
 }
 
-TEST(ADCTEST, Test_populate_new_current_best) {
+TEST(Test_populate_new_current_best, Successful) {
     pll_divisors *b = NULL;
     pll_divisors c = {
         .fractional = true,
@@ -321,9 +321,135 @@ int initialize_handle(lpcsdr_device_handle **handle) {
 TEST(ADCTEST, Test_capture) {
     lpcsdr_device_handle *handle;
     assert(initialize_handle(&handle) == LPCSDR_SUCCESS);
-    lpcsdr_capture(handle, 960000, 9600000, 8);
+    lpcsdr_capture_toy_example(handle, 960000, 9600000, 8);
+}
 
+TEST(Test_unpack_raw_adc_data, Read_from_file) {
+    ifstream ifs("../../lpcsdr_firmware/python/adc_capture_script_raw_bytes.txt");
+    string line;
+    
+    uint32_t total = 2897920;
+    // uint32_t total = 2979840;
+    uint8_t *buffer = (uint8_t *) calloc(total, sizeof(uint8_t));
+    uint32_t index = 0;
+    while (getline(ifs, line)) {
+        buffer[index++] = stoi(line);
+	}
 
+    lpcsdr_device_handle h = {
+        .usb_samples_per_block_multiple = 8,
+        .usb_bytes_per_block_multiple = 512,
+    };
 
-    // unpack_raw_adc_data();
+    EXPECT_EQ(total, index);
+
+    int16_t *out = (int16_t*) calloc(total / 10240 * 6808, sizeof(int16_t));
+    uint32_t out_length;
+    int return_status = unpack_raw_adc_data(&h, buffer, total, out, 0, "C_unpack.tsv");
+    EXPECT_EQ(return_status, LPCSDR_SUCCESS);
+    printf("index %d\n", index);
+}
+
+TEST(Test_unpack_raw_adc_data, Successful) {
+    uint16_t buffer_length = 32;
+    uint8_t buffer[buffer_length] = {
+        // header data in little endian
+        // Magic
+        239, 190, 173, 222, 
+        //block len
+        32, 0, 0, 0, 
+        // num samples per block
+        8, 0, 0, 0, 
+        // sequence
+        1, 0, 0, 0, 
+        // status
+        1, 0, 0, 0, 
+        // 8 12 bit samples spread over 12 bytes (1 word = 32 bits = 4 bytes)
+        2, 0, 2, 0,
+        4, 0, 5, 0,
+        3,96, 3,80
+    };
+
+    lpcsdr_device_handle h = {
+        .usb_samples_per_block_multiple = 8,
+        .usb_bytes_per_block_multiple = 32,
+    };
+
+    int16_t *out = (int16_t *) calloc(buffer_length, sizeof(uint16_t));
+    uint32_t out_length;
+
+    int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
+    int16_t expected_unpacked_samples_length = 8;
+    int16_t expected_unpacked_samples[expected_unpacked_samples_length] = {32, 32, 64, 80, 48, 48, 96, 80, 48};
+    EXPECT_EQ(return_status, LPCSDR_SUCCESS);
+
+    for (int i = 0; i < expected_unpacked_samples_length; i++) {
+        EXPECT_EQ(out[i], expected_unpacked_samples[i]);
+    }
+}
+
+TEST(Test_unpack_raw_adc_data, byte_length_mismatch) {
+    uint16_t buffer_length = 20;
+    uint8_t buffer[buffer_length] = {
+        239, 190, 173, 222, 
+        //block len
+        2, 0, 0, 0, 
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+    };
+
+    lpcsdr_device_handle h = {
+        .usb_samples_per_block_multiple = 8,
+        .usb_bytes_per_block_multiple = 4,
+    };
+
+    int16_t *out = NULL;
+    int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
+    EXPECT_EQ(return_status, LPCSDR_BT_BLOCKLENGTH_MISMATCH);
+}
+
+TEST(Test_unpack_raw_adc_data, sample_length_mismatch) {
+    uint16_t buffer_length = 20;
+    uint8_t buffer[buffer_length] = {
+        239, 190, 173, 222, 
+        //block len
+        2, 0, 0, 0, 
+        2, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+    };
+
+    lpcsdr_device_handle h = {
+        .usb_samples_per_block_multiple = 2,
+        .usb_bytes_per_block_multiple = 4,
+    };
+
+    int16_t *out = NULL;
+    int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
+    EXPECT_EQ(return_status, LPCSDR_BT_SAMPLELENGTH_MISMATCH);
+}
+
+TEST(Test_unpack_raw_adc_data, magic_mismatch) {
+    uint16_t buffer_length = 20;
+    uint8_t buffer[buffer_length] = {
+        123, 111, 111, 111,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+    };
+
+    lpcsdr_device_handle h = {
+        .usb_samples_per_block_multiple = 8,
+        .usb_bytes_per_block_multiple = 32,
+    };
+
+    int16_t *out = NULL;
+    int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
+    EXPECT_EQ(return_status, LPCSDR_BT_MAGIC_MISMATCH);
+}
+
+TEST(Test_read_raw_adc_data, Successful) {
+
 }

@@ -1,12 +1,18 @@
 #include "dsp_test.h"
 
-
 string print_cs16_t(cs16_t v) {
     std::stringstream ss;
     ss << "real: " << v.i << ",imag: " << v.q;
     return ss.str();
 }
 
+AssertionResult Succeeded(cs16_t value, cs16_t expected) {
+    if (value.i == expected.i && value.q == expected.q)
+        return testing::AssertionSuccess();
+    else {
+        return testing::AssertionFailure() << "Got cs16_t " << print_cs16_t(value) << ". Expected " << print_cs16_t(expected);
+    }
+}
 
 TEST(DSPTEST_for_dev, Test_process_cs16) {
     cout << "ji \n\n";
@@ -64,178 +70,157 @@ TEST(DSPTEST_for_dev_scaled, Test_process_cs16) {
     lpcsdr_decimate_complex_baseband(default_filter, usb_samples_per_block, buffer, num_lines, &out, required_samples, "../../test_files/outputs/default-test-case-scaled.tsv");
 }
 
-namespace Test_Process_CS16{
-
-    AssertionResult AssertionSuccess();
-    AssertionResult AssertionFailure();
-
-    AssertionResult Succeeded(cs16_t value, cs16_t expected) {
-        if (value.i == expected.i && value.q == expected.q)
-            return testing::AssertionSuccess();
-        else {
-            // string s = format("Got values real: {}, imag {}. Expected real: {}, imag {}", value.i, value.q, expected.i, expected.q);
-            return testing::AssertionFailure() << "Got cs16_t " << print_cs16_t(value) << ". Expected " << print_cs16_t(expected);
+TEST(Test_process_cs16, history_available_less_than_ntaps) {
+    cs16_t history[20] = {
+        {
+            .i = 1,
+            .q = 1,
         }
-    }
-    class ProcessCS16Test : public testing::TestWithParam<process_cs16_test_case> {
-    protected:
-    void SetUp() override {}
-    void TearDown() override {}
-
+    };
+    unsigned int history_len = 1;
+    int16_t taps[10] = {1,2,3,4,5,6,7,8,9,10};
+    lpcsdr_decimate d = {
+        .ntaps = 10,
+        .taps = taps,
+        .history = history,
+        .history_max = 20,
+        .history_len = history_len,
     };
 
-    TEST(Test_process_cs16, history_available_less_than_ntaps) {
-        cs16_t history[20] = {
-            {
-                .i = 1,
-                .q = 1,
-            }
-        };
-        unsigned int history_len = 1;
-        int16_t taps[10] = {1,2,3,4,5,6,7,8,9,10};
-        lpcsdr_decimate d = {
-            .ntaps = 10,
-            .taps = taps,
-            .history = history,
-            .history_max = 20,
-            .history_len = history_len,
-        };
+    cs16_t in[5] = {{.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}};
+    cs16_t out[5] = {};
+    int count = sizeof(in)/sizeof(in[0]);
+    int return_count = process_cs16(&d, in, out, count);
+    EXPECT_EQ(return_count, 0);
+    EXPECT_EQ(d.history_len, history_len + count);
+}
 
-        cs16_t in[5] = {{.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}};
-        cs16_t out[5] = {};
-        int count = sizeof(in)/sizeof(in[0]);
-        int return_count = process_cs16(&d, in, out, count);
-        EXPECT_EQ(return_count, 0);
-        EXPECT_EQ(d.history_len, history_len + count);
+TEST(Test_process_cs16, history_processed_less_than_history_len) {
+    cs16_t history[20] = {
+        {
+            .i = 3276,
+            .q = 3276,
+        },
+        {
+            .i = 6553,
+            .q = 6553,
+        },
+        {
+            .i = 9830,
+            .q = 9830,
+        },
+        {
+            .i = 13107,
+            .q = 13107,
+        },
+        {
+            .i = 16384,
+            .q = 16384,
+        },
+    };
+    unsigned int history_len = 5;
+    int16_t taps[3] = {10,11,12};
+    lpcsdr_decimate d = {
+        .ntaps = 3,
+        .taps = taps,
+        .history = history,
+        .history_max = 20,
+        .history_len = history_len,
+    };
+
+    cs16_t in[1] = {{
+        .i = 19660,
+        .q = 19660,
+    }};
+    cs16_t out[5] = {};
+    int count = sizeof(in)/sizeof(in[0]);
+
+    float expected_values[3] = {6, 13};
+    int expected_return_count = 2;
+    int expected_history_length = 2;
+    int return_count = process_cs16(&d, in, out, count);
+    EXPECT_EQ(return_count, expected_return_count);
+    EXPECT_EQ(d.history_len, expected_history_length);
+
+
+    for (int index = 0; expected_return_count < 2; index++) {
+        EXPECT_EQ(out[index].i, expected_values[index]);
+        EXPECT_EQ(out[index].q, expected_values[index]);
     }
+}
 
-    TEST(Test_process_cs16, history_processed_less_than_history_len) {
-        cs16_t history[20] = {
-            {
-                .i = 3276,
-                .q = 3276,
-            },
-            {
-                .i = 6553,
-                .q = 6553,
-            },
-            {
-                .i = 9830,
-                .q = 9830,
-            },
-            {
-                .i = 13107,
-                .q = 13107,
-            },
-            {
-                .i = 16384,
-                .q = 16384,
-            },
-        };
-        unsigned int history_len = 5;
-        int16_t taps[3] = {10,11,12};
-        lpcsdr_decimate d = {
-            .ntaps = 3,
-            .taps = taps,
-            .history = history,
-            .history_max = 20,
-            .history_len = history_len,
-        };
+TEST(Test_process_cs16, process_main_block) {
+    cs16_t history[20] = {
+        {
+            .i = 3276,
+            .q = 3276,
+        },
+        {
+            .i = 6553,
+            .q = 6553,
+        },
+    };
+    unsigned int history_len = 2;
+    unsigned int ntaps = 2;
+    int16_t taps[ntaps] = {10,11};
+    lpcsdr_decimate d = {
+        .ntaps = ntaps,
+        .taps = taps,
+        .history = history,
+        .history_max = 4,
+        .history_len = history_len,
+    };
 
-        cs16_t in[1] = {{
+    int count = 6;
+    cs16_t in[count] = {
+        {
+            .i = 9830,
+            .q = 9830,
+        },
+        {
+            .i = 13107,
+            .q = 13107,
+        },
+        {
+            .i = 16384,
+            .q = 16384,
+        },
+        {
             .i = 19660,
             .q = 19660,
-        }};
-        cs16_t out[5] = {};
-        int count = sizeof(in)/sizeof(in[0]);
+        },
+        {
+            .i = 22932,
+            .q = 22932,
+        },
+        {
+            .i = 26208,
+            .q = 26208,
+        },
+    };
+    cs16_t out[5] = {};
 
-        float expected_values[3] = {6, 13};
-        int expected_return_count = 2;
-        int expected_history_length = 2;
-        int return_count = process_cs16(&d, in, out, count);
-        EXPECT_EQ(return_count, expected_return_count);
-        EXPECT_EQ(d.history_len, expected_history_length);
+    int expected_return_count = 3;
+    int expected_history_length = 2;
+    float expected_values[expected_return_count] = {3, 7, 11};
+
+    int return_count = process_cs16(&d, in, out, count);
+    EXPECT_EQ(return_count, expected_return_count);
+    EXPECT_EQ(d.history_len, expected_history_length);
 
 
-        for (int index = 0; expected_return_count < 2; index++) {
-            EXPECT_EQ(out[index].i, expected_values[index]);
-            EXPECT_EQ(out[index].q, expected_values[index]);
-        }
+    for (int index = 0; index < expected_return_count; index++) {
+        EXPECT_EQ(out[index].i, expected_values[index]);
+        EXPECT_EQ(out[index].q, expected_values[index]);
     }
 
-    TEST(Test_process_cs16, process_main_block) {
-        cs16_t history[20] = {
-            {
-                .i = 3276,
-                .q = 3276,
-            },
-            {
-                .i = 6553,
-                .q = 6553,
-            },
-        };
-        unsigned int history_len = 2;
-        unsigned int ntaps = 2;
-        int16_t taps[ntaps] = {10,11};
-        lpcsdr_decimate d = {
-            .ntaps = ntaps,
-            .taps = taps,
-            .history = history,
-            .history_max = 4,
-            .history_len = history_len,
-        };
+    EXPECT_TRUE(Succeeded(in[4], d.history[0]));
+    EXPECT_TRUE(Succeeded(in[5], d.history[1]));
 
-        int count = 6;
-        cs16_t in[count] = {
-            {
-                .i = 9830,
-                .q = 9830,
-            },
-            {
-                .i = 13107,
-                .q = 13107,
-            },
-            {
-                .i = 16384,
-                .q = 16384,
-            },
-            {
-                .i = 19660,
-                .q = 19660,
-            },
-            {
-                .i = 22932,
-                .q = 22932,
-            },
-            {
-                .i = 26208,
-                .q = 26208,
-            },
-        };
-        cs16_t out[5] = {};
-
-        int expected_return_count = 3;
-        int expected_history_length = 2;
-        float expected_values[expected_return_count] = {3, 7, 11};
-
-        int return_count = process_cs16(&d, in, out, count);
-        EXPECT_EQ(return_count, expected_return_count);
-        EXPECT_EQ(d.history_len, expected_history_length);
+}
 
 
-        for (int index = 0; index < expected_return_count; index++) {
-            EXPECT_EQ(out[index].i, expected_values[index]);
-            EXPECT_EQ(out[index].q, expected_values[index]);
-        }
-
-        EXPECT_TRUE(Succeeded(in[4], d.history[0]));
-        EXPECT_TRUE(Succeeded(in[5], d.history[1]));
-
-    }
-
-} // Namespace Test Process CS16
-
-TEST(DSPTEST, Test_decimate_cs16) {
+TEST(DSP_decimate_cs16, successful) {
     const unsigned int ntaps = 2;
     const int16_t taps[2] = {10,11};
     cs16_t in[6] = {
@@ -279,7 +264,7 @@ TEST(DSPTEST, Test_decimate_cs16) {
     }
 }
 
-TEST(DSPTEST, Test_downmix_samples) {
+TEST(Test_downmix_samples, Successful) {
     int16_t in[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     cs16_t out[8];
 
@@ -321,7 +306,6 @@ TEST(DSPTEST, Test_downmix_samples) {
     };
 
     for (int o = 0; o < 8; o++) {
-        EXPECT_EQ(out[o].i, expected_out[o].i);
-        EXPECT_EQ(out[o].q, expected_out[o].q);
+        EXPECT_TRUE(Succeeded(out[o], expected_out[o]));
     }
 }

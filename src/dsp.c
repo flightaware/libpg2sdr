@@ -138,12 +138,3 @@ int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples
     *out = values;
     return error;
 }
-
-void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate)
-{
-    if (!decimate)
-        return;
-
-    memset_elements(decimate->history, 0, decimate->history_max);
-    decimate->history_len = 0;
-}

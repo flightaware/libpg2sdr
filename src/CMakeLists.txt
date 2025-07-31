@@ -10,3 +10,5 @@ add_library(sdr errors.c boot.c external.c device.c dsp.c config.c adc.c)
 
 # $(shell pkg-config --libs libusb-1.0)
 target_link_libraries(sdr usb-1.0 m)
+
+target_compile_options(sdr PRIVATE -O3 -g -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE -fpic -fno-common)

@@ -19,8 +19,10 @@ extern "C" {
 typedef struct lpcsdr_context lpcsdr_context;
 typedef enum { LPCDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_level;
 typedef void (*lpcsdr_log_callback)(lpcsdr_context *context, lpcsdr_log_level level, const char *message);
+typedef struct lpcsdr_device_handle lpcsdr_device_handle;
+typedef bool (*lpcsdr_stream_callback)(void *block, void *user_data);
 
-
+typedef enum { LPCSDR_LOWIF_REAL, LPCSDR_LOWIF_COMPLEX } lpcsdr_conversion_mode;
 
 enum lpcsdr_error {
     LPCSDR_SUCCESS = 0, /* no error */
@@ -59,7 +61,8 @@ enum lpcsdr_error {
     // Bulk Transfer (BT) errors
     LPCSDR_BT_EXPECTED_LENGTH_MISMATCH = -200,  /* Expected length and actual length of bytes read mismatch */
     LPCSDR_BT_MAGIC_MISMATCH = -201,            /* Magic number at header is wrong */
-    LPCSDR_BT_BLOCKLENGTH_MISMATCH = -202       /* Block Length mismatch*/
+    LPCSDR_BT_BLOCKLENGTH_MISMATCH = -202,      /* Block Length mismatch*/
+    LPCSDR_BT_SAMPLELENGTH_MISMATCH = -203      /* Block Num Samples mismatch*/
 };
 
 typedef enum {
@@ -67,9 +70,7 @@ typedef enum {
     LPCSDR_DEVICE_MODE_DFU_BOOTLOADER = 1, 
 } lpcsdr_device_mode;
 
-typedef struct lpc_device lpc_device;
-
-struct lpc_device {
+typedef struct lpc_device {
     lpcsdr_context *context;
     lpcsdr_device_mode mode;
     char serial[9];               /* serial number string, ASCIIZ */
@@ -80,16 +81,14 @@ struct lpc_device {
     uint8_t usb_bus;     /* bus number this device is connected to */
     uint8_t usb_address; /* address within usb_bus */
     void *libusb_device;
-};
+} lpc_device;
 
-typedef struct dfu_status dfu_status;
-
-struct dfu_status {
+typedef struct dfu_status {
     int bStatus;
     int bwPollTimeout;
     int bState;
     int iString;
-};
+} dfu_status;
 
 struct hotplug_callback_state {
     int completed;
@@ -104,102 +103,27 @@ struct lpcsdr_ifir {
     int16_t *history_q;
 };
 
-typedef struct lpcsdr_device_handle lpcsdr_device_handle;
-
 struct lpcsdr_device_handle {
     unsigned magic;
     pthread_mutex_t mutex;
     lpcsdr_context *ctx;
 
+    uint32_t usb_samples_per_block_multiple;
+    uint32_t usb_bytes_per_block_multiple;
+    uint16_t individual_sample_bit_size;
+    uint32_t hsadc_frequency;
+    uint32_t blocks_per_chunk;
+
     libusb_device_handle *usb_handle;
-    // pxsdr_device_info info;
 
-    uint16_t adc_per_frame;     /* firmware reported ADC samples per frame */
-    uint16_t frame_size;        /* computed frame size including header, in bytes */
-    uint16_t if_filter_low_min; /* firmware reported smallest available if_filter_low */
-    // pv2_adc_mode_t adc_mode;    /* firmware reported ADC mode */
-
-    // pxsdr_sampling_mode mode;
-    // pxsdr_sample_format format;
-    // pxsdr_conversion_mode conversion_mode;
-    // pv2_board_type_t board_type;
-    uint32_t sample_rate;
-    uint32_t frequency;
-    int32_t bandpass_low;
-    int32_t bandpass_high;
-    uint8_t gain[3];
-
-    /* raw values, not transformed for mode: */
-    /* last successful requested values (to avoid unnecessary reconfiguration) */
-    uint32_t requested_sample_rate;
-    uint32_t requested_lo_frequency;
-    uint16_t requested_if_filter_low;
-    uint16_t requested_if_filter_high;
-
-    /* raw values, not transformed for mode: */
-    /* last firmware reported values (might not exactly match what was requested due to hardware limits) */
-    uint32_t actual_sample_rate;
-    uint32_t actual_lo_frequency;
-    uint16_t actual_if_filter_low;
-    uint16_t actual_if_filter_high;
-
-    /* baseband filter */
-    struct lpcsdr_ifir *baseband_filter;
+    bool streaming; 
+    lpcsdr_conversion_mode conversion_mode;
 
     /* decimation filters */
     struct lpcsdr_decimate *decimation_filter; /* prototype decimation filter used for each stage */
-    int decimation_setting;                   /* if <0: select decimation automatically. if >=0: decimate by 2**N */
-    unsigned decimation_log2;                 /* actual decimation in use, 2**N */
-    // struct pxsdr_decimate **decimation_stage; /* decimation filter stages */
-
-    /* DC removal */
-    // cf32_t dc_bias;
-
-    /* streaming config */
-    unsigned buffer_size;  /* requested baseband buffer size, in samples */
-    unsigned buffer_count; /* requested number of baseband buffers */
-
-    unsigned hw_bytes_per_sample;    /* Bytes per input sample */
-    unsigned hw_elements_per_sample; /* Input elements for one sample */
-    unsigned hw_samples_per_frame;   /* Input samples per frame */
-    unsigned hw_elements_per_frame;  /* Input elements per frame */
-    unsigned hw_frames_per_block;    /* ADC frames needed for one output block */
-
-    unsigned bb_total_decimation; /* Total decimation factor from hw sample rate to bb sample rate */
-    unsigned bb_bytes_per_sample; /* Bytes per output sample */
-
-    bool enable_zerocopy;                 /* should we try to allocate zerocopy USB transfers? */
-    // pxsdr_internal_sample_block **blocks; /* array of allocated sample blocks */
-    unsigned block_count;                 /* length of blocks array */
-    unsigned block_size;                  /* allocated size of each sample block, in bytes */
-
-    /* workspace */
-    unsigned work_size; /* size of work_0 and work_1, in bytes */
-    void *work_A;       /* work areas for conversion */
-    void *work_B;
-
-    /* streaming state */
-    bool streaming;               /* is pxsdr_stream_data active? */
-    bool draining;                /* is drain_transfers active? */
-    bool stopping;                /* is there an outstanding pxsdr_stop_streaming request pending? */
-    bool overrun;                 /* is there an outstanding stream overrun to report? */
-    bool transfer_size_changed;   /* did the required transfer size change mid-streaming due to decimation/buffering change? */
-    int completion_flag;          /* libusb wakeup flag, set by the transfer callback */
-    uint32_t last_raw_timestamp;  /* last raw timestamp seen */
-    uint32_t next_raw_timestamp;  /* expected timestamp of next received frame */
-    uint32_t timestamp_rollovers; /* how many times have we seen the raw timestamp roll over? */
-
-    // pxsdr_transfer_state *transfers; /* array of allocated USB transfers */
-    unsigned transfer_count;         /* length of transfers array */
-    unsigned transfer_size;          /* allocated size of each transfer buffer, in bytes */
-    bool using_zerocopy;             /* were the transfer buffers allocated using libusb_dev_mem_alloc? */
-
-    // pxsdr_transfer_state *transfer_head; /* linked list of active transfers */
-    // pxsdr_transfer_state *transfer_tail;
 };
 
-typedef struct pll_divisors pll_divisors;
-struct pll_divisors {
+typedef struct pll_divisors {
     bool fractional;
 
     uint32_t n;
@@ -210,7 +134,7 @@ struct pll_divisors {
     float error;
     float actual_fcco;
     float actual_frequency;
-};
+} pll_divisors;
 
 int lpcsdr_init(lpcsdr_context **ctx);
 int lpcsdr_exit(lpcsdr_context *ctx);
@@ -234,8 +158,9 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
 int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint8_t *out, uint32_t total, const char *output_file_path);
-int unpack_raw_adc_data(lpcsdr_device_handle *handle, ep0_in_board_status_t *status, uint8_t *in, uint32_t in_length, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
-int lpcsdr_capture(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
+// int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
+int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t *out, uint32_t skip, const char *output_file);
+int lpcsdr_capture_toy_example(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
 
 
 #if defined(__cplusplus)

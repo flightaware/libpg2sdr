@@ -70,8 +70,8 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
     return LPCSDR_SUCCESS;
 }
 
-int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d) {
-
+int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out) {
+    int error;
     lpcsdr_device_handle *dev = calloc(1, sizeof(lpcsdr_device_handle));
     if (!dev)
         return LPCSDR_ERROR_NO_MEMORY;
@@ -79,8 +79,18 @@ int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d) {
     dev->magic = MAGIC_DEV;
     dev->ctx = ctx;
 
+    ep0_in_board_status_t *status;
+    if ((error = lpcsdr_get_status(usb_handle, &status)) < 0)
+        goto cleanup;
+
+    dev->individual_sample_bit_size = 12;
+    dev->usb_samples_per_block_multiple = 8;
+    dev->usb_bytes_per_block_multiple = 512;
+    dev->hsadc_frequency = status->hsadc_frequency;
+    dev->blocks_per_chunk = 128;
+    dev->usb_handle = usb_handle;
+
     pthread_mutexattr_t attrs;
-    int error;
     if (pthread_mutexattr_init(&attrs) < 0 || pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE) < 0 || pthread_mutex_init(&dev->mutex, &attrs) < 0) {
         error = lpcsdr_translate_errno(ctx, errno);
         goto cleanup_nomutex;
@@ -89,13 +99,10 @@ int build_lpc_device(lpcsdr_context *ctx, lpcsdr_device_handle **d) {
     if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
         goto cleanup;
 
-    *d = dev;
+    *out = dev;
     return LPCSDR_SUCCESS;
 
 cleanup:
-    // if (dev->baseband_filter)
-        // lpcsdr_dsp_ifir_free(dev->baseband_filter);
-
     if (dev->decimation_filter)
         lpcsdr_dsp_decimate_free(dev->decimation_filter);
 
@@ -116,6 +123,15 @@ void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate)
     free(decimate->taps);
     free(decimate->history);
     free(decimate);
+}
+
+void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate)
+{
+    if (!decimate)
+        return;
+
+    memset_elements(decimate->history, 0, decimate->history_max);
+    decimate->history_len = 0;
 }
 
 int lpcsdr_free_device_list(lpc_device **device_list)
@@ -315,8 +331,7 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
     //build lpcsdr_device_handle
     lpcsdr_device_handle *handle;
-    build_lpc_device(ctx, &handle);
-    handle->usb_handle = usb_handle;
+    build_lpc_device(ctx, usb_handle, &handle);
 
 
     *device_handle = handle;
