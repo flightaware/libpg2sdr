@@ -4,6 +4,7 @@ clean:
 	rm -rf build
 
 build:
+	make clean
 	cmake -B ./build -S ./
 	cd build && make
 
@@ -21,4 +22,12 @@ dsp:
 	make debug
 	cd build/tests &&  gdb dsp_tests.exe
 
-	
+adc:
+	make clean
+	make debug
+	cd build/tests &&  gdb adc_tests.exe
+
+str:
+	make clean
+	make debug
+	cd build/tests &&  gdb stream_tests.exe

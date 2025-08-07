@@ -16,6 +16,7 @@
 
 #define DFU_DOWNLOAD_REQUEST 0x1
 #define DFU_GET_STATUS_REQUEST 0x3
+#define USB_BLOCK_SIZE 10240
 
 #define CHECK_CTX(ctx)                       \
     do {                                     \
@@ -58,6 +59,57 @@ struct match_tuple {
     int index;
 };
 
+typedef struct {
+    lpcsdr_sample_block public_block; /* sample block visible to the public API */
+    bool busy;                 /* true if currently owned by application code */
+    bool orphan;               /* true if this is an orphaned buffer, false if it's a reusable buffer */
+} lpcsdr_internal_sample_block;
+
+typedef struct lpcsdr_transfer_state {
+    lpcsdr_device_handle *dev; /* owning device */
+    enum {
+        XFER_IDLE,      /* not submitted */
+        XFER_BUSY,      /* submitted and waiting for a result */
+        XFER_COMPLETED, /* submitted, marked as completed by the libusb callback */
+    } state;
+
+    struct libusb_transfer *transfer;  /* the associated libusb transfer */
+    void *buffer;                      /* the buffer used by the libusb transfer */
+    struct lpcsdr_transfer_state *next; /* next transfer in the list */
+} lpcsdr_transfer_state;
+
+struct lpcsdr_device_handle {
+    unsigned magic;
+    pthread_mutex_t mutex;
+    lpcsdr_context *ctx;
+
+    uint32_t usb_samples_per_block_multiple;
+    uint32_t usb_bytes_per_block_multiple;
+    uint16_t individual_sample_bit_size;
+    uint32_t hsadc_frequency;
+    uint32_t blocks_per_chunk;
+
+    libusb_device_handle *usb_handle;
+    libusb_vtable *vtable;
+
+    bool streaming; 
+    lpcsdr_conversion_mode conversion_mode;
+
+    /* decimation filters */
+    struct lpcsdr_decimate *decimation_filter;
+
+    lpcsdr_internal_sample_block **blocks;
+    int block_count;
+    int block_size;
+
+    lpcsdr_transfer_state *transfers;
+    unsigned int transfer_count;
+    unsigned int transfer_size;
+    int completion_flag;
+    lpcsdr_transfer_state *active_transfers_head; /* linked list of active transfers */
+    lpcsdr_transfer_state *active_transfers_tail;
+};
+
 enum dfu_state {
     DFU_DOWNLOAD_IDLE = 0x05 // dfuDNLOAD-IDLE state for when downloading firmware onto lpcsdr device
 };
@@ -81,7 +133,6 @@ enum dfu_error {
     DFU_ERROR_NON_IDLE_STATE = -215, // During DFU download after GET_STATUS request, state is NOT in dfuDNLOAD-IDLE  state.
 };
 
-int lpcsdr_comms_check(libusb_device_handle *device_handle);
 int dfu_download_firmware(libusb_device_handle *handle, int block , u_int32_t *buffer, int count);
 int dfu_get_status(libusb_device_handle *dev, dfu_status **status);
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
@@ -101,11 +152,16 @@ int populate_new_current_best(pll_divisors **current_best, pll_divisors *candida
 int effective_n_divisor(uint32_t n);
 int effective_p_divisor(uint32_t p);
 int effective_i_divisor(uint32_t i);
+int fixed_point_m(pll_divisors *divisors);
+int unpack_header(uint32_t offset, uint8_t *in, ep1_header_t* out);
 
 
 int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out);
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
-void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate);
-void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate);
+int populate_libusb_vtable(libusb_vtable **out);
+void free_libusb_vtable(libusb_vtable *vtable);
+
+int lpcsdr_realloc_blocks(lpcsdr_device_handle *dev, unsigned block_count, unsigned block_size_bytes);
+void lpcsdr_free_blocks(lpcsdr_device_handle *dev);
 
 #endif /* INTERNAL_H */

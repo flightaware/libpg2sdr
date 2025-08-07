@@ -103,25 +103,32 @@ struct lpcsdr_ifir {
     int16_t *history_q;
 };
 
-struct lpcsdr_device_handle {
-    unsigned magic;
-    pthread_mutex_t mutex;
-    lpcsdr_context *ctx;
+typedef struct {
+    //libusb_bulk_transfer func pointer
+    int (*bulk_transfer)(libusb_device_handle *dev_handle, unsigned char endpoint, 
+    unsigned char *data, int length, int *actual_length, unsigned int timeout);
+} libusb_vtable;
 
-    uint32_t usb_samples_per_block_multiple;
-    uint32_t usb_bytes_per_block_multiple;
-    uint16_t individual_sample_bit_size;
-    uint32_t hsadc_frequency;
-    uint32_t blocks_per_chunk;
+typedef struct {
+    /* Handle for the device producing this sample block. */
+    lpcsdr_device_handle *dev;
 
-    libusb_device_handle *usb_handle;
+    /* Sample data.
+     * In REAL_INVERTED mode, each sample is a single value.
+     * In COMPLEX_BASEBAND mode, each sample is two values representing the I and Q channels respectively.
+     * The type of each value is controled by the sample format - int16_t or float
+     */
+    void *samples;
 
-    bool streaming; 
-    lpcsdr_conversion_mode conversion_mode;
+    /* Number of samples available */
+    unsigned count;
 
-    /* decimation filters */
-    struct lpcsdr_decimate *decimation_filter; /* prototype decimation filter used for each stage */
-};
+    /* Sample timestamp (cumulative number of received samples), at the start of the buffer.
+     * This counter may not initially start at zero.
+     */
+    uint64_t timestamp;
+
+} lpcsdr_sample_block;
 
 typedef struct pll_divisors {
     bool fractional;
@@ -147,6 +154,8 @@ int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, char *firmware_path);
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
 
+int lpcsdr_comms_check(libusb_device_handle *device_handle);
+
 // Open by Methods
 // static int generic_match(lpc_device *dev, void *arg);
 // static int generic_open_by(lpcsdr_context *ctx, struct match_tuple *match, lpcsdr_device_handle **device);
@@ -158,10 +167,14 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
 int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint8_t *out, uint32_t total, const char *output_file_path);
-// int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t **out, uint32_t *out_length, uint32_t skip, const char *output_file);
 int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t *out, uint32_t skip, const char *output_file);
 int lpcsdr_capture_toy_example(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
 
+
+//Streaming
+int lpcsdr_set_buffering(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size);
+int lpcsdr_get_buffering(lpcsdr_device_handle *dev, unsigned *buffer_count, unsigned *buffer_size);
+int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
 
 #if defined(__cplusplus)
 }

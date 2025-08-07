@@ -8,6 +8,7 @@ extern "C" {
     #include "internal.h"
 }
 
+
 struct candidate_is_better_test_case {
     string name;
     pll_divisors *current_best;
@@ -373,6 +374,7 @@ TEST(Test_unpack_raw_adc_data, Successful) {
     lpcsdr_device_handle h = {
         .usb_samples_per_block_multiple = 8,
         .usb_bytes_per_block_multiple = 32,
+        .individual_sample_bit_size = 12,
     };
 
     int16_t *out = (int16_t *) calloc(buffer_length, sizeof(uint16_t));
@@ -414,15 +416,16 @@ TEST(Test_unpack_raw_adc_data, sample_length_mismatch) {
     uint8_t buffer[buffer_length] = {
         239, 190, 173, 222, 
         //block len
-        2, 0, 0, 0, 
-        2, 0, 0, 0,
+        1, 0, 0, 0,
+        // num samples 
+        1, 0, 0, 0,
         0, 0, 0, 0,
         0, 0, 0, 0,
     };
 
     lpcsdr_device_handle h = {
         .usb_samples_per_block_multiple = 2,
-        .usb_bytes_per_block_multiple = 4,
+        .usb_bytes_per_block_multiple = 1,
     };
 
     int16_t *out = NULL;
@@ -448,8 +451,4 @@ TEST(Test_unpack_raw_adc_data, magic_mismatch) {
     int16_t *out = NULL;
     int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
     EXPECT_EQ(return_status, LPCSDR_BT_MAGIC_MISMATCH);
-}
-
-TEST(Test_read_raw_adc_data, Successful) {
-
 }

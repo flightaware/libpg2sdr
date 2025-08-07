@@ -22,52 +22,24 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
     return LPCSDR_ERROR_NOT_FOUND;
 }
 
+int populate_libusb_vtable(libusb_vtable **out) {
+    libusb_vtable *vtable = calloc(1, sizeof(libusb_vtable));
 
-int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, lpcsdr_decimate **out)
-{
-
-    if (halfband_ntaps % 2 != 1)
-        return LPCSDR_ERROR_BAD_ARGUMENT; /* must have an odd number of taps */
-
-    float center_tap = halfband_taps[(halfband_ntaps - 1) / 2];
-    if (center_tap == 0)
-        return LPCSDR_ERROR_BAD_ARGUMENT; /* center tap must be nonzero */
+    if (!vtable)
+        return LPCSDR_ERROR_NO_MEMORY;
     
+    vtable->bulk_transfer = libusb_bulk_transfer;
+    *out = vtable;
 
-    float sum_taps = 0; /* sum of absolute tap values; used to scale coefficients to avoid overflow */
-    for (unsigned i = 0; i < halfband_ntaps / 2; ++i) {
-        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0)
-            return LPCSDR_ERROR_BAD_ARGUMENT; /* doesn't follow the expected halfband filter structure */
-        if (halfband_taps[i] != halfband_taps[halfband_ntaps - i - 1])
-            return LPCSDR_ERROR_BAD_ARGUMENT; /* must be symmetric */
-        if (fabs(halfband_taps[i]) > fabs(center_tap))
-            return LPCSDR_ERROR_BAD_ARGUMENT; /* no tap should be larger than the center tap */
-        sum_taps += fabs(halfband_taps[i]) * 2;
-    }
-
-    sum_taps += center_tap;
-
-    struct lpcsdr_decimate *decimate;
-    if (!(decimate = calloc(1, sizeof(*decimate))))
-        return LPCSDR_ERROR_NO_MEMORY;
-
-    decimate->ntaps = halfband_ntaps;
-    decimate->history_max = decimate->ntaps * 2 + 2;
-
-    if (!(decimate->taps = malloc(decimate->ntaps * sizeof(int16_t))) || !(decimate->history = malloc(decimate->history_max * sizeof(cs16_t)))) {
-        free(decimate);
-        return LPCSDR_ERROR_NO_MEMORY;
-    }
-
-    /* scale taps so that the output cannot ever overflow a Q15 representation */
-    float scale = 32767 / sum_taps;
-    for (unsigned i = 0; i < decimate->ntaps; ++i) {
-        decimate->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
-    }
-
-    lpcsdr_dsp_decimate_reset(decimate);
-    *out = decimate;
     return LPCSDR_SUCCESS;
+}
+
+void free_libusb_vtable(libusb_vtable *vtable) {
+    if (!vtable)
+        return;
+
+    free(vtable);
+    return;
 }
 
 int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out) {
@@ -96,6 +68,11 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
         goto cleanup_nomutex;
     }
 
+    init_global_adc_divisor_tables();
+    
+    if ((error = populate_libusb_vtable(&dev->vtable))< 0)
+        goto cleanup;
+
     if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
         goto cleanup;
 
@@ -105,6 +82,8 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
 cleanup:
     if (dev->decimation_filter)
         lpcsdr_dsp_decimate_free(dev->decimation_filter);
+    if (dev->vtable)
+        free_libusb_vtable(dev->vtable);
 
     pthread_mutex_destroy(&dev->mutex);
 
@@ -113,25 +92,6 @@ cleanup_nomutex:
 
     return error;
 
-}
-
-void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate)
-{
-    if (!decimate)
-        return;
-
-    free(decimate->taps);
-    free(decimate->history);
-    free(decimate);
-}
-
-void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate)
-{
-    if (!decimate)
-        return;
-
-    memset_elements(decimate->history, 0, decimate->history_max);
-    decimate->history_len = 0;
 }
 
 int lpcsdr_free_device_list(lpc_device **device_list)
@@ -348,7 +308,6 @@ failed:
 
     return error;
 }
-
 
 static int generic_match(lpc_device *dev, void *arg)
 {

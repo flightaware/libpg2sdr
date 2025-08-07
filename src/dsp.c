@@ -32,7 +32,6 @@ int decimate_cs16(const unsigned int ntaps, const int16_t *taps, cs16_t *in, cs1
 }
 
 int process_cs16(lpcsdr_decimate *decimate, cs16_t *in, cs16_t *out, uint32_t count) {
-    int error = LPCSDR_SUCCESS;
     const unsigned ntaps = decimate->ntaps;
     const int16_t *taps = decimate->taps;
     cs16_t *history = decimate->history;
@@ -52,7 +51,7 @@ int process_cs16(lpcsdr_decimate *decimate, cs16_t *in, cs16_t *out, uint32_t co
         return 0;
     }
 
-    uint32_t num_processed = decimate_cs16(ntaps, taps, history, out, history_processed);
+    decimate_cs16(ntaps, taps, history, out, history_processed);
 
     /* First unprocessed window in history starts at history[history_processed].
      * We copied in[0] to history[history_len].
@@ -137,4 +136,71 @@ int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples
 
     *out = values;
     return error;
+}
+
+int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, lpcsdr_decimate **out)
+{
+
+    if (halfband_ntaps % 2 != 1)
+        return LPCSDR_ERROR_BAD_ARGUMENT; /* must have an odd number of taps */
+
+    float center_tap = halfband_taps[(halfband_ntaps - 1) / 2];
+    if (center_tap == 0)
+        return LPCSDR_ERROR_BAD_ARGUMENT; /* center tap must be nonzero */
+    
+
+    float sum_taps = 0; /* sum of absolute tap values; used to scale coefficients to avoid overflow */
+    for (unsigned i = 0; i < halfband_ntaps / 2; ++i) {
+        if ((halfband_ntaps / 2 - i) % 2 == 0 && halfband_taps[i] != 0.0)
+            return LPCSDR_ERROR_BAD_ARGUMENT; /* doesn't follow the expected halfband filter structure */
+        if (halfband_taps[i] != halfband_taps[halfband_ntaps - i - 1])
+            return LPCSDR_ERROR_BAD_ARGUMENT; /* must be symmetric */
+        if (fabs(halfband_taps[i]) > fabs(center_tap))
+            return LPCSDR_ERROR_BAD_ARGUMENT; /* no tap should be larger than the center tap */
+        sum_taps += fabs(halfband_taps[i]) * 2;
+    }
+
+    sum_taps += center_tap;
+
+    struct lpcsdr_decimate *decimate;
+    if (!(decimate = calloc(1, sizeof(*decimate))))
+        return LPCSDR_ERROR_NO_MEMORY;
+
+    decimate->ntaps = halfband_ntaps;
+    decimate->history_max = decimate->ntaps * 2 + 2;
+
+    if (!(decimate->taps = malloc(decimate->ntaps * sizeof(int16_t))) || !(decimate->history = malloc(decimate->history_max * sizeof(cs16_t)))) {
+        free(decimate);
+        return LPCSDR_ERROR_NO_MEMORY;
+    }
+
+    /* scale taps so that the output cannot ever overflow a Q15 representation */
+    float scale = 32767 / sum_taps;
+    for (unsigned i = 0; i < decimate->ntaps; ++i) {
+        decimate->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
+    }
+
+    lpcsdr_dsp_decimate_reset(decimate);
+    *out = decimate;
+    return LPCSDR_SUCCESS;
+}
+
+
+void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate)
+{
+    if (!decimate)
+        return;
+
+    free(decimate->taps);
+    free(decimate->history);
+    free(decimate);
+}
+
+void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate)
+{
+    if (!decimate)
+        return;
+
+    memset_elements(decimate->history, 0, decimate->history_max);
+    decimate->history_len = 0;
 }

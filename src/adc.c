@@ -223,10 +223,10 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
     return LPCSDR_SUCCESS;
 }
 
-int unpack_header(uint32_t current_block, uint8_t *in, ep1_header_t *out) {
+int unpack_header(uint32_t offset, uint8_t *in, ep1_header_t* out) {
     uint8_t header[sizeof(ep1_header_t)];
     for (uint32_t hx = 0; hx < sizeof(ep1_header_t); hx++) {
-        header[hx] = in[current_block + hx];
+        header[hx] = in[offset + hx];
     }
 
     ep1_header_t *h = (ep1_header_t *) header;
@@ -243,16 +243,19 @@ int unpack_header(uint32_t current_block, uint8_t *in, ep1_header_t *out) {
 int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t *out, uint32_t skip, const char *output_file) {
     int error = LPCSDR_SUCCESS;
 
-    ep1_header_t first_header = {};
-    unpack_header(0, in, &first_header);
+    ep1_header_t h = {};
+    unpack_header(0, in, &h);
     
-    const uint32_t usb_bytes_per_block = first_header.block_len;
-    const uint32_t usb_samples_per_block = first_header.samples;
+    const uint32_t usb_bytes_per_block = h.block_len;
+    const uint32_t usb_samples_per_block = h.samples;
     uint32_t out_index = 0;
 
     for(uint32_t current_block = skip * usb_bytes_per_block; current_block < in_length; current_block+=usb_bytes_per_block) {
-        ep1_header_t h = {};
         unpack_header(current_block, in, &h);
+
+        if (out_index == 6807) {
+            int a = 1;
+        }
 
         if (h.magic != EXPECTED_BLOCK_HEADER_MAGIC) {
             fprintf(stderr, "Magic mismatch at block %d", current_block);
@@ -302,7 +305,7 @@ int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_l
     }
 
     FILE *file;
-    if (output_file != NULL && (file = fopen(output_file, "w")) != NULL) {
+    if (output_file != NULL && (file = fopen(output_file, "a")) != NULL) {
         for (uint32_t i = 0; i < out_index; i++)
             fprintf(file, "%d\t%d\n", i, out[i]);
         fclose(file);
@@ -313,10 +316,6 @@ int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_l
     printf("length of unpacked %d \n", out_index);
 
     return error;
-}
-
-int lpcsdr_read_bulk_data(lpcsdr_device_handle *device_handle, uint8_t *buffer, uint32_t length, uint32_t *num_bytes_actually_read, uint32_t chunk_timeout) {
-    return libusb_bulk_transfer(device_handle->usb_handle, 0x81, (unsigned char*) buffer, length, (int *) num_bytes_actually_read, chunk_timeout);
 }
 
 int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint8_t *out, uint32_t total, const char *output_file_path) {
@@ -346,7 +345,7 @@ int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_s
         if (buffer == NULL)
             return LPCSDR_ERROR_NO_MEMORY;
 
-        if ((error = lpcsdr_read_bulk_data(device_handle, buffer, length, num_bytes_actually_read, chunk_timeout)) < 0) {
+        if ((error = device_handle->vtable->bulk_transfer(device_handle->usb_handle, 0x81, (unsigned char *) buffer, length, (int *) num_bytes_actually_read, chunk_timeout)) < 0) {
             goto cleanup;
         }
 
@@ -385,6 +384,8 @@ cleanup:
 
 int lpcsdr_capture_toy_example(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip) {
     int error = LPCSDR_SUCCESS;
+    uint8_t *adc_capture = NULL;
+    int16_t *unpacked = NULL;
 
     if ((error = lpcsdr_start_transfer(device_handle, target_frequency)) < 0)
         goto cleanup;
@@ -396,11 +397,11 @@ int lpcsdr_capture_toy_example(lpcsdr_device_handle* device_handle, uint32_t num
     uint32_t num_blocks = ceil((double) (2 * num_samples + skip * status->usb_samples_per_block) / (double)status->usb_samples_per_block);
     uint32_t total = num_blocks * status->usb_bytes_per_block;
 
-    uint8_t *adc_capture = calloc(total, sizeof(uint8_t));
+    adc_capture = calloc(total, sizeof(uint8_t));
     if ((error = lpcsdr_read_raw_adc_data(device_handle, status, adc_capture, total, "raw_adc_capture.tsv")) < 0)
         goto cleanup;
 
-    int16_t *unpacked = calloc(num_blocks * status->usb_samples_per_block, sizeof(int16_t));
+    unpacked = calloc(num_blocks * status->usb_samples_per_block, sizeof(int16_t));
     if ((error = unpack_raw_adc_data(device_handle, adc_capture, total, unpacked, skip, "./test_unpacked.tsv")) < 0)
         goto cleanup;
 
