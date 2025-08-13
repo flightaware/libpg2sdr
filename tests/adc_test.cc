@@ -332,24 +332,3 @@ TEST(Test_unpack_raw_adc_data, Successful) {
         EXPECT_EQ(out[i], expected_unpacked_samples[i]);
     }
 }
-
-// TEST(Test_unpack_raw_adc_data, byte_length_mismatch) {
-//     uint16_t buffer_length = 20;
-//     uint8_t buffer[buffer_length] = {
-//         239, 190, 173, 222, 
-//         //block len
-//         2, 0, 0, 0, 
-//         0, 0, 0, 0,
-//         0, 0, 0, 0,
-//         0, 0, 0, 0,
-//     };
-
-//     lpcsdr_device_handle h = {
-//         .usb_samples_per_block_multiple = 8,
-//         .usb_bytes_per_block_multiple = 4,
-//     };
-
-//     int16_t *out = NULL;
-//     int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
-//     EXPECT_EQ(return_status, LPCSDR_BT_BLOCKLENGTH_MISMATCH);
-// }
