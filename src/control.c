@@ -17,7 +17,7 @@ int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequenc
     ep0_out_start_transfer_t buffer = {
         .n_divisor = divisors->n,
         // Shift M divisor by 15
-        .m_divisor = round(divisors->m * 32768),
+        .m_divisor = round(divisors->m * LPCSDR_FIXED_POINT_SCALE_FACTOR),
         .p_divisor = divisors->p,
         .idiv_divisor = divisors->i
     };
@@ -45,7 +45,7 @@ cleanup:
 }
 
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle) {
-    int error = libusb_control_transfer(
+    int error = handle->libusb_vtable->control_transfer(
                                     handle->usb_handle, 
                                     LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
                                     0x14,

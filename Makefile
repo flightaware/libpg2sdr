@@ -12,10 +12,15 @@ debug:
 	cmake -DCMAKE_BUILD_TYPE=Debug -B ./build -S ./
 	cd build && make
 
-run-tests:
+run-unit-tests:
 	make clean
 	make build
-	cd build && ctest --output-on-failure
+	cd build && ctest -L "Unit" --output-on-failure
+
+run-stream-integration-tests:
+	make clean
+	make build
+	cd build && ctest -L "Integration" --output-on-failure
 
 dsp:
 	make clean

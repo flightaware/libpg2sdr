@@ -4,20 +4,267 @@
 
 #define memory_barrier() atomic_thread_fence(4)
 
-static void free_block(lpcsdr_internal_sample_block *block)
-{
-    free(block->public_block.samples);
-    free(block);
-}
+static int allocate_transfers(lpcsdr_device_handle *dev);
+static void cancel_transfers(lpcsdr_device_handle *dev);
+static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data);
+static int drain_transfers(lpcsdr_device_handle *dev);
+static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer);
+static int submit_transfers(lpcsdr_device_handle *dev);
+static void transfer_callback(struct libusb_transfer *xfer);
+static bool check_any_transfer_busy(lpcsdr_device_handle *dev);
 
-static void free_or_orphan_block(lpcsdr_internal_sample_block *block)
-{
-    if (block->busy) {
-        block->orphan = true;
-    } else {
-        free_block(block);
+static lpcsdr_internal_sample_buffer *find_unused_buffer(lpcsdr_buffer_manager *bm);
+static void free_or_orphan_buffer(lpcsdr_internal_sample_buffer *buffer);
+static void release_buffer(lpcsdr_buffer_manager *m, lpcsdr_internal_sample_buffer *buffer);
+
+static void dispatch_block(lpcsdr_device_handle *dev, void *data, unsigned length, lpcsdr_stream_callback callback, void *user_data);
+
+static void dispatch_block(lpcsdr_device_handle *dev, void *data, unsigned length, lpcsdr_stream_callback callback, void *user_data) {
+    lpcsdr_internal_sample_buffer *buffer = find_unused_buffer(dev->buffer_manager);
+    ep1_header_t h;
+    unpack_header(0, data, &h);
+    if (buffer == NULL)
+        return;
+
+    switch(dev->conversion_mode) {
+        case LPCSDR_LOWIF_REAL:
+            buffer->public_buffer.count = unpack_raw_adc_data(dev, (uint8_t *) data, length, (int16_t *) buffer->public_buffer.samples, 0, "stream_test_unpack.tsv");
+            break;
+
+        case LPCSDR_LOWIF_COMPLEX:
+            // Not implemented
+            break;
+    }
+    buffer->public_buffer.timestamp = h.sequence;
+    bool result = callback((lpcsdr_sample_buffer *)buffer, user_data);
+
+    if (result) {
+        release_buffer(dev->buffer_manager, buffer);
     }
 }
+
+int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms) {
+    int error = LPCSDR_SUCCESS;
+
+    if ((error = allocate_transfers(dev)) < 0)
+        return error;
+
+    if ((error = submit_transfers(dev)) < 0)
+        return error;
+
+    while (!dev->draining) {
+        dev->completion_flag = 0;
+
+        if (dev->active_transfers_head->state == XFER_BUSY) {
+            struct timeval timeout = {/* tv_sec */ timeout_ms / 1000,
+                                      /* tv_usec */ (timeout_ms % 1000) * 1000};
+            error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
+            if (error < 0 && error != LIBUSB_ERROR_INTERRUPTED) {
+                return lpcsdr_translate_libusb_error(dev->ctx, error);
+            }
+            continue;
+        }
+        
+        lpcsdr_transfer_state *current = dev->active_transfers_head;
+
+        if (current->state != XFER_COMPLETED) {
+            error = LPCSDR_ERROR_BAD_STATE;
+            goto cleanup;
+        }
+
+        if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+            error = current->transfer->status;
+            goto cleanup;
+        }
+
+        if ((error = dispatch_transfer(dev, current, callback, user_data)) < 0) {
+            goto cleanup;
+        }
+
+        current->state = XFER_IDLE;
+        dev->active_transfers_head = current->next;
+        if (!dev->active_transfers_head)
+            dev->active_transfers_tail = NULL;
+
+        if ((error = submit_one_transfer(current)) < 0) {
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    int cleanup_error = drain_transfers(dev);
+    if (cleanup_error < 0) {
+        goto done;
+    }
+
+done:
+    dev->streaming = false;
+    dev->draining = false;
+    return error;
+}
+
+int lpcsdr_stop_streaming(lpcsdr_device_handle *dev)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    if (!dev->streaming) {
+        pthread_mutex_unlock(&dev->mutex);
+        return LPCSDR_ERROR_BAD_STATE;
+    }
+
+    dev->draining = true;
+
+    /* wake up the streaming thread */
+    dev->completion_flag = 1;
+    memory_barrier();
+    libusb_interrupt_event_handler(dev->ctx->libusb_ctx);
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+//Buffer
+
+static void free_buffer(lpcsdr_internal_sample_buffer *buffer)
+{
+    free(buffer->public_buffer.samples);
+    free(buffer);
+}
+
+static void free_or_orphan_buffer(lpcsdr_internal_sample_buffer *buffer)
+{
+    if (buffer->busy) {
+        buffer->orphan = true;
+    } else {
+        free_buffer(buffer);
+    }
+}
+
+static lpcsdr_internal_sample_buffer *find_unused_buffer(lpcsdr_buffer_manager *bm) 
+{
+    if (bm->available_head) {
+        lpcsdr_internal_sample_buffer *available_buffer = bm->available_head;
+        bm->available_head = bm->available_head->next_available;
+        available_buffer->next_available = NULL;
+        available_buffer->busy = true;
+        return available_buffer;
+    }
+
+    return NULL;
+}
+
+int lpcsdr_get_buffering(lpcsdr_device_handle *dev, unsigned *buffer_count, unsigned *buffer_size) {
+    *buffer_count = dev->buffer_manager->buffer_count;
+    *buffer_size = dev->buffer_manager->buffer_size;
+
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_set_buffering(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size)
+{
+    CHECK_DEV(dev);
+
+    int error;
+    pthread_mutex_lock(&dev->mutex);
+
+    /* if we fail to reallocate here, don't update the size/count; the old buffers are probably freed,
+     * but we'll try to reallocate using the old values when we next start streaming
+     */
+    if ((error = lpcsdr_realloc_buffers(dev, buffer_count, buffer_size)) < 0) {
+        goto done;
+    }
+    pthread_mutex_unlock(&dev->mutex);
+
+    dev->buffer_manager->buffer_count = buffer_count;
+    dev->buffer_manager->buffer_size = buffer_size;
+
+done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
+}
+
+int lpcsdr_realloc_buffers(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size_bytes) {
+
+    int error;
+    lpcsdr_buffer_manager *m = calloc(1, sizeof(lpcsdr_buffer_manager));
+
+    m->buffers = NULL;
+    m->buffer_count = 0;
+    m->buffer_size = 0;
+
+    lpcsdr_internal_sample_buffer **buffers = NULL;
+    lpcsdr_internal_sample_buffer *prev = NULL;
+
+    /* allocate user buffers */
+    if (!(buffers = calloc(buffer_count, sizeof(*buffers)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto failed;
+    }
+
+    for (unsigned i = 0; i < buffer_count; ++i) {
+        if (!(buffers[i] = calloc(1, sizeof(*buffers[i]))) || !(buffers[i]->public_buffer.samples = malloc(buffer_size_bytes))) {
+            error = LPCSDR_ERROR_NO_MEMORY;
+            goto failed;
+        }
+
+        buffers[i]->public_buffer.dev = dev;
+        buffers[i]->busy = false;
+        buffers[i]->orphan = false;
+
+        if (prev)
+            prev->next_available = buffers[i];
+        prev = buffers[i];
+    }
+    m->available_head = buffers[0];
+    m->available_tail = buffers[buffer_count - 1];
+    dev->buffer_manager = m;
+    dev->buffer_manager->buffers = buffers;
+    return LPCSDR_SUCCESS;
+
+failed:
+    if (buffers) {
+        for (unsigned i = 0; i < buffer_count; ++i) {
+            free(buffers[i]->public_buffer.samples);
+            free(buffers[i]);
+        }
+        free(buffers);
+    }
+    return error;
+}
+
+static void release_buffer(lpcsdr_buffer_manager *m, lpcsdr_internal_sample_buffer *buffer)
+{
+    if (buffer->orphan) {
+        /* we have reallocated while this block was busy; just free directly, don't reuse */
+        free_buffer(buffer);
+        return;
+    }
+
+    buffer->next_available = NULL;
+    buffer->busy = false;
+
+    if (!m->available_tail) {
+        m->available_head = buffer;
+    } else {
+        m->available_tail->next_available = buffer;
+    }
+    m->available_tail = buffer;
+}
+
+void lpcsdr_free_buffers(lpcsdr_buffer_manager *bm)
+{
+    if (bm->buffers) {
+        for (unsigned i = 0; i < bm->buffer_count; ++i) {
+            free_or_orphan_buffer(bm->buffers[i]);
+        }
+    }
+
+    free(bm->buffers);
+    free(bm);
+}
+
+//Transfers
 
 /* callback from libusb when a transfer completes.
  * We do no real processing here and just mark the transfer as completed,
@@ -26,7 +273,6 @@ static void free_or_orphan_block(lpcsdr_internal_sample_block *block)
  */
 static void transfer_callback(struct libusb_transfer *xfer)
 {
-    printf("In callback\n");
     lpcsdr_transfer_state *dev_transfer = (lpcsdr_transfer_state *)xfer->user_data;
     dev_transfer->dev->completion_flag = 1;
     memory_barrier();
@@ -95,8 +341,38 @@ failed:
     return error;
 }
 
+static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data)
+{
+    unsigned bytelength = dev_transfer->transfer->actual_length;
+    
+    if (bytelength % dev->usb_bytes_per_block_multiple != 0) {
+        return LPCSDR_BT_BLOCKLENGTH_MISMATCH;
+    }
+
+    ep1_header_t h = {};
+    for (unsigned int offset = 0; offset < bytelength; offset += USB_BLOCK_SIZE) {
+        unpack_header(offset, dev_transfer->buffer, &h);
+
+        uint32_t block_len = h.block_len;
+        if (h.magic != EXPECTED_BLOCK_HEADER_MAGIC) {
+            return LPCSDR_BT_MAGIC_MISMATCH;
+        }
+        if (h.block_len % dev->usb_bytes_per_block_multiple != 0) {
+            return LPCSDR_BT_BLOCKLENGTH_MISMATCH;
+        }
+        if (h.samples % dev->usb_samples_per_block_multiple != 0) {
+            return LPCSDR_BT_SAMPLELENGTH_MISMATCH;
+        }
+
+        printf("block seq %u\n", h.sequence);
+        dispatch_block(dev, dev_transfer->buffer + offset, block_len, callback, user_data);
+    }
+    return LPCSDR_SUCCESS;
+
+}
+
 /* submit one currently-idle transfer, link it into the active list */
-static int submit_one_transfer(lpcsdr_transfer_state *dev_transfer)
+static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer)
 {
     if (dev_transfer->state != XFER_IDLE)
         return LPCSDR_ERROR_BAD_STATE;
@@ -136,216 +412,59 @@ static int submit_transfers(lpcsdr_device_handle *dev)
     return LPCSDR_SUCCESS;
 }
 
-static int find_unused_block(lpcsdr_device_handle *dev, lpcsdr_internal_sample_block **out) {
-    lpcsdr_internal_sample_block *block = NULL;
-    for (unsigned i = 0; i < dev->block_count; ++i) {
-        if (!dev->blocks[i]->busy) {
-            block = dev->blocks[i];
-            break;
-        }
-    }
-
-    if (!block) {
-        return LPCSDR_SUCCESS;
-    }
-
-    *out = block;
-    return LPCSDR_SUCCESS;
-}
-
-static void dispatch_block(lpcsdr_device_handle *dev, void *data, unsigned length, lpcsdr_stream_callback callback, void *user_data) {
-    int error;
-    lpcsdr_internal_sample_block *block = NULL;
-
-    find_unused_block(dev, &block);
-    
-    if (block == NULL)
-        return;
-
-    switch(dev->conversion_mode) {
-        case LPCSDR_LOWIF_REAL:
-            if ((error = unpack_raw_adc_data(dev, (int16_t *) data, length, block->public_block.samples, 0, "stream_test_unpack.tsv")) < 0){
-            }
-            break;
-
-        case LPCSDR_LOWIF_COMPLEX:
-            //decimate?
-            break;
-    }
-}
-
-static int dispatch_transfer(lpcsdr_device_handle *dev, int stream_format, lpcsdr_transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data)
+static int drain_transfers(lpcsdr_device_handle *dev)
 {
-    int error;
-    unsigned bytelength = dev_transfer->transfer->actual_length;
-    
-    if (bytelength % dev->usb_bytes_per_block_multiple != 0) {
-        printf("lenght mismatch");
-        return LPCSDR_BT_BLOCKLENGTH_MISMATCH;
-    }
+    int error = LPCSDR_SUCCESS;
+    dev->draining = true; /* ensure that blocks returned by the user are not resubmitted */
 
-    // unsigned sequence = 1;
+    cancel_transfers(dev);
 
-    ep1_header_t h = {};
-    for (unsigned int offset = 0; offset < bytelength; offset += USB_BLOCK_SIZE) {
-        unpack_header(offset, dev_transfer->buffer, &h);
-
-        uint32_t block_len = h.block_len;
-        if (h.magic != EXPECTED_BLOCK_HEADER_MAGIC || block_len % dev->usb_bytes_per_block_multiple) {
-            printf("length mismatch at block %u\n", offset);
-            return LPCSDR_ERROR_FIRMWARE_MISMATCH;
-        }
-        // if (h.sequence != sequence) {
-        //     printf("sequence mismatch. Expected %u , got %u\n", sequence, h.sequence);
-        //     return LPCSDR_ERROR_BAD_STATE;
-        // }
-        int16_t *out = calloc(h.samples, sizeof(int16_t));
-        dispatch_block(dev, dev_transfer->buffer + offset, block_len, callback, user_data);
-
-        // ++sequence;
-    }
-    return LPCSDR_SUCCESS;
-}
-
-int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms) {
-    int error;
-
-    if ((error = allocate_transfers(dev)) < 0)
-        return error;
-
-    if ((error = submit_transfers(dev)) < 0)
-        return error;
-
-    bool run = true;
-    while (run) {
-
+    while (true) {
         dev->completion_flag = 0;
+        memory_barrier();
 
-        if (dev->active_transfers_head->state == XFER_BUSY) {
-            printf("Servicing...\n");
-            struct timeval timeout = {/* tv_sec */ timeout_ms / 1000,
-                                      /* tv_usec */ (timeout_ms % 1000) * 1000};
-            error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
-            if (error < 0 && error != LIBUSB_ERROR_INTERRUPTED) {
-                return -1;
-            }
-            continue;
-        }
-        
-        lpcsdr_transfer_state *current = dev->active_transfers_head;
-        
+        if (!check_any_transfer_busy(dev))
+            break;
 
-        if (current->state != XFER_COMPLETED) {
-            printf("failed\n");
+        /* still waiting for some transfers to complete */
+        pthread_mutex_unlock(&dev->mutex);
+        int usb_error = libusb_handle_events_completed(dev->ctx->libusb_ctx, &dev->completion_flag);
+        pthread_mutex_lock(&dev->mutex);
+        if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
             goto cleanup;
-        }
-
-        if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-            error = -1;
-            goto cleanup;
-        }
-
-        if ((error = dispatch_transfer(dev, -1, current, callback, user_data)) < 0) {
-            goto cleanup;
-        }
-
-        current->state = XFER_IDLE;
-        dev->active_transfers_head = current->next;
-        if (!dev->active_transfers_head)
-            dev->active_transfers_tail = NULL;
-
-        if ((error = submit_one_transfer(current)) < 0) {
-            printf("Submitting one transfer in loop \n");
-            return error;
         }
     }
 
-    return LPCSDR_SUCCESS;
+    lpcsdr_transfer_state *prev = NULL;
+    while (dev->active_transfers_head) {
+        dev->active_transfers_head->state = XFER_IDLE;
+        prev = dev->active_transfers_head;
+        dev->active_transfers_head = dev->active_transfers_head->next;
+        prev->next = NULL;
+    }
+    dev->active_transfers_tail = NULL;
 
 cleanup:
-    // drain and free stuff
+    dev->draining = false;
     return error;
 }
 
-int lpcsdr_get_buffering(lpcsdr_device_handle *dev, unsigned *buffer_count, unsigned *buffer_size) {
-    *buffer_count = dev->block_count;
-    *buffer_size = dev->block_size;
-
-    return LPCSDR_SUCCESS;
-}
-
-int lpcsdr_set_buffering(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size)
+static void cancel_transfers(lpcsdr_device_handle *dev)
 {
-    CHECK_DEV(dev);
-
-    int error;
-    pthread_mutex_lock(&dev->mutex);
-
-    /* if we fail to reallocate here, don't update the size/count; the old buffers are probably freed,
-     * but we'll try to reallocate using the old values when we next start streaming
-     */
-    if ((error = lpcsdr_realloc_blocks(dev, buffer_count, buffer_size)) < 0) {
-        goto done;
+    /* cancel all outstanding transfers */
+    for (unsigned i = 0; i < dev->transfer_count; ++i) {
+        if (dev->transfers[i].state == XFER_BUSY) {
+            libusb_cancel_transfer(dev->transfers[i].transfer);
+        }
     }
-
-    dev->block_count = buffer_count;
-    dev->block_size = buffer_size;
-
-done:
-    pthread_mutex_unlock(&dev->mutex);
-    return error;
 }
 
-int lpcsdr_realloc_blocks(lpcsdr_device_handle *dev, unsigned block_count, unsigned block_size_bytes) {
-
-    int error;
-    lpcsdr_internal_sample_block **blocks = NULL;
-
-    dev->blocks = NULL;
-    dev->block_count = 0;
-    dev->block_size = 0;
-
-    /* allocate user buffers */
-    if (!(blocks = calloc(block_count, sizeof(*blocks)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-
-    for (unsigned i = 0; i < block_count; ++i) {
-        if (!(blocks[i] = calloc(1, sizeof(*blocks[i]))) || !(blocks[i]->public_block.samples = malloc(block_size_bytes))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
-            goto failed;
-        }
-
-        blocks[i]->public_block.dev = dev;
-        blocks[i]->busy = false;
-        blocks[i]->orphan = false;
-    }
-
-    dev->blocks = blocks;
-    return LPCSDR_SUCCESS;
-
-failed:
-    if (blocks) {
-        for (unsigned i = 0; i < block_count; ++i) {
-            free(blocks[i]->public_block.samples);
-        }
-        free(blocks);
-    }
-    return error;
-}
-
-void lpcsdr_free_blocks(lpcsdr_device_handle *dev)
+static bool check_any_transfer_busy(lpcsdr_device_handle *dev)
 {
-    if (dev->blocks) {
-        for (unsigned i = 0; i < dev->block_count; ++i) {
-            free_or_orphan_block(dev->blocks[i]);
-        }
+    for (unsigned i = 0; i < dev->transfer_count; ++i) {
+        if (dev->transfers[i].state == XFER_BUSY)
+            return true;
     }
 
-    free(dev->blocks);
-
-    dev->blocks = NULL;
-    dev->block_count = 0;
-    dev->block_size = 0;
+    return false;
 }

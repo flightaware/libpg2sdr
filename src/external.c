@@ -59,10 +59,8 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         return LPCSDR_ERROR_BUSY;
     }
 
-    // pxsdr_free_blocks(dev);
-    // pxsdr_free_decimators(dev);
-    // lpcsdr_dsp_ifir_free(dev->baseband_filter);
-    // pxsdr_dsp_decimate_free(dev->decimation_filter);
+    lpcsdr_free_buffers(dev->buffer_manager);
+    lpcsdr_dsp_decimate_free(dev->decimation_filter);
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;
     pthread_mutex_unlock(&dev->mutex);

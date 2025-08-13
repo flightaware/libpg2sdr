@@ -104,12 +104,6 @@ struct lpcsdr_ifir {
 };
 
 typedef struct {
-    //libusb_bulk_transfer func pointer
-    int (*bulk_transfer)(libusb_device_handle *dev_handle, unsigned char endpoint, 
-    unsigned char *data, int length, int *actual_length, unsigned int timeout);
-} libusb_vtable;
-
-typedef struct {
     /* Handle for the device producing this sample block. */
     lpcsdr_device_handle *dev;
 
@@ -128,7 +122,7 @@ typedef struct {
      */
     uint64_t timestamp;
 
-} lpcsdr_sample_block;
+} lpcsdr_sample_buffer;
 
 typedef struct pll_divisors {
     bool fractional;
@@ -166,15 +160,12 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
 
 int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
-int lpcsdr_read_raw_adc_data(lpcsdr_device_handle* device_handle, ep0_in_board_status_t *status, uint8_t *out, uint32_t total, const char *output_file_path);
-int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t *out, uint32_t skip, const char *output_file);
-int lpcsdr_capture_toy_example(lpcsdr_device_handle* device_handle, uint32_t num_samples, uint32_t target_frequency, uint32_t skip);
-
 
 //Streaming
 int lpcsdr_set_buffering(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size);
 int lpcsdr_get_buffering(lpcsdr_device_handle *dev, unsigned *buffer_count, unsigned *buffer_size);
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
+int lpcsdr_stop_streaming(lpcsdr_device_handle *dev);
 
 #if defined(__cplusplus)
 }

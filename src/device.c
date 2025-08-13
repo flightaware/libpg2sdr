@@ -22,26 +22,6 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
     return LPCSDR_ERROR_NOT_FOUND;
 }
 
-int populate_libusb_vtable(libusb_vtable **out) {
-    libusb_vtable *vtable = calloc(1, sizeof(libusb_vtable));
-
-    if (!vtable)
-        return LPCSDR_ERROR_NO_MEMORY;
-    
-    vtable->bulk_transfer = libusb_bulk_transfer;
-    *out = vtable;
-
-    return LPCSDR_SUCCESS;
-}
-
-void free_libusb_vtable(libusb_vtable *vtable) {
-    if (!vtable)
-        return;
-
-    free(vtable);
-    return;
-}
-
 int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out) {
     int error;
     lpcsdr_device_handle *dev = calloc(1, sizeof(lpcsdr_device_handle));
@@ -61,6 +41,7 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
     dev->hsadc_frequency = status->hsadc_frequency;
     dev->blocks_per_chunk = 128;
     dev->usb_handle = usb_handle;
+    dev->conversion_mode = LPCSDR_LOWIF_REAL;
 
     pthread_mutexattr_t attrs;
     if (pthread_mutexattr_init(&attrs) < 0 || pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE) < 0 || pthread_mutex_init(&dev->mutex, &attrs) < 0) {
@@ -68,9 +49,10 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
         goto cleanup_nomutex;
     }
 
-    init_global_adc_divisor_tables();
+    if ((error = init_global_adc_divisor_tables()) < 0)
+        goto cleanup;
     
-    if ((error = populate_libusb_vtable(&dev->vtable))< 0)
+    if ((error = populate_libusb_vtable(&dev->libusb_vtable))< 0)
         goto cleanup;
 
     if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
@@ -82,14 +64,13 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
 cleanup:
     if (dev->decimation_filter)
         lpcsdr_dsp_decimate_free(dev->decimation_filter);
-    if (dev->vtable)
-        free_libusb_vtable(dev->vtable);
+    if (dev->libusb_vtable)
+        free_libusb_vtable(dev->libusb_vtable);
 
     pthread_mutex_destroy(&dev->mutex);
 
 cleanup_nomutex:
     free(dev);
-
     return error;
 
 }
