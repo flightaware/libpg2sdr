@@ -52,6 +52,8 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     if ((error = submit_transfers(dev)) < 0)
         return error;
 
+    dev->streaming = true;
+
     while (!dev->draining) {
         dev->completion_flag = 0;
 
