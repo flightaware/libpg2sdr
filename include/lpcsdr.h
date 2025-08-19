@@ -58,11 +58,14 @@ enum lpcsdr_error {
     LPCSDR_ERROR_FWIMAGE_CHECKSUM = -103,  /* firmware image checksum mismatch */
     LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image upload failed */
 
-    // Bulk Transfer (BT) errors
+    /* Bulk Transfer (BT) errors */
     LPCSDR_BT_EXPECTED_LENGTH_MISMATCH = -200,  /* Expected length and actual length of bytes read mismatch */
     LPCSDR_BT_MAGIC_MISMATCH = -201,            /* Magic number at header is wrong */
     LPCSDR_BT_BLOCKLENGTH_MISMATCH = -202,      /* Block Length mismatch*/
-    LPCSDR_BT_SAMPLELENGTH_MISMATCH = -203      /* Block Num Samples mismatch*/
+    LPCSDR_BT_SAMPLELENGTH_MISMATCH = -203,     /* Block Num Samples mismatch*/
+
+    /* Tuner errors */
+    LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND = -300, /* Could not find provided register symbol for a given register */
 };
 
 typedef enum {
@@ -148,7 +151,9 @@ int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, char *firmware_path);
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
 
-int lpcsdr_comms_check(libusb_device_handle *device_handle);
+// Control Transfers
+int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status);
+int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
 
 // Open by Methods
 // static int generic_match(lpc_device *dev, void *arg);
@@ -157,9 +162,6 @@ int lpcsdr_open_by_serial(lpcsdr_context *ctx, const char *serial, lpcsdr_device
 int lpcsdr_open_by_address(lpcsdr_context *ctx, uint8_t bus, uint8_t address, lpcsdr_device_handle **device);
 int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_handle **device);
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
-
-int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency);
-int lpcsdr_stop_transfer(lpcsdr_device_handle *handle);
 
 //Streaming
 int lpcsdr_set_buffering(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size);

@@ -3,6 +3,7 @@
 
 #include "lpcsdr.h"
 #include "dsp.h"
+#include "tuner.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
@@ -128,6 +129,10 @@ struct lpcsdr_device_handle {
     int completion_flag;
     lpcsdr_transfer_state *active_transfers_head; /* linked list of active transfers */
     lpcsdr_transfer_state *active_transfers_tail;
+
+    // Tuner stuff
+    bit_flag **registers;
+    unsigned int registers_count;
 };
 
 enum dfu_state {
@@ -161,7 +166,6 @@ int translate_dfu_status(int dfu_status);
 
 int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
-int lpcsdr_get_status(libusb_device_handle *usb_handle, ep0_in_board_status_t **status);
 
 // ADC
 int init_global_adc_divisor_tables();
@@ -183,5 +187,11 @@ void free_libusb_vtable(libusb_vtable *vtable);
 
 int lpcsdr_realloc_buffers(lpcsdr_device_handle *dev, unsigned block_count, unsigned block_size_bytes);
 void lpcsdr_free_buffers(lpcsdr_buffer_manager *bm);
+
+//control transfers
+int lpcsdr_comms_check(libusb_device_handle *usb_handle);
+int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
+int lpcsdr_stop_transfer(lpcsdr_device_handle *dev);
+int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
 
 #endif /* INTERNAL_H */

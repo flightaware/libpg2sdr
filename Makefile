@@ -36,3 +36,8 @@ str:
 	make clean
 	make debug
 	cd build/tests &&  gdb stream_tests.exe
+
+tuner:
+	make clean
+	make debug
+	cd build/tests &&  gdb tuner_tests.exe 

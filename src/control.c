@@ -4,8 +4,12 @@
 #include "internal.h"
 #include <endian.h>
 
+static int control_transfer(libusb_device_handle *usb_handle, uint8_t bmRequestType, 
+    uint8_t bRequest, uint16_t wValue, uint16_t wIndex, unsigned char *data, 
+    uint16_t wLength, unsigned int timeout);
 
-int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequency){
+
+int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency){
 
     pll_divisors *divisors = NULL;
     int error = LPCSDR_SUCCESS;
@@ -22,15 +26,15 @@ int lpcsdr_start_transfer(lpcsdr_device_handle *handle, uint32_t target_frequenc
         .idiv_divisor = divisors->i
     };
 
-    error = libusb_control_transfer(
-                                    handle->usb_handle, 
-                                    LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-                                    0x13,
-                                    0,
-                                    0,
-                                    (unsigned char *)&buffer,
-                                    sizeof(buffer),
-                                    1000
+    error = control_transfer(
+                            dev->usb_handle, 
+                            LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+                            EP0_OUT_START_TRANSFER,
+                            0,
+                            0,
+                            (unsigned char *)&buffer,
+                            sizeof(buffer),
+                            1000
     );
 
     if (error < 0) {
@@ -44,16 +48,16 @@ cleanup:
     return error;
 }
 
-int lpcsdr_stop_transfer(lpcsdr_device_handle *handle) {
-    int error = handle->libusb_vtable->control_transfer(
-                                    handle->usb_handle, 
-                                    LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-                                    0x14,
-                                    0,
-                                    0,
-                                    NULL,
-                                    0,
-                                    1000
+int lpcsdr_stop_transfer(lpcsdr_device_handle *dev) {
+    int error = control_transfer(
+                                dev->usb_handle, 
+                                LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+                                EP0_OUT_STOP_TRANSFER,
+                                0,
+                                0,
+                                NULL,
+                                0,
+                                1000
     );
 
     if (error < 0) {
@@ -62,19 +66,19 @@ int lpcsdr_stop_transfer(lpcsdr_device_handle *handle) {
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_get_status(libusb_device_handle *usb_handle, ep0_in_board_status_t **status) {
+int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status) {
 
     ep0_in_board_status_t *buffer = calloc(1, sizeof(ep0_in_board_status_t));
 
-    int error = libusb_control_transfer(
-                                        usb_handle, 
-                                        LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
-                                        EP0_IN_BOARD_STATUS,
-                                        0,
-                                        0,
-                                        (unsigned char *)buffer,
-                                        sizeof(ep0_in_board_status_t),
-                                        1000
+    int error = control_transfer(
+                                dev->usb_handle, 
+                                LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+                                EP0_IN_BOARD_STATUS,
+                                0,
+                                0,
+                                (unsigned char *)buffer,
+                                sizeof(ep0_in_board_status_t),
+                                1000
     );
 
     if (error < 0) {
@@ -86,18 +90,18 @@ int lpcsdr_get_status(libusb_device_handle *usb_handle, ep0_in_board_status_t **
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_comms_check(libusb_device_handle *device_handle)
+int lpcsdr_comms_check(libusb_device_handle *usb_handle)
 {
     uint32_t buffer[1];
-    int error = libusb_control_transfer(
-                                        device_handle, 
-                                        LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_ENDPOINT,
-                                        0x01,
-                                        0,
-                                        0,
-                                        (unsigned char *)buffer,
-                                        sizeof(buffer),
-                                        1000
+    int error = control_transfer(
+                                usb_handle, 
+                                LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_ENDPOINT,
+                                EP0_IN_COMMS_CHECK,
+                                0,
+                                0,
+                                (unsigned char *)buffer,
+                                sizeof(buffer),
+                                1000
     );
 
     if (error < 0) {
@@ -107,4 +111,64 @@ int lpcsdr_comms_check(libusb_device_handle *device_handle)
     if (buffer[0] == 0xDEADBEEF)
         return LPCSDR_SUCCESS;
     return -1;
+}
+
+int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
+{   
+    int error = control_transfer(
+                                dev->usb_handle, 
+                                LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+                                EP0_OUT_TUNER_UPDATE,
+                                first,
+                                0,
+                                (unsigned char *) payload,
+                                payload_size,
+                                1000
+    );
+
+    if (error < 0) {
+        return error;
+    }
+
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode) {
+    int error = control_transfer(
+                                dev->usb_handle, 
+                                LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE,
+                                EP0_OUT_SET_RF_POWER,
+                                mode,
+                                0,
+                                NULL,
+                                0,
+                                1000
+    );
+
+    if (error < 0) {
+        return error;
+    }
+
+    return LPCSDR_SUCCESS;
+}
+
+static int control_transfer(libusb_device_handle *usb_handle, uint8_t bmRequestType, 
+    uint8_t bRequest, uint16_t wValue, uint16_t wIndex, unsigned char *data, 
+    uint16_t wLength, unsigned int timeout) {
+
+    int error = libusb_control_transfer(
+                                        usb_handle, 
+                                        bmRequestType,
+                                        bRequest,
+                                        wValue,
+                                        wIndex,
+                                        data,
+                                        wLength,
+                                        timeout
+    );
+    
+    if (error < 0)
+        return error;
+
+    return LPCSDR_SUCCESS;
 }
