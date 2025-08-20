@@ -237,9 +237,16 @@ int init_tuner(lpcsdr_device_handle *handle) {
     if ((error = lpcsdr_set_rf_power(handle, 1)) < 0)
         goto failed;
 
+
+    uint8_t *buffer = calloc(1, sizeof(uint8_t));
+    if ((error = lpcsdr_read_tuner_register(handle, 0, 0, buffer, 1)) < 0)
+        goto failed;
+
+
     return error;
 
 failed:
+    free_registers(handle->registers, handle->registers_count);
     return error;
 }
 
@@ -427,11 +434,51 @@ int free_registers(bit_flag **registers, unsigned registers_count) {
     return LPCSDR_SUCCESS;
 }
 
+// change_set
+int create_change_set(change_set **out) {
+    int error = LPCSDR_SUCCESS;
+    change_set *cs = NULL;
+    change_set_value **entries = NULL;
+    
+    if (!(cs = calloc(1, sizeof(change_set)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto failed;
+    }
+    cs->entries_count = TUNER_REG_COUNT;
+    if (!(entries = calloc(TUNER_REG_COUNT, sizeof(*entries)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto failed;
+    }
+
+    for (int i = 0; i < TUNER_REG_COUNT; i++) {
+        if (!(entries[i] = calloc(1, sizeof(change_set_value)))){
+            error = LPCSDR_ERROR_NO_MEMORY;
+            goto failed;
+        }
+    }
+
+    cs->entries = entries;
+    *out = cs;
+
+    return LPCSDR_SUCCESS;
+
+failed:
+    if (cs)
+        free(cs);
+    if (entries) {
+        for (int i = 0; i < TUNER_REG_COUNT; i++) {
+            if (entries[i])
+                free(entries[i]);
+        }
+    }
+    return error;
+}
+
 /*
     Use reg to index into the handles->register array.
     Search for the desired REGISTER_SYMBOL and update the change_set value + mask.
 */
-int set_tuner_value(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value) {
+int set_tuner_value_in_change_set(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value) {
     bit_flag *r = handle->registers[reg];
     for (int i = 0; i < r->symbol_count; i++) {
         if (r->symbols[i]->symbol == symbol) {
@@ -485,45 +532,6 @@ int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8
     *out_size = count * 2;
 
     return LPCSDR_SUCCESS;
-}
-
-int create_change_set(change_set **out) {
-    int error = LPCSDR_SUCCESS;
-    change_set *cs = NULL;
-    change_set_value **entries = NULL;
-    
-    if (!(cs = calloc(1, sizeof(change_set)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-    cs->entries_count = TUNER_REG_COUNT;
-    if (!(entries = calloc(TUNER_REG_COUNT, sizeof(*entries)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-
-    for (int i = 0; i < TUNER_REG_COUNT; i++) {
-        if (!(entries[i] = calloc(1, sizeof(change_set_value)))){
-            error = LPCSDR_ERROR_NO_MEMORY;
-            goto failed;
-        }
-    }
-
-    cs->entries = entries;
-    *out = cs;
-
-    return LPCSDR_SUCCESS;
-
-failed:
-    if (cs)
-        free(cs);
-    if (entries) {
-        for (int i = 0; i < TUNER_REG_COUNT; i++) {
-            if (entries[i])
-                free(entries[i]);
-        }
-    }
-    return error;
 }
 
 int free_change_set(change_set *cs) {

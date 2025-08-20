@@ -193,5 +193,6 @@ int lpcsdr_comms_check(libusb_device_handle *usb_handle);
 int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *dev);
 int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
+int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, uint16_t first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
 
 #endif /* INTERNAL_H */

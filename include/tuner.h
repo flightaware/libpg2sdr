@@ -110,10 +110,10 @@ uint32_t bitrange(uint32_t x, uint32_t y);
 int init_tuner(lpcsdr_device_handle *handle);
 int init_tuner_registers(bit_flag ***out);
 int create_tuner_register(tuner_reg_num reg_num, unsigned symbol_count, symbol_bit_mask_tuple *symbols, bit_flag **out);
-int set_tuner_value(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value);
-int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t **payload, uint16_t *payload_size);
 int free_registers(bit_flag **registers, unsigned registers_count);
 
-// change_set
+// Change Set
 int create_change_set(change_set **out);
+int set_tuner_value_in_change_set(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value);
+int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t **payload, uint16_t *payload_size);
 int free_change_set(change_set *cs);

@@ -47,9 +47,9 @@ TEST(Test_FOR_Dev, create_tuner_r5) {
 
     create_change_set(&cs);
 
-    set_tuner_value(handle, cs, TunerR5, LNA_GAIN, 8);
+    set_tuner_value_in_change_set(handle, cs, TunerR5, LNA_GAIN, 8);
     // set_tuner_value(handle, cs, TunerR6, PW_LNA, 3);
-    set_tuner_value(handle, cs, TunerR7, MIX_GAIN, 2);
+    set_tuner_value_in_change_set(handle, cs, TunerR7, MIX_GAIN, 2);
 
     uint16_t first;
     uint8_t *payload;
