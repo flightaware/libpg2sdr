@@ -1,7 +1,7 @@
 #include "internal.h"
 #include <pthread.h>
 
-int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, char *firmware_path) {
+int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path) {
     CHECK_CTX(ctx);
 
     char *dup_path;

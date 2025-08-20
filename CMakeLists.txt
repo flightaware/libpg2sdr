@@ -15,7 +15,6 @@ FetchContent_Declare(
         googletest
         URL https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         DOWNLOAD_NO_PROGRESS TRUE
       )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)

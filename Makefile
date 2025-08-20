@@ -25,19 +25,19 @@ run-stream-integration-tests:
 dsp:
 	make clean
 	make debug
-	cd build/tests &&  gdb dsp_tests.exe
+	cd build/tests &&  gdb dsp_tests
 
 adc:
 	make clean
 	make debug
-	cd build/tests &&  gdb adc_tests.exe
+	cd build/tests &&  gdb adc_tests
 
 str:
 	make clean
 	make debug
-	cd build/tests &&  gdb stream_tests.exe
+	cd build/tests &&  gdb stream_tests
 
 tuner:
 	make clean
 	make debug
-	cd build/tests &&  gdb tuner_tests.exe 
+	cd build/tests &&  gdb tuner_tests 

@@ -1,5 +1,15 @@
 #include "internal.h"
 
+static uint8_t calculate_mask_pos(uint8_t mask) {
+    unsigned alignment = (mask & ~(mask - 1));
+    unsigned pos = 0;
+    while (alignment > 1) {
+        pos++;
+        alignment = alignment >> 1;
+    }
+    return pos;
+}
+
 uint32_t onebit(uint32_t x) {
     return (1<<x);
 }
@@ -230,6 +240,7 @@ hpf_settings hpf_settings_for(int target) {
 int init_tuner(lpcsdr_device_handle *handle) {
     int error = LPCSDR_SUCCESS;
     handle->registers_count = TUNER_REG_COUNT;
+    uint8_t *buffer = NULL;
 
     if ((error = init_tuner_registers(&handle->registers)) < 0)
         goto failed;
@@ -237,20 +248,41 @@ int init_tuner(lpcsdr_device_handle *handle) {
     if ((error = lpcsdr_set_rf_power(handle, 1)) < 0)
         goto failed;
 
+    if (!(buffer = calloc(1, sizeof(uint8_t)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto failed;
+    }
 
-    uint8_t *buffer = calloc(1, sizeof(uint8_t));
-    if ((error = lpcsdr_read_tuner_register(handle, 0, 0, buffer, 1)) < 0)
+    if ((error = lpcsdr_read_tuner_register(handle, TunerR0, 0, buffer, sizeof(uint8_t))) < 0)
         goto failed;
 
+    uint8_t tuner_id;
+    if ((error = extract_register_symbol_val_from_buffer(handle->registers[TunerR0], TUNER_ID, buffer, &tuner_id)) < 0)
+        goto failed;
+
+    if (tuner_id != 0x96) {
+        error = LPCSDR_TUNER_INIT_FAILED;
+        goto failed;
+    }
 
     return error;
 
 failed:
     free_registers(handle->registers, handle->registers_count);
+    if (buffer)
+        free(buffer);
+
     return error;
 }
 
 int init_tuner_registers(bit_flag ***out) {
+    symbol_bit_mask_tuple tuner_r0_symbols[1] = {
+        {
+            .symbol = TUNER_ID,
+            .bit_mask = bitrange(7, 0)
+        }
+    };
+
     symbol_bit_mask_tuple tuner_r5_symbols[5] = {
         {
             .symbol = PWD_LT,
@@ -324,7 +356,12 @@ int init_tuner_registers(bit_flag ***out) {
         }
     };
 
-    bit_flag_metadata register_arr[3] = {
+    bit_flag_metadata register_arr[4] = {
+        {
+            .num = TunerR0,
+            .symbol_count = sizeof(tuner_r0_symbols)/sizeof(tuner_r0_symbols[0]),
+            .symbols = tuner_r0_symbols,
+        },
         {   
             .num = TunerR5,
             .symbol_count = sizeof(tuner_r5_symbols)/sizeof(tuner_r5_symbols[0]),
@@ -396,6 +433,7 @@ int create_tuner_register(tuner_reg_num reg_num, unsigned symbol_count, symbol_b
         }
         s[i]->symbol = symbols->symbol;
         s[i]->bit_mask = symbols->bit_mask;
+        s[i]->pos = calculate_mask_pos(s[i]->bit_mask);
         symbols++;
     }
 
@@ -415,6 +453,25 @@ failed:
     }
 
     return error;
+}
+
+/* 
+    Takes a buffer that contains the values for given register.
+    Uses given symbols mask to grab the correct value from a given buffer.
+    Afterwards, right shift the value so it's aligned to the 0th index.
+ */
+int extract_register_symbol_val_from_buffer(bit_flag *r, REGISTER_SYMBOL symbol, uint8_t *buffer, uint8_t *out) {
+    for (int i = 0; i < r->symbol_count; i++) {
+        symbol_bit_mask_tuple *s = r->symbols[i];
+        if (s->symbol == symbol) {
+            uint8_t v = *buffer & s->bit_mask;
+            v = v >> s->pos;
+            *out = v;
+            return LPCSDR_SUCCESS;
+        }
+    }
+
+    return LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND;
 }
 
 int free_registers(bit_flag **registers, unsigned registers_count) {
@@ -481,10 +538,14 @@ failed:
 int set_tuner_value_in_change_set(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value) {
     bit_flag *r = handle->registers[reg];
     for (int i = 0; i < r->symbol_count; i++) {
-        if (r->symbols[i]->symbol == symbol) {
-            uint8_t mask = cs->entries[reg]->current_mask;
-            cs->entries[reg]->current_mask = mask | r->symbols[i]->bit_mask;
-            cs->entries[reg]->current_value = (cs->entries[reg]->current_value & ~mask) | value;
+        symbol_bit_mask_tuple *s = r->symbols[i];
+        change_set_value *csv = cs->entries[reg];
+
+        if (s->symbol == symbol) {
+            uint8_t old_mask = csv->current_mask;
+            uint8_t mask = s->bit_mask;
+            csv->current_mask = old_mask | mask;
+            csv->current_value = (csv->current_value & ~mask) | (value << s->pos);
             return LPCSDR_SUCCESS;
         }
     }
@@ -534,7 +595,7 @@ int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8
     return LPCSDR_SUCCESS;
 }
 
-int free_change_set(change_set *cs) {
+void free_change_set(change_set *cs) {
     for (int i = 0; i < TUNER_REG_COUNT; i++) {
         free(cs->entries[i]);
     }

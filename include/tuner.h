@@ -51,6 +51,9 @@ typedef enum {
 } tuner_reg_num;
 
 typedef enum {
+    // TunerR0
+    TUNER_ID,
+
     // TunerR5 
     PWD_LT,
     reserved_6_0,
@@ -77,6 +80,7 @@ typedef enum {
 typedef struct {
     REGISTER_SYMBOL symbol;
     uint32_t bit_mask;
+    uint8_t pos;
 } symbol_bit_mask_tuple;
 
 typedef struct bit_flag {
@@ -110,10 +114,11 @@ uint32_t bitrange(uint32_t x, uint32_t y);
 int init_tuner(lpcsdr_device_handle *handle);
 int init_tuner_registers(bit_flag ***out);
 int create_tuner_register(tuner_reg_num reg_num, unsigned symbol_count, symbol_bit_mask_tuple *symbols, bit_flag **out);
+int extract_register_symbol_val_from_buffer(bit_flag *r, REGISTER_SYMBOL symbol, uint8_t *buffer, uint8_t *out);
 int free_registers(bit_flag **registers, unsigned registers_count);
 
 // Change Set
 int create_change_set(change_set **out);
 int set_tuner_value_in_change_set(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value);
 int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t **payload, uint16_t *payload_size);
-int free_change_set(change_set *cs);
+void free_change_set(change_set *cs);

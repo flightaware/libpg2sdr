@@ -1,12 +1,11 @@
-#include <tuple> 
-#include <iostream>
-#include <fstream>
+#include <cinttypes>
+
 #include "util.h"
 
 bool stub_callback(void *buffer, void *user_data) {
     static unsigned count = 0;
     lpcsdr_sample_buffer *b = (lpcsdr_sample_buffer *) buffer;
-    printf("seq: %u, count: %u, our coutner %u\n", b->timestamp, b->count, count);
+    printf("seq: %" PRIu64 ", count: %u, our counter %u\n", b->timestamp, b->count, count);
     if (count == 100) {
         lpcsdr_stop_streaming(b->dev);
     }
