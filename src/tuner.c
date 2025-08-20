@@ -526,7 +526,7 @@ failed:
     return error;
 }
 
-int free_change_set(change_set *cs) {
+void free_change_set(change_set *cs) {
     for (int i = 0; i < TUNER_REG_COUNT; i++) {
         free(cs->entries[i]);
     }

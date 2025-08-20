@@ -116,4 +116,4 @@ int free_registers(bit_flag **registers, unsigned registers_count);
 
 // change_set
 int create_change_set(change_set **out);
-int free_change_set(change_set *cs);
+void free_change_set(change_set *cs);
