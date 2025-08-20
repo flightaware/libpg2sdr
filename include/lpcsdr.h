@@ -147,7 +147,7 @@ int lpcsdr_set_log_callback(lpcsdr_context *ctx, lpcsdr_log_callback callback);
 int lpcsdr_free_device_list(lpc_device **device_list);
 int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
 const char *lpcsdr_strerror(lpcsdr_context *ctx, int error);
-int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, char *firmware_path);
+int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path);
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
 
