@@ -8,6 +8,9 @@ typedef struct {
     int iString;
 } dfu_status_t;
 
+/* DFU state machine values for dfu_status_t.bState; we only really care about one, DFU_DOWNLOAD_IDLE */
+#define DFU_DOWNLOAD_IDLE 0x05
+
 static int hotplug_callback(libusb_context *usb_ctx, libusb_device *device, libusb_hotplug_event event, void *user_data)
 {
     /* stash the device where requested */

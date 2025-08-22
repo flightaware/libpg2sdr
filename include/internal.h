@@ -135,10 +135,6 @@ struct lpcsdr_device_handle {
     unsigned int registers_count;
 };
 
-enum dfu_state {
-    DFU_DOWNLOAD_IDLE = 0x05 // dfuDNLOAD-IDLE state for when downloading firmware onto lpcsdr device
-};
-
 enum dfu_error {
     DFU_ERROR_TARGET = -200, // File is not targeted for use by this device.
     DFU_ERROR_FILE = -201, // File is for this device but fails some vendor-specific verification test.
