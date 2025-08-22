@@ -2,7 +2,7 @@
 #include <stdatomic.h>
 #include <pthread.h>
 
-#define memory_barrier() atomic_thread_fence(4)
+#define memory_barrier() atomic_thread_fence(memory_order_acq_rel)
 
 static int allocate_transfers(lpcsdr_device_handle *dev);
 static void cancel_transfers(lpcsdr_device_handle *dev);
