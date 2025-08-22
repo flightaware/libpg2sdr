@@ -206,6 +206,8 @@ int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device
     lpc_device **devices;
     
     int device_count = lpcsdr_discover_devices(ctx, &devices, true);
+    if (device_count < 0)
+      return device_count;
     
     if (device_count == 0) {
         error = LPCSDR_ERROR_NOT_FOUND;
