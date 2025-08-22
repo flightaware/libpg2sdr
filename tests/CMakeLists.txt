@@ -15,12 +15,12 @@ target_link_libraries(dsp_tests GTest::gtest_main ${CMAKE_SOURCE_DIR}/build/src/
 add_test(NAME dsp_tests COMMAND dsp_tests)
 set_tests_properties(dsp_tests PROPERTIES LABELS "Unit")
 
-add_executable(tuner_tests tuner_test.cc util.cc)
+add_executable(tuner_tests tuner_test.cc)
 target_link_libraries(tuner_tests GTest::gtest_main ${CMAKE_SOURCE_DIR}/build/src/libsdr.a usb-1.0 m)
 add_test(NAME tuner_tests COMMAND tuner_tests)
 set_tests_properties(tuner_tests PROPERTIES LABELS "Unit")
 
-add_executable(stream_tests stream_test.cc util.cc)
+add_executable(stream_tests stream_test.cc)
 target_link_libraries(stream_tests GTest::gtest_main ${CMAKE_SOURCE_DIR}/build/src/libsdr.a usb-1.0 m)
 add_test(NAME stream_tests COMMAND stream_tests)
 set_tests_properties(stream_tests PROPERTIES LABELS "Integration")

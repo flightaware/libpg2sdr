@@ -14,13 +14,20 @@ bool stub_callback(void *buffer, void *user_data) {
     return true;
 }
 
-TEST(STREAM_TEST, dev) {
-    lpcsdr_device_handle *handle;
-    assert(initialize_handle(&handle) == LPCSDR_SUCCESS);
-    lpcsdr_set_buffering(handle, 10, 13616);
-    lpcsdr_start_transfer(handle, 100000);
+TEST(STREAM_TEST, dev)
+{
+    Context ctx;
+    DeviceHandle handle(ctx);
 
-    int r = lpcsdr_stream_data(handle, &stub_callback, NULL, 1000);
-    lpcsdr_stop_transfer(handle);
-    EXPECT_EQ(r, LPCSDR_SUCCESS);
+    int error = lpcsdr_set_buffering(handle(), 10, 13616);
+    EXPECT_EQ(error, LPCSDR_SUCCESS) << "lpcsdr_set_buffering: " << lpcsdr_strerror(ctx(), error);
+
+    error = lpcsdr_start_transfer(handle(), 5000000);
+    ASSERT_EQ(error, LPCSDR_SUCCESS) << "lpcsdr_start_transfer: " << lpcsdr_strerror(ctx(), error);
+
+    error = lpcsdr_stream_data(handle(), &stub_callback, NULL, 1000);
+    EXPECT_EQ(error, LPCSDR_SUCCESS) << "lpcsdr_stream_data returned " << lpcsdr_strerror(ctx(), error);
+
+    error = lpcsdr_stop_transfer(handle());
+    EXPECT_EQ(error, LPCSDR_SUCCESS) << "lpcsdr_stop_transfer: " << lpcsdr_strerror(ctx(), error);
 }

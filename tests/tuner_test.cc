@@ -37,24 +37,25 @@ TEST(init_tuner_regs, Success) {
     EXPECT_EQ(init_tuner_registers(&handle.registers), LPCSDR_SUCCESS);
 }
 
-TEST(Test_FOR_Dev, create_tuner_r5) {
-    lpcsdr_device_handle *handle;
-    handle->registers_count = TUNER_REG_COUNT;
-    assert(initialize_handle(&handle) == LPCSDR_SUCCESS);
-    
-    EXPECT_EQ(init_tuner_registers(&handle->registers), LPCSDR_SUCCESS);
+TEST(Test_FOR_Dev, create_tuner_r5)
+{
+    Context ctx;
+    DeviceHandle handle(ctx);
+
+    handle()->registers_count = TUNER_REG_COUNT;
+    EXPECT_EQ(init_tuner_registers(&handle()->registers), LPCSDR_SUCCESS);
     change_set *cs;
 
     create_change_set(&cs);
 
-    set_tuner_value_in_change_set(handle, cs, TunerR5, LNA_GAIN, 8);
-    set_tuner_value_in_change_set(handle, cs, TunerR5, LNA_GAIN_MODE, 0);
-    set_tuner_value_in_change_set(handle, cs, TunerR7, MIX_GAIN, 2);
+    set_tuner_value_in_change_set(handle(), cs, TunerR5, LNA_GAIN, 8);
+    set_tuner_value_in_change_set(handle(), cs, TunerR5, LNA_GAIN_MODE, 0);
+    set_tuner_value_in_change_set(handle(), cs, TunerR7, MIX_GAIN, 2);
 
     uint16_t first;
     uint8_t *payload;
     uint16_t payload_size;
     EXPECT_EQ(prepare_tuner_payload_from_change_set(cs, &first, &payload, &payload_size), LPCSDR_SUCCESS);
 
-    EXPECT_EQ(lpcsdr_tuner_update(handle, first, payload, payload_size), LPCSDR_SUCCESS);
+    EXPECT_EQ(lpcsdr_tuner_update(handle(), first, payload, payload_size), LPCSDR_SUCCESS);
 }
