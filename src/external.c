@@ -22,13 +22,12 @@ int lpcsdr_init(struct lpcsdr_context **ctx) {
         return LPCSDR_ERROR_NO_MEMORY;
 
     newctx->magic = MAGIC_CTX;
-    newctx->last_libusb_error = 0;
-    newctx->last_errno = 0;
     newctx->firmware_path = NULL;
 
-    if (libusb_init(&newctx->libusb_ctx) < 0) {
+    int usb_error;
+    if ((usb_error = libusb_init(&newctx->libusb_ctx)) < 0) {
         free(newctx);
-        return LPCSDR_ERROR_LIBUSB;
+        return lpcsdr_translate_libusb_error(usb_error);
     }
 
     char *firmware_env = getenv("LPCSDR_FIRMWARE_PATH");

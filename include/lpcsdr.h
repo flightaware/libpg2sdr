@@ -27,9 +27,6 @@ typedef enum { LPCSDR_LOWIF_REAL, LPCSDR_LOWIF_COMPLEX } lpcsdr_conversion_mode;
 enum lpcsdr_error {
     LPCSDR_SUCCESS = 0, /* no error */
 
-    LPCSDR_ERROR_LIBUSB = -1, /* libusb error (see pxsdr_last_usb_error()) */
-    LPCSDR_ERROR_SYSTEM = -2, /* system call error (see pxsdr_last_errno()) */
-
     LPCSDR_ERROR_NOT_FOUND = -3,         /* no matching device found */
     LPCSDR_ERROR_DISCONNECTED = -4,      /* device unexpectedly disconnected */
     LPCSDR_ERROR_BAD_ARGUMENT = -5,      /* bad argument to API call */
@@ -68,6 +65,14 @@ enum lpcsdr_error {
     /* Tuner errors */
     LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND = -300, /* Could not find provided register symbol for a given register */
     LPCSDR_TUNER_INIT_FAILED = -301,               /* TUNER_ID was not correct value. Tuner init failed somehow */
+
+    /* system call error range */
+    LPCSDR_ERROR_SYSTEM_MAX = -1000,
+    LPCSDR_ERROR_SYSTEM_MIN = -1999,
+
+    /* libusb error range */
+    LPCSDR_ERROR_LIBUSB_MAX = -2000,
+    LPCSDR_ERROR_LIBUSB_MIN = -2999,
 };
 
 typedef enum {
@@ -135,13 +140,15 @@ typedef struct pll_divisors {
     float actual_frequency;
 } pll_divisors;
 
+const char *lpcsdr_strerror(int error);
+const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen);
+
 int lpcsdr_init(lpcsdr_context **ctx);
 int lpcsdr_exit(lpcsdr_context *ctx);
 int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle);
 int lpcsdr_set_log_callback(lpcsdr_context *ctx, lpcsdr_log_callback callback);
 int lpcsdr_free_device_list(lpc_device **device_list);
 int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
-const char *lpcsdr_strerror(lpcsdr_context *ctx, int error);
 int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path);
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);

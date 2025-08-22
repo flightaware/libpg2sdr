@@ -1,26 +1,18 @@
 #include "internal.h"
 
-int lpcsdr_translate_libusb_error(lpcsdr_context *ctx, int error)
-{   
-    switch (error) {
-    case LIBUSB_SUCCESS:
+int lpcsdr_translate_libusb_error(int error)
+{
+    if (error == LIBUSB_SUCCESS)
         return LPCSDR_SUCCESS;
-    case LIBUSB_ERROR_NO_MEM:
-        return LPCSDR_ERROR_NO_MEMORY;
-    case LIBUSB_ERROR_NO_DEVICE:
-        return LPCSDR_ERROR_DISCONNECTED;
-    case LIBUSB_ERROR_NOT_FOUND:
-        return LPCSDR_ERROR_NOT_FOUND;
-    case LIBUSB_ERROR_BUSY:
-        return LPCSDR_ERROR_BUSY;
-    default:
-        if (ctx)
-            ctx->last_libusb_error = error;
-        return LPCSDR_ERROR_LIBUSB;
-    }
+
+    int converted = LPCSDR_ERROR_LIBUSB_MIN - error; /* nb: error is negative */
+    if (converted >= LPCSDR_ERROR_LIBUSB_MIN && converted <= LPCSDR_ERROR_LIBUSB_MAX)
+        return converted;
+
+    return LPCSDR_ERROR_LIBUSB_MIN;
 }
 
-int lpcsdr_translate_libusb_transfer_status(lpcsdr_context *ctx, enum libusb_transfer_status status)
+int lpcsdr_translate_libusb_transfer_status(enum libusb_transfer_status status)
 {
     switch (status) {
     case LIBUSB_TRANSFER_COMPLETED:
@@ -34,25 +26,61 @@ int lpcsdr_translate_libusb_transfer_status(lpcsdr_context *ctx, enum libusb_tra
     }
 }
 
-int lpcsdr_translate_errno(lpcsdr_context *ctx, int error)
+int lpcsdr_translate_errno(int error)
 {
     switch (error) {
     case 0:
         return LPCSDR_SUCCESS;
-    case ENOENT:
-        return LPCSDR_ERROR_FWIMAGE_MISSING;
     case ENOMEM:
         return LPCSDR_ERROR_NO_MEMORY;
-    default:
-        if (ctx)
-            ctx->last_errno = error;
-        return LPCSDR_ERROR_SYSTEM;
     }
+
+    int converted = LPCSDR_ERROR_SYSTEM_MIN + error; /* nb: error (an errno value) is positive */
+    if (converted >= LPCSDR_ERROR_SYSTEM_MIN && converted <= LPCSDR_ERROR_SYSTEM_MAX)
+        return converted;
+
+    return LPCSDR_ERROR_SYSTEM_MIN;
 }
 
-const char *lpcsdr_strerror(lpcsdr_context *ctx, int error)
+/* ow, strerror_r is just a giant ball of incompatible pain */
+
+#if (_POSIX_C_SOURCE >= 200112L) && ! _GNU_SOURCE
+/* we have the XSI strerror_r */
+static char *wrap_strerror(int errnum, char *buf, size_t buflen)
 {
-    static char buf[512];
+    if (strerror_r(errnum, buf, buflen) != 0) {
+        snprintf(buf, buflen, "Unknown error %d", errnum);
+    }
+    return buf;
+}
+#else
+/* we have the GNU strerror_r */
+static char *wrap_strerror(int errnum, char *buf, size_t buflen)
+{
+    return strerror_r(errnum, buf, buflen);
+}
+#endif
+
+const char *lpcsdr_strerror(int error)
+{
+    static char buf[1024];
+    return lpcsdr_strerror_r(error, buf, sizeof(buf));
+}
+
+const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
+{
+    if (error > LPCSDR_ERROR_SYSTEM_MIN && error <= LPCSDR_ERROR_SYSTEM_MAX) {
+        int sys_error = error - LPCSDR_ERROR_SYSTEM_MIN;
+        char extrabuf[1024];
+        snprintf(buf, buflen, "system error: %s", wrap_strerror(sys_error, extrabuf, sizeof(extrabuf)));
+        return buf;
+    }
+
+    if (error > LPCSDR_ERROR_LIBUSB_MIN && error <= LPCSDR_ERROR_LIBUSB_MAX) {
+        int usb_error = -(error - LPCSDR_ERROR_LIBUSB_MIN);
+        snprintf(buf, buflen, "libusb error: %s", libusb_strerror(usb_error));
+        return buf;
+    }
 
     switch ((enum lpcsdr_error)error) {
     case LPCSDR_SUCCESS:
@@ -100,6 +128,16 @@ const char *lpcsdr_strerror(lpcsdr_context *ctx, int error)
         return "Firmware image upload failed";
     case LPCSDR_ERROR_FWIMAGE_TIMEOUT:
         return "Timeout after uploading firmware image";
+    case LPCSDR_BT_MAGIC_MISMATCH:
+        return "LPCSDR_BT_MAGIC_MISMATCH needs a description";
+    case LPCSDR_BT_SAMPLELENGTH_MISMATCH:
+        return "LPCSDR_BT_SAMPLELENGTH_MISMATCH needs a description";
+    case LPCSDR_BT_BLOCKLENGTH_MISMATCH:
+         return "LPCSDR_BT_BLOCKLENGTH_MISMATCH needs a description";
+    case LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND:
+         return "LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND needs a description";
+    case LPCSDR_TUNER_INIT_FAILED:
+         return "LPCSDR_TUNER_INIT_FAILED needs a description";
     case LPCSDR_BT_EXPECTED_LENGTH_MISMATCH:
         return "Bulk Transfer mismatch between expected and actual length";
     case LPCSDR_BT_GENERIC_ERROR:
@@ -109,25 +147,21 @@ const char *lpcsdr_strerror(lpcsdr_context *ctx, int error)
     case LPCSDR_BT_OVERFLOW:
         return "bulk transfer returned more data that expected";
 
-    case LPCSDR_ERROR_LIBUSB:
-        if (ctx && ctx->last_libusb_error) {
-            snprintf(buf, sizeof(buf), "libusb: %s", libusb_strerror(ctx->last_libusb_error));
-            buf[sizeof(buf) - 1] = 0;
-            return buf;
-        } else {
-            return "libusb error (no detail available)";
-        }
+    case LPCSDR_ERROR_SYSTEM_MIN:
+        return "Unknown system error";
+    case LPCSDR_ERROR_LIBUSB_MIN:
+        return "Unknown libusb error";
 
-    case LPCSDR_ERROR_SYSTEM:
-        if (ctx && ctx->last_errno) {
-            snprintf(buf, sizeof(buf), "system: %s", strerror(ctx->last_errno));
-            buf[sizeof(buf) - 1] = 0;
-            return buf;
-        } else {
-            return "system error (no detail available)";
-        }
-
-    default:
-        return "Unknown error";
+        /* these are just here so the compiler doesn't complain; they are
+         * actually already handled earlier
+         */
+    case LPCSDR_ERROR_LIBUSB_MAX:
+    case LPCSDR_ERROR_SYSTEM_MAX:
+        break;
     }
+
+    /* this is deliberately not a default case, so we get compiler
+     * complaints if we missed an enum value in the switch above
+     */
+    return "Unknown error";
 }

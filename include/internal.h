@@ -47,9 +47,6 @@ extern const uint16_t ADC_OUTPUT_VALUE_BIT_LENGTH;
 struct lpcsdr_context {
     int magic;
     libusb_context *libusb_ctx;
-    int last_libusb_error;
-    int last_errno;
-    int last_dfu_status;
     char *firmware_path;
     lpcsdr_log_callback log_cb;
 };
@@ -139,9 +136,9 @@ struct lpcsdr_device_handle {
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
 int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
 
-int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
-int lpcsdr_translate_libusb_transfer_status(lpcsdr_context *ctx, enum libusb_transfer_status status);
-int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
+int lpcsdr_translate_libusb_error(int error);
+int lpcsdr_translate_libusb_transfer_status(enum libusb_transfer_status status);
+int lpcsdr_translate_errno(int error);
 
 // ADC
 int init_global_adc_divisor_tables();

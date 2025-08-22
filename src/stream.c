@@ -49,7 +49,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     /* clear any endpoint halt first */
     if ((usb_error = libusb_clear_halt(dev->usb_handle, 0x81)) < 0) {
-        return lpcsdr_translate_libusb_error(dev->ctx, usb_error);
+        return lpcsdr_translate_libusb_error(usb_error);
     }
 
     if ((error = allocate_transfers(dev)) < 0)
@@ -69,7 +69,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             usb_error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
             if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
                 /* no cleanup? */
-                return lpcsdr_translate_libusb_error(dev->ctx, usb_error);
+                return lpcsdr_translate_libusb_error(usb_error);
             }
             continue;
         }
@@ -82,7 +82,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         }
 
         if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-            error = lpcsdr_translate_libusb_transfer_status(dev->ctx, current->transfer->status);
+            error = lpcsdr_translate_libusb_transfer_status(current->transfer->status);
             goto cleanup;
         }
 
@@ -392,7 +392,7 @@ static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer)
     int error = libusb_submit_transfer(dev_transfer->transfer);
     if (error < 0) {
         dev_transfer->state = XFER_IDLE;
-        return lpcsdr_translate_libusb_error(dev->ctx, error);
+        return lpcsdr_translate_libusb_error(error);
     }
 
     /* append this one to the active list */

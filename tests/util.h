@@ -15,7 +15,7 @@ public:
     Context() : ctx(nullptr) {
         int error;
         if ((error = lpcsdr_init(&ctx)) < 0)
-            throw std::runtime_error(std::string("context init failed: lpcsdr_init: ") + lpcsdr_strerror(NULL, error));
+            throw std::runtime_error(std::string("context init failed: lpcsdr_init: ") + lpcsdr_strerror(error));
     }
 
     Context(const Context&) = delete;
@@ -39,13 +39,13 @@ public:
         int error;
 
         if (::getenv("LPCSDR_FIRMWARE_PATH") == nullptr) {
-            if ((error = lpcsdr_set_firmware_path(ctx, "/media/psf/soapy_shared_folder/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin")) < 0) {
-                throw std::runtime_error(std::string("device setup failed: lpcsdr_set_firmware_path: ") + lpcsdr_strerror(ctx(), error));
+            if ((error = lpcsdr_set_firmware_path(ctx(), "/media/psf/soapy_shared_folder/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin")) < 0) {
+                throw std::runtime_error(std::string("device setup failed: lpcsdr_set_firmware_path: ") + lpcsdr_strerror(error));
             }
         }
 
         if ((error = lpcsdr_open_single_device(ctx(), &handle)) < 0)
-            throw std::runtime_error(std::string("device setup failed: lpcsdr_open_single_device: ") + lpcsdr_strerror(ctx(), error));
+            throw std::runtime_error(std::string("device setup failed: lpcsdr_open_single_device: ") + lpcsdr_strerror(error));
     }
 
     DeviceHandle(const DeviceHandle&) = delete;
