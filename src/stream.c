@@ -47,6 +47,11 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     int error = LPCSDR_SUCCESS;
     int usb_error;
 
+    /* clear any endpoint halt first */
+    if ((usb_error = libusb_clear_halt(dev->usb_handle, 0x81)) < 0) {
+        return lpcsdr_translate_libusb_error(dev->ctx, usb_error);
+    }
+
     if ((error = allocate_transfers(dev)) < 0)
         return error;
 
