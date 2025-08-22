@@ -65,8 +65,6 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
     pthread_mutex_unlock(&dev->mutex);
     pthread_mutex_destroy(&dev->mutex);
 
-    free(dev->ctx->firmware_path);
-    free(dev->ctx);
     free(dev);
 
     return LPCSDR_SUCCESS;
