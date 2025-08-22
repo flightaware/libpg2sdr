@@ -45,6 +45,7 @@ static void dispatch_block(lpcsdr_device_handle *dev, void *data, unsigned lengt
 
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms) {
     int error = LPCSDR_SUCCESS;
+    int usb_error;
 
     if ((error = allocate_transfers(dev)) < 0)
         return error;
@@ -60,9 +61,10 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         if (dev->active_transfers_head->state == XFER_BUSY) {
             struct timeval timeout = {/* tv_sec */ timeout_ms / 1000,
                                       /* tv_usec */ (timeout_ms % 1000) * 1000};
-            error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
-            if (error < 0 && error != LIBUSB_ERROR_INTERRUPTED) {
-                return lpcsdr_translate_libusb_error(dev->ctx, error);
+            usb_error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
+            if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
+                /* no cleanup? */
+                return lpcsdr_translate_libusb_error(dev->ctx, usb_error);
             }
             continue;
         }
