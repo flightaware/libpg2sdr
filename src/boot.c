@@ -207,7 +207,6 @@ int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_de
 
         if (now.tv_sec > deadline.tv_sec || (now.tv_sec == deadline.tv_sec && now.tv_usec >= deadline.tv_usec)) {
             /* timed out */
-            printf("now %ld, %ld deadline %ld, %ld \n", now.tv_sec, now.tv_usec, deadline.tv_sec, deadline.tv_usec);
             error = LPCSDR_ERROR_FWIMAGE_UPLOAD;
             goto failed;
         }
