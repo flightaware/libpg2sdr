@@ -31,7 +31,7 @@ int lpcsdr_translate_errno(lpcsdr_context *ctx, int error)
         return LPCSDR_ERROR_NO_MEMORY;
     default:
         if (ctx)
-            ctx->last_errno = errno;
+            ctx->last_errno = error;
         return LPCSDR_ERROR_SYSTEM;
     }
 }
