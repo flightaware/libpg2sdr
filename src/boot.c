@@ -6,7 +6,7 @@ typedef struct {
     int bwPollTimeout;
     int bState;
     int iString;
-} dfu_status;
+} dfu_status_t;
 
 static int hotplug_callback(libusb_context *usb_ctx, libusb_device *device, libusb_hotplug_event event, void *user_data)
 {
@@ -19,39 +19,29 @@ static int hotplug_callback(libusb_context *usb_ctx, libusb_device *device, libu
     return 0; /* stay registered; we will deregister explicitly */
 }
 
-int dfu_get_status(libusb_device_handle *dev, dfu_status **status)
+/* Send DFU_GET_STATUS_REQUEST, populate *status with the returned status
+ * Return 0 on success, or a negative libusb error code on failure
+ */
+static int dfu_get_status(libusb_device_handle *dev, dfu_status_t *status)
 {
     uint8_t buffer[6];
-    int error = libusb_control_transfer(
-                                        dev, 
+    int error = libusb_control_transfer(dev, 
                                         LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
                                         DFU_GET_STATUS_REQUEST,
                                         0,
                                         0,
                                         (unsigned char *)buffer,
                                         6,
-                                        1000
-    );
+                                        1000);
     if (error < 0) {
         return error;
     }
 
-    dfu_status *new_dfu_status; 
-    
-    if(!(new_dfu_status = malloc(sizeof(dfu_status))))
-        return LPCSDR_ERROR_NO_MEMORY;
-
-    new_dfu_status->bStatus = buffer[0];
-
-    uint32_t bwPollTimeout = ((buffer[3]) << 16) | 
-                             ((buffer[2]) << 8) | 
-                              (buffer[1]);
-    new_dfu_status->bwPollTimeout = bwPollTimeout;
-    new_dfu_status->bState = buffer[4];
-    new_dfu_status->iString = buffer[5];
-    *status = new_dfu_status;
-
-    return LPCSDR_SUCCESS;
+    status->bStatus = buffer[0];
+    status->bwPollTimeout = ((buffer[3]) << 16) | ((buffer[2]) << 8) | (buffer[1]);
+    status->bState = buffer[4];
+    status->iString = buffer[5];
+    return error;
 }
 
 int dfu_download_firmware(libusb_device_handle *handle, int block , u_int32_t *buffer, int count) {
@@ -81,7 +71,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
     }
     
     uint32_t block = 0;
-    dfu_status *status;
+    dfu_status_t dfu_status;
     int error = LPCSDR_SUCCESS;
     
     while (true) {
@@ -98,13 +88,11 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
         if ((error = dfu_get_status(handle, &status)) < 0) {
             goto cleanup;
         }
-        if(status->bState != DFU_DOWNLOAD_IDLE) {
-            error = translate_dfu_status(status->bStatus);
+        if (dfu_status.bState != DFU_DOWNLOAD_IDLE) {
+            error = LPCSDR_ERROR_FWIMAGE_UPLOAD;
             goto cleanup;
         }
         block += 1;
-        free(status);
-        status = NULL;
     }
 
     if ((error = dfu_download_firmware(handle, block, NULL, 0)) < 0) {
@@ -118,8 +106,6 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
 
 
 cleanup:
-    if (status)
-        free(status);
     return error;
 }
 
