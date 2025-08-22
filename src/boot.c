@@ -62,6 +62,14 @@ static int dfu_download_firmware(libusb_device_handle *handle, int block, const 
                                    1000);
 }
 
+/* Send a firmware image to the device (which must be in DFU bootloader mode)
+ * using the DFU protocol.
+ *
+ * (nb: DFU uses "download" to mean "transfer from host to device", but we call that "upload"
+ * elsewhere, so there's some contradictory terminology in here)
+ *
+ * Return 0 on success, or a negative liblpcsdr error code on failure
+ */
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
 {
     if (!ctx->firmware_path) {
@@ -130,6 +138,13 @@ cleanup:
     return error;
 }
 
+/* Given a device "orginal_dev" in DFU bootloader mode:
+ *   use DFU to send a firmware image to the device
+ *   wait for the device to restart with the new firmware image and re-enumerate as a LPCSDR device
+ *   clean up the old device handle (as that device has gone away)
+ *   discover the new LPCSDR device, and put the handle in *reenumerated_dev
+ * Return 0 on success, or a negative liblpcsdr error on failure
+ */
 int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
 {
     int error;
@@ -197,6 +212,7 @@ int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_de
             goto failed;
         }
 
+        /* set timeout to reflect the time remaining until our deadline */
         struct timeval timeout;
         timeout.tv_sec = deadline.tv_sec - now.tv_sec;
         if (deadline.tv_usec >= now.tv_usec)
