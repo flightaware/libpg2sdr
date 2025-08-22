@@ -107,7 +107,8 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
             ctx->last_dfu_status = dfu_status.bStatus;
             goto cleanup;
         }
-        block += 1;
+
+        ++block;
     }
 
     /* end of download */
