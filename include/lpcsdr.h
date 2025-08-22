@@ -53,10 +53,7 @@ enum lpcsdr_error {
 
     /* firmware image errors */
     LPCSDR_ERROR_FWIMAGE_MISSING = -100,   /* firmware image not found */
-    LPCSDR_ERROR_FWIMAGE_FORMAT = -101,    /* firmware image format not recognized */
-    LPCSDR_ERROR_FWIMAGE_TRUNCATED = -102, /* firmware image truncated */
-    LPCSDR_ERROR_FWIMAGE_CHECKSUM = -103,  /* firmware image checksum mismatch */
-    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image upload failed */
+    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed (see dfu_status) */
     LPCSDR_ERROR_FWIMAGE_TIMEOUT = -105,   /* firmware did not re-enumerate within timeout after firmware upload */
 
     /* Bulk Transfer (BT) errors */

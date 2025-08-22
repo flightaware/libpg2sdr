@@ -96,12 +96,6 @@ const char *lpcsdr_strerror(lpcsdr_context *ctx, int error)
         return "Parameter value out of range";
     case LPCSDR_ERROR_FWIMAGE_MISSING:
         return "Firmware image not found";
-    case LPCSDR_ERROR_FWIMAGE_FORMAT:
-        return "Firmware image format not recognized";
-    case LPCSDR_ERROR_FWIMAGE_TRUNCATED:
-        return "Firmware image truncated";
-    case LPCSDR_ERROR_FWIMAGE_CHECKSUM:
-        return "Firmware image checksum mismatch";
     case LPCSDR_ERROR_FWIMAGE_UPLOAD:
         return "Firmware image upload failed";
     case LPCSDR_ERROR_FWIMAGE_TIMEOUT:
