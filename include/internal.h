@@ -140,6 +140,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
 int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
 
 int lpcsdr_translate_libusb_error(struct lpcsdr_context *ctx, int error);
+int lpcsdr_translate_libusb_transfer_status(lpcsdr_context *ctx, enum libusb_transfer_status status);
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error);
 
 // ADC

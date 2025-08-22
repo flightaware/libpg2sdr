@@ -20,6 +20,20 @@ int lpcsdr_translate_libusb_error(lpcsdr_context *ctx, int error)
     }
 }
 
+int lpcsdr_translate_libusb_transfer_status(lpcsdr_context *ctx, enum libusb_transfer_status status)
+{
+    switch (status) {
+    case LIBUSB_TRANSFER_COMPLETED:
+        return LPCSDR_SUCCESS;
+    case LIBUSB_TRANSFER_STALL:
+        return LPCSDR_BT_STALL;
+    case LIBUSB_TRANSFER_OVERFLOW:
+        return LPCSDR_BT_OVERFLOW;
+    default:
+        return LPCSDR_BT_GENERIC_ERROR;
+    }
+}
+
 int lpcsdr_translate_errno(lpcsdr_context *ctx, int error)
 {
     switch (error) {
@@ -94,6 +108,12 @@ const char *lpcsdr_strerror(lpcsdr_context *ctx, int error)
         return "Timeout after uploading firmware image";
     case LPCSDR_BT_EXPECTED_LENGTH_MISMATCH:
         return "Bulk Transfer mismatch between expected and actual length";
+    case LPCSDR_BT_GENERIC_ERROR:
+        return "generic bulk transfer failed";
+    case LPCSDR_BT_STALL:
+        return "bulk transfer endpoint stalled";
+    case LPCSDR_BT_OVERFLOW:
+        return "bulk transfer returned more data that expected";
 
     case LPCSDR_ERROR_LIBUSB:
         if (ctx && ctx->last_libusb_error) {

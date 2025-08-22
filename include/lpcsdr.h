@@ -64,6 +64,9 @@ enum lpcsdr_error {
     LPCSDR_BT_MAGIC_MISMATCH = -201,            /* Magic number at header is wrong */
     LPCSDR_BT_BLOCKLENGTH_MISMATCH = -202,      /* Block Length mismatch*/
     LPCSDR_BT_SAMPLELENGTH_MISMATCH = -203,     /* Block Num Samples mismatch*/
+    LPCSDR_BT_GENERIC_ERROR = -204,             /* libusb transfer status not COMPLETED and not otherwise handled */
+    LPCSDR_BT_STALL = -205,                     /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
+    LPCSDR_BT_OVERFLOW = -206,                  /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
 
     /* Tuner errors */
     LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND = -300, /* Could not find provided register symbol for a given register */
