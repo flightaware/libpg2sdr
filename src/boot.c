@@ -73,8 +73,14 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
     while (true) {
         uint8_t buffer[2048];
         int count = read(fd, buffer, sizeof(buffer));
+        if (count < 0) {
+            /* read error */
+            error = lpcsdr_translate_errno(ctx, errno);
+            goto cleanup;
+        }
 
-        if (count <= 0) {
+        if (!count) {
+            /* EOF, we are done */
             break;
         }
         if ((error = dfu_download_firmware(handle, block, buffer, count)) < 0) {
