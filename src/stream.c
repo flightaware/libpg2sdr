@@ -77,7 +77,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         }
 
         if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-            error = current->transfer->status;
+            error = lpcsdr_translate_libusb_transfer_status(dev->ctx, current->transfer->status);
             goto cleanup;
         }
 
