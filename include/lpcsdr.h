@@ -87,13 +87,6 @@ typedef struct lpc_device {
     void *libusb_device;
 } lpc_device;
 
-typedef struct dfu_status {
-    int bStatus;
-    int bwPollTimeout;
-    int bState;
-    int iString;
-} dfu_status;
-
 struct hotplug_callback_state {
     int completed;
     libusb_device *device;

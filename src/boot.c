@@ -1,6 +1,13 @@
 #include "internal.h"
 #include <pthread.h>
 
+typedef struct {
+    int bStatus;
+    int bwPollTimeout;
+    int bState;
+    int iString;
+} dfu_status;
+
 static int hotplug_callback(libusb_context *usb_ctx, libusb_device *device, libusb_hotplug_event event, void *user_data)
 {
     /* stash the device where requested */
