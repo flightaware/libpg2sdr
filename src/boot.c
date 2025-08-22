@@ -124,6 +124,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
     /* success */
 
 cleanup:
+    close(fd);
     return error;
 }
 
