@@ -71,7 +71,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
 
     int fd = open(ctx->firmware_path, O_RDONLY);
     if (fd < 0) {
-        return lpcsdr_translate_errno(ctx, fd);
+        return lpcsdr_translate_errno(ctx, errno);
     }
     
     uint32_t block = 0;
