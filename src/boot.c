@@ -104,6 +104,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
         }
         if (dfu_status.bState != DFU_DOWNLOAD_IDLE) {
             error = LPCSDR_ERROR_FWIMAGE_UPLOAD;
+            ctx->last_dfu_status = dfu_status.bStatus;
             goto cleanup;
         }
         block += 1;

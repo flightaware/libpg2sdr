@@ -49,6 +49,7 @@ struct lpcsdr_context {
     libusb_context *libusb_ctx;
     int last_libusb_error;
     int last_errno;
+    int last_dfu_status;
     char *firmware_path;
     lpcsdr_log_callback log_cb;
 };
