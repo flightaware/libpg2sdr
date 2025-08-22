@@ -238,7 +238,6 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
     if (device->mode == LPCSDR_DEVICE_MODE_DFU_BOOTLOADER) {
         if ((error = lpcsdr_handle_rom_bootloader(ctx, original_dev, &reenumerated_dev)) < 0) {
-            error = lpcsdr_translate_libusb_error(ctx, error);
             goto failed;
         }
     }
