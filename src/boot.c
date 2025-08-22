@@ -77,6 +77,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
     uint32_t block = 0;
     dfu_status_t dfu_status;
     int error = LPCSDR_SUCCESS;
+    int usb_error;
     
     while (true) {
         uint8_t buffer[2048];
@@ -91,11 +92,14 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
             /* EOF, we are done */
             break;
         }
-        if ((error = dfu_download_firmware(handle, block, buffer, count)) < 0) {
+
+        if ((usb_error = dfu_download_firmware(handle, block, buffer, count)) < 0) {
+            error = lpcsdr_translate_libusb_error(ctx, usb_error);
             goto cleanup;
         }
 
-        if ((error = dfu_get_status(handle, &status)) < 0) {
+        if ((usb_error = dfu_get_status(handle, &dfu_status)) < 0) {
+            error = lpcsdr_translate_libusb_error(ctx, usb_error);
             goto cleanup;
         }
         if (dfu_status.bState != DFU_DOWNLOAD_IDLE) {
@@ -105,15 +109,19 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
         block += 1;
     }
 
-    if ((error = dfu_download_firmware(handle, block, NULL, 0)) < 0) {
+    /* end of download */
+    if ((usb_error = dfu_download_firmware(handle, block, NULL, 0)) < 0) {
+        error = lpcsdr_translate_libusb_error(ctx, usb_error);
         goto cleanup;
-    };
+    }
 
-    // Sending the dfu_get_status to trigger manifestaton phase will get a pipe error response. Even though nothing is wrong.
-    int final_resp = dfu_get_status(handle, &status);
-    if (final_resp < 0 && final_resp != -9)
-        error = final_resp;
+    /* Sending the dfu_get_status to trigger manifestaton phase will get a pipe error response. Even though nothing is wrong. */
+    if ((usb_error = dfu_get_status(handle, &dfu_status)) < 0 && usb_error != LIBUSB_ERROR_PIPE) {
+        error = lpcsdr_translate_libusb_error(ctx, usb_error);
+        goto cleanup;
+    }
 
+    /* success */
 
 cleanup:
     return error;
