@@ -263,6 +263,9 @@ static void release_buffer(lpcsdr_buffer_manager *m, lpcsdr_internal_sample_buff
 
 void lpcsdr_free_buffers(lpcsdr_buffer_manager *bm)
 {
+    if (!bm)
+        return;
+
     if (bm->buffers) {
         for (unsigned i = 0; i < bm->buffer_count; ++i) {
             free_or_orphan_buffer(bm->buffers[i]);
@@ -354,7 +357,7 @@ static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *d
 {
     unsigned bytelength = dev_transfer->transfer->actual_length;
     
-    if (bytelength % dev->usb_bytes_per_block_multiple != 0) {
+    if (bytelength % dev->last_status->usb_bytes_per_block != 0) {
         return LPCSDR_BT_BLOCKLENGTH_MISMATCH;
     }
 
@@ -366,10 +369,10 @@ static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *d
         if (h.magic != EXPECTED_BLOCK_HEADER_MAGIC) {
             return LPCSDR_BT_MAGIC_MISMATCH;
         }
-        if (h.block_len % dev->usb_bytes_per_block_multiple != 0) {
+        if (h.block_len % dev->last_status->usb_bytes_per_block != 0) {
             return LPCSDR_BT_BLOCKLENGTH_MISMATCH;
         }
-        if (h.samples % dev->usb_samples_per_block_multiple != 0) {
+        if (h.samples % dev->last_status->usb_samples_per_block != 0) {
             return LPCSDR_BT_SAMPLELENGTH_MISMATCH;
         }
 

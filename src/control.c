@@ -94,9 +94,8 @@ int lpcsdr_stop_transfer(lpcsdr_device_handle *dev) {
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status) {
+int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status) {
 
-    ep0_in_board_status_t *buffer = calloc(1, sizeof(ep0_in_board_status_t));
 
     int error = control_transfer(
                                 dev->usb_handle, 
@@ -104,7 +103,7 @@ int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status)
                                 EP0_IN_BOARD_STATUS,
                                 0,
                                 0,
-                                (unsigned char *)buffer,
+                                (unsigned char *) status,
                                 sizeof(ep0_in_board_status_t),
                                 1000
     );
@@ -113,7 +112,6 @@ int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status)
         return error;
     }
 
-    *status = buffer;
 
     return LPCSDR_SUCCESS;
 }

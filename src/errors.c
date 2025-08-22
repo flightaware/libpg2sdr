@@ -133,11 +133,13 @@ const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
     case LPCSDR_BT_SAMPLELENGTH_MISMATCH:
         return "LPCSDR_BT_SAMPLELENGTH_MISMATCH needs a description";
     case LPCSDR_BT_BLOCKLENGTH_MISMATCH:
-         return "LPCSDR_BT_BLOCKLENGTH_MISMATCH needs a description";
+        return "LPCSDR_BT_BLOCKLENGTH_MISMATCH needs a description";
     case LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND:
-         return "LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND needs a description";
+        return "LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND needs a description";
+    case LCPSDR_TUNER_PLL_DIV_OUT_OF_RANGE:
+        return "The requested pll frequency is out of range";
     case LPCSDR_TUNER_INIT_FAILED:
-         return "LPCSDR_TUNER_INIT_FAILED needs a description";
+        return "LPCSDR_TUNER_INIT_FAILED needs a description";
     case LPCSDR_BT_EXPECTED_LENGTH_MISMATCH:
         return "Bulk Transfer mismatch between expected and actual length";
     case LPCSDR_BT_GENERIC_ERROR:

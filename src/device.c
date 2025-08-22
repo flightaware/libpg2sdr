@@ -24,6 +24,8 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
 
 int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out) {
     int error;
+    ep0_in_board_status_t *status; 
+
     lpcsdr_device_handle *dev = calloc(1, sizeof(lpcsdr_device_handle));
     if (!dev)
         return LPCSDR_ERROR_NO_MEMORY;
@@ -31,15 +33,15 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
     dev->magic = MAGIC_DEV;
     dev->ctx = ctx;
 
-    ep0_in_board_status_t *status;
-    if ((error = lpcsdr_get_status(dev, &status)) < 0)
+    if (!(status = calloc(1, sizeof(ep0_in_board_status_t)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto cleanup;
+    }
+
+    if ((error = lpcsdr_get_status(dev, status)) < 0)
         goto cleanup;
 
-    dev->individual_sample_bit_size = 12;
-    dev->usb_samples_per_block_multiple = 8;
-    dev->usb_bytes_per_block_multiple = 512;
-    dev->hsadc_frequency = status->hsadc_frequency;
-    dev->blocks_per_chunk = 128;
+    dev->last_status = status;
     dev->conversion_mode = LPCSDR_LOWIF_REAL;
 
     pthread_mutexattr_t attrs;
@@ -64,12 +66,12 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
     return LPCSDR_SUCCESS;
 
 cleanup:
+    if (status)
+        free(status);
     if (dev->decimation_filter)
         lpcsdr_dsp_decimate_free(dev->decimation_filter);
     if (dev->libusb_vtable)
         free_libusb_vtable(dev->libusb_vtable);
-    if (dev->registers)
-        free_registers(dev->registers, dev->registers_count);
 
     pthread_mutex_destroy(&dev->mutex);
 

@@ -19,6 +19,7 @@ const uint16_t LPCSDR_FIXED_POINT_SCALE_FACTOR = 32768;
 
 // ADC is outputting values that are 12 bit signed.
 const uint16_t ADC_OUTPUT_VALUE_BIT_LENGTH = 2048;
+const uint8_t SAMPLE_BIT_SIZE = 12;
 
 int effective_n_divisor(uint32_t n) {
     return (n > 0) ? n: 1;
@@ -256,7 +257,7 @@ int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_l
             block_body[new_block_body_offset] = in[bx];
         }
 
-        uint32_t total_samples_size_in_bytes = (uint32_t)floor(usb_samples_per_block * handle->individual_sample_bit_size / 8);
+        uint32_t total_samples_size_in_bytes = (uint32_t)floor(usb_samples_per_block * SAMPLE_BIT_SIZE / 8);
         uint32_t packed_size = total_samples_size_in_bytes / 4;
         uint32_t packed[packed_size];
 

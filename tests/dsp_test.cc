@@ -91,8 +91,8 @@ TEST(Test_process_cs16, history_available_less_than_ntaps) {
     cs16_t out[5] = {};
     int count = sizeof(in)/sizeof(in[0]);
     int return_count = process_cs16(&d, in, out, count);
-    EXPECT_EQ(return_count, 0);
-    EXPECT_EQ(d.history_len, history_len + count);
+    ASSERT_EQ(return_count, 0);
+    ASSERT_EQ(d.history_len, history_len + count);
 }
 
 TEST(Test_process_cs16, history_processed_less_than_history_len) {
@@ -139,13 +139,13 @@ TEST(Test_process_cs16, history_processed_less_than_history_len) {
     int expected_return_count = 2;
     int expected_history_length = 2;
     int return_count = process_cs16(&d, in, out, count);
-    EXPECT_EQ(return_count, expected_return_count);
-    EXPECT_EQ(d.history_len, expected_history_length);
+    ASSERT_EQ(return_count, expected_return_count);
+    ASSERT_EQ(d.history_len, expected_history_length);
 
 
     for (int index = 0; expected_return_count < 2; index++) {
-        EXPECT_EQ(out[index].i, expected_values[index]);
-        EXPECT_EQ(out[index].q, expected_values[index]);
+        ASSERT_EQ(out[index].i, expected_values[index]);
+        ASSERT_EQ(out[index].q, expected_values[index]);
     }
 }
 
@@ -205,13 +205,13 @@ TEST(Test_process_cs16, process_main_block) {
     float expected_values[expected_return_count] = {3, 7, 11};
 
     int return_count = process_cs16(&d, in, out, count);
-    EXPECT_EQ(return_count, expected_return_count);
-    EXPECT_EQ(d.history_len, expected_history_length);
+    ASSERT_EQ(return_count, expected_return_count);
+    ASSERT_EQ(d.history_len, expected_history_length);
 
 
     for (int index = 0; index < expected_return_count; index++) {
-        EXPECT_EQ(out[index].i, expected_values[index]);
-        EXPECT_EQ(out[index].q, expected_values[index]);
+        ASSERT_EQ(out[index].i, expected_values[index]);
+        ASSERT_EQ(out[index].q, expected_values[index]);
     }
 
     EXPECT_TRUE(Succeeded(in[4], d.history[0]));
@@ -254,13 +254,13 @@ TEST(DSP_decimate_cs16, successful) {
     cs16_t out[3];
 
     uint16_t return_index = decimate_cs16(ntaps, taps, in, out, sizeof(in)/sizeof(in[0]));
-    EXPECT_EQ(return_index, expected_return_length);
+    ASSERT_EQ(return_index, expected_return_length);
     
     float expected_values[3] = {3, 7, 11};
 
     for (int index = 0; index < expected_return_length; index++) {
-        EXPECT_EQ(out[index].i, expected_values[index]);
-        EXPECT_EQ(out[index].q, expected_values[index]);
+        ASSERT_EQ(out[index].i, expected_values[index]);
+        ASSERT_EQ(out[index].q, expected_values[index]);
     }
 }
 
@@ -268,7 +268,7 @@ TEST(Test_downmix_samples, Successful) {
     int16_t in[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     cs16_t out[8];
 
-    EXPECT_EQ(downmix_samples(4, in, out, 8), LPCSDR_SUCCESS);
+    ASSERT_EQ(downmix_samples(4, in, out, 8), LPCSDR_SUCCESS);
 
     cs16_t expected_out[8] = {
         {

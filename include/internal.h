@@ -103,11 +103,7 @@ struct lpcsdr_device_handle {
     pthread_mutex_t mutex;
     lpcsdr_context *ctx;
 
-    uint32_t usb_samples_per_block_multiple;
-    uint32_t usb_bytes_per_block_multiple;
-    uint16_t individual_sample_bit_size;
-    uint32_t hsadc_frequency;
-    uint32_t blocks_per_chunk;
+    ep0_in_board_status_t *last_status;
 
     libusb_device_handle *usb_handle;
     libusb_vtable *libusb_vtable;
@@ -128,9 +124,9 @@ struct lpcsdr_device_handle {
     lpcsdr_transfer_state *active_transfers_head; /* linked list of active transfers */
     lpcsdr_transfer_state *active_transfers_tail;
 
-    // Tuner stuff
-    bit_flag **registers;
-    unsigned int registers_count;
+    // Tuner
+    // Stores tuner changes
+    change_set *tuner_change_set;
 };
 
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
