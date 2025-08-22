@@ -13,7 +13,8 @@ set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 FetchContent_Declare(
         googletest
-        URL https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz
+        URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
+        URL_HASH SHA256=65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
         DOWNLOAD_NO_PROGRESS TRUE
       )
