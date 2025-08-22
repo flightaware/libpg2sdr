@@ -71,8 +71,8 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
     int error = LPCSDR_SUCCESS;
     
     while (true) {
-        uint32_t buffer[2048];
-        int count = read(fd, buffer, 2048);
+        uint8_t buffer[2048];
+        int count = read(fd, buffer, sizeof(buffer));
 
         if (count <= 0) {
             break;
