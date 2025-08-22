@@ -57,6 +57,7 @@ enum lpcsdr_error {
     LPCSDR_ERROR_FWIMAGE_TRUNCATED = -102, /* firmware image truncated */
     LPCSDR_ERROR_FWIMAGE_CHECKSUM = -103,  /* firmware image checksum mismatch */
     LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image upload failed */
+    LPCSDR_ERROR_FWIMAGE_TIMEOUT = -105,   /* firmware did not re-enumerate within timeout after firmware upload */
 
     /* Bulk Transfer (BT) errors */
     LPCSDR_BT_EXPECTED_LENGTH_MISMATCH = -200,  /* Expected length and actual length of bytes read mismatch */

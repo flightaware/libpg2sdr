@@ -90,6 +90,8 @@ const char *lpcsdr_strerror(lpcsdr_context *ctx, int error)
         return "Firmware image checksum mismatch";
     case LPCSDR_ERROR_FWIMAGE_UPLOAD:
         return "Firmware image upload failed";
+    case LPCSDR_ERROR_FWIMAGE_TIMEOUT:
+        return "Timeout after uploading firmware image";
     case LPCSDR_BT_EXPECTED_LENGTH_MISMATCH:
         return "Bulk Transfer mismatch between expected and actual length";
 
