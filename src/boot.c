@@ -44,23 +44,19 @@ static int dfu_get_status(libusb_device_handle *dev, dfu_status_t *status)
     return error;
 }
 
-int dfu_download_firmware(libusb_device_handle *handle, int block , u_int32_t *buffer, int count) {
-    int error = libusb_control_transfer(
-                                        handle, 
-                                        LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
-                                        DFU_DOWNLOAD_REQUEST,
-                                        block,
-                                        0,
-                                        (unsigned char *) buffer,
-                                        count,
-                                        1000
-    );
-
-    if (error < 0) {
-        return error;
-    }
-
-    return LPCSDR_SUCCESS;
+/* Send DFU_DOWNLOAD_REQUEST for block index "block" with a payload of "count" bytes in "buffer"
+ * Return 0 on success, or a negative libusb error code on failure
+ */
+static int dfu_download_firmware(libusb_device_handle *handle, int block, const uint8_t *buffer, int count)
+{
+    return libusb_control_transfer(handle, 
+                                   LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
+                                   DFU_DOWNLOAD_REQUEST,
+                                   block,
+                                   0,
+                                   (unsigned char *) buffer,
+                                   count,
+                                   1000);
 }
 
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
