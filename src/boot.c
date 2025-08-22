@@ -64,6 +64,11 @@ static int dfu_download_firmware(libusb_device_handle *handle, int block, const 
 
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
 {
+    if (!ctx->firmware_path) {
+        /* We want to upload firmware, but no path has been configured */
+        return LPCSDR_ERROR_FWIMAGE_MISSING;
+    }
+
     int fd = open(ctx->firmware_path, O_RDONLY);
     if (fd < 0) {
         return lpcsdr_translate_errno(ctx, fd);
