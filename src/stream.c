@@ -395,7 +395,7 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
      * set our transfer timeout conservatively, based on the expected time to fill all our transfers
      * at the current sample rate
      */
-    float fill_time_ms = 1000.0f * samples_per_buffer * transfer_count / dev->adc_sample_rate;
+    float fill_time_ms = 1000.0f * blocks_per_buffer * dev->usb_samples_per_block * transfer_count / dev->adc_sample_rate;
     unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + 500); /* half a second of slop */
 
     fprintf(stderr, "allocate_transfers: \n"
