@@ -1,27 +1,5 @@
 #include "internal.h"
-
-static uint8_t calculate_mask_pos(uint8_t mask) {
-    unsigned alignment = (mask & ~(mask - 1));
-    unsigned pos = 0;
-    while (alignment > 1) {
-        pos++;
-        alignment = alignment >> 1;
-    }
-    return pos;
-}
-
-uint32_t onebit(uint32_t x) {
-    return (1<<x);
-}
-
-uint32_t bitrange(uint32_t x, uint32_t y) {
-    if (x > y) {
-        uint32_t t = x;
-        x = y;
-        y = t;
-    }
-    return ((2<<y)-1) ^ ((1<<x)-1);
-}
+#include "math.h"
 
 lpf_settings lpf_calibration[16] = {
     {
@@ -237,284 +215,111 @@ hpf_settings hpf_settings_for(int target) {
     return hpf_calibration[MAX(0, p - 1)];
 }
 
-int init_tuner(lpcsdr_device_handle *handle) {
-    int error = LPCSDR_SUCCESS;
-    handle->registers_count = TUNER_REG_COUNT;
-    uint8_t *buffer = NULL;
-
-    if ((error = init_tuner_registers(&handle->registers)) < 0)
-        goto failed;
-
-    if ((error = lpcsdr_set_rf_power(handle, 1)) < 0)
-        goto failed;
-
-    if (!(buffer = calloc(1, sizeof(uint8_t)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-
-    if ((error = lpcsdr_read_tuner_register(handle, TunerR0, 0, buffer, sizeof(uint8_t))) < 0)
-        goto failed;
-
-    uint8_t tuner_id;
-    if ((error = extract_register_symbol_val_from_buffer(handle->registers[TunerR0], TUNER_ID, buffer, &tuner_id)) < 0)
-        goto failed;
-
-    if (tuner_id != 0x96) {
-        error = LPCSDR_TUNER_INIT_FAILED;
-        goto failed;
-    }
-
-    return error;
-
-failed:
-    free_registers(handle->registers, handle->registers_count);
-    if (buffer)
-        free(buffer);
-
-    return error;
+int set_tuner_value_in_change_set(change_set *cs, uint8_t reg, uint8_t mask, uint8_t value) {
+    cs->entries[reg].current_mask |= mask;
+    cs->entries[reg].current_value = (cs->entries[reg].current_value & ~mask) | value;
+    return LPCSDR_SUCCESS;
 }
 
-int init_tuner_registers(bit_flag ***out) {
-    symbol_bit_mask_tuple tuner_r0_symbols[1] = {
-        {
-            .symbol = TUNER_ID,
-            .bit_mask = bitrange(7, 0)
-        }
-    };
+int find_pll_parameters(double requested, double xtal, pll_parameters *out) {
+    bool refdiv = false;
+    double pll_ref = xtal;
 
-    symbol_bit_mask_tuple tuner_r5_symbols[5] = {
-        {
-            .symbol = PWD_LT,
-            .bit_mask = onebit(7)
-        },
-        {
-            .symbol = reserved_6_0,
-            .bit_mask= onebit(6)
-        },
-        {
-            .symbol = PWD_LNA1,
-            .bit_mask = onebit(5)
-        },
-        {
-            .symbol = LNA_GAIN_MODE,
-            .bit_mask = onebit(4)
-        },
-        {
-            .symbol = LNA_GAIN,
-            .bit_mask = bitrange(3,0)
-        }
-    };
-
-    symbol_bit_mask_tuple tuner_r6_symbols[6] = {
-        {
-            .symbol = PWD_PDET1,
-            .bit_mask = onebit(7)
-        },
-        {
-            .symbol = PWD_PDET2,
-            .bit_mask= onebit(6)
-        },
-        {
-            .symbol = FILT_3DB,
-            .bit_mask = onebit(5)
-        },
-        {
-            .symbol = reserved_4_1,
-            .bit_mask = onebit(4)
-        },
-        {
-            .symbol = reserved_3_0,
-            .bit_mask = onebit(3)
-        },
-        {
-            .symbol = PW_LNA,
-            .bit_mask = bitrange(2,0)
-        }
-    };
-
-    symbol_bit_mask_tuple tuner_r7_symbols[5] = {
-        {
-            .symbol = img_r,
-            .bit_mask = onebit(7)
-        },
-        {
-            .symbol = PW_MIX,
-            .bit_mask= onebit(6)
-        },
-        {
-            .symbol = PW0_MIX,
-            .bit_mask = onebit(5)
-        },
-        {
-            .symbol = MIXGAIN_MODE,
-            .bit_mask = onebit(4)
-        },
-        {
-            .symbol = MIX_GAIN,
-            .bit_mask = bitrange(3,0)
-        }
-    };
-
-    bit_flag_metadata register_arr[4] = {
-        {
-            .num = TunerR0,
-            .symbol_count = sizeof(tuner_r0_symbols)/sizeof(tuner_r0_symbols[0]),
-            .symbols = tuner_r0_symbols,
-        },
-        {   
-            .num = TunerR5,
-            .symbol_count = sizeof(tuner_r5_symbols)/sizeof(tuner_r5_symbols[0]),
-            .symbols = tuner_r5_symbols,
-        },
-        {   
-            .num = TunerR6,
-            .symbol_count = sizeof(tuner_r6_symbols)/sizeof(tuner_r6_symbols[0]),
-            .symbols = tuner_r6_symbols,
-        },
-        {   
-            .num = TunerR7,
-            .symbol_count = sizeof(tuner_r7_symbols)/sizeof(tuner_r7_symbols[0]),
-            .symbols = tuner_r7_symbols,
-        }
-    };
-
-    int error = LPCSDR_SUCCESS;
-    bit_flag **registers = NULL;
-
-    if (!(registers = calloc(TUNER_REG_COUNT, sizeof(bit_flag*)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
+    if (xtal > 24e6) {
+        refdiv = true;
+        pll_ref = xtal / 2;
     }
 
-    for (int i = 0; i < sizeof(register_arr)/sizeof(register_arr[0]);i++) {
-        bit_flag *reg;
-        if ((error = create_tuner_register(register_arr[i].num, register_arr[i].symbol_count, register_arr[i].symbols, &reg)) < 0) {
-            goto failed;
-        }
-        registers[register_arr[i].num] = reg;
-    }
+    double VCO_MIN = 1750e6;
+    double VCO_MAX = 3700e6;
+    double seldiv = 2;
+    while ((requested * seldiv < VCO_MIN) && (seldiv < 64))
+        seldiv *= 2;
 
-    *out = registers;
-    return error;
-
-failed:
-    if (registers) {
-        for (int i = 0; i < TUNER_REG_COUNT; i++) {
-            if (registers[i])
-                free(registers[i]);
-        }
-        free(registers);
-    }
-    return error;
-}
-
-int create_tuner_register(tuner_reg_num reg_num, unsigned symbol_count, symbol_bit_mask_tuple *symbols, bit_flag **out) {
-    int error = LPCSDR_SUCCESS;
-    bit_flag *reg = NULL;
-    symbol_bit_mask_tuple **s = NULL;
-
-    if (!(reg = calloc(1, sizeof(bit_flag)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-    reg->num = reg_num;
-    reg->symbol_count = symbol_count;
-
-    if (!(s = calloc(reg->symbol_count, sizeof(*s)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-
-    for (int i = 0; i < reg->symbol_count; i++) {
-        if (!(s[i] = calloc(1, sizeof(*s[i])))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
-            goto failed;
-        }
-        s[i]->symbol = symbols->symbol;
-        s[i]->bit_mask = symbols->bit_mask;
-        s[i]->pos = calculate_mask_pos(s[i]->bit_mask);
-        symbols++;
-    }
-
-    reg->symbols = s;
-    *out = reg;
-
-    return error;
-failed:
-    if (reg)
-        free(reg);
-    if (s) {
-        for (int i = 0; i < symbol_count; i++) {
-            if (s[i])
-                free(s[i]);
-        }
-        free(s);
-    }
-
-    return error;
-}
-
-/* 
-    Takes a buffer that contains the values for given register.
-    Uses given symbols mask to grab the correct value from a given buffer.
-    Afterwards, right shift the value so it's aligned to the 0th index.
- */
-int extract_register_symbol_val_from_buffer(bit_flag *r, REGISTER_SYMBOL symbol, uint8_t *buffer, uint8_t *out) {
-    for (int i = 0; i < r->symbol_count; i++) {
-        symbol_bit_mask_tuple *s = r->symbols[i];
-        if (s->symbol == symbol) {
-            uint8_t v = *buffer & s->bit_mask;
-            v = v >> s->pos;
-            *out = v;
-            return LPCSDR_SUCCESS;
-        }
-    }
-
-    return LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND;
-}
-
-int free_registers(bit_flag **registers, unsigned registers_count) {
-
-    if (!registers)
+    double required_vco = requested * seldiv;
+    if (required_vco < VCO_MIN || required_vco > VCO_MAX) {
         return LPCSDR_ERROR_BAD_ARGUMENT;
-
-    for (unsigned i = 0; i < registers_count; i++) {
-        for (unsigned x = 0; x < registers[i]->symbol_count; x++) {
-            free(registers[i]->symbols[x]);
-        }
-        free(registers[i]->symbols);
-        free(registers[i]);
     }
-    free(registers);
+
+    double pll_feedback = (required_vco / 2) / pll_ref;
+    if (pll_feedback < 13 || pll_feedback >= 269) {
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+    }
+
+    double pll_feedback_int_part;
+    double pll_feedback_frac;
+    if (!(pll_feedback_frac = modf(pll_feedback, &pll_feedback_int_part))) {
+        return LCPSDR_TUNER_PLL_DIV_OUT_OF_RANGE;
+    }
+
+    unsigned pll_feedback_int = (unsigned) pll_feedback_int_part;
+    unsigned sdm_numerator = (unsigned) round(pll_feedback_frac * pow(2, 18));
+
+    sdm_numerator = (sdm_numerator & ~3) | 1;
+
+    if (sdm_numerator < 32)
+        sdm_numerator = 0;
+    else if (sdm_numerator > (pow(2, 18) - 32)) {
+        sdm_numerator = 0;
+        pll_feedback_int += 1;
+    } else if (sdm_numerator > (pow(2, 17) - 32) && sdm_numerator <= pow(2, 17)) {
+        sdm_numerator = pow(2, 17) - 32;
+    } else if (sdm_numerator > pow(2, 17) && sdm_numerator < (pow(2, 17) + 32)) {
+        sdm_numerator = pow(2, 17) + 32;
+    }
+
+    double actual_vco = pll_ref * 2 * (pll_feedback_int + sdm_numerator / pow(2, 18));
+    double actual_out = actual_vco / seldiv;
+
+    out->refdiv = refdiv;
+    out->seldiv = seldiv;
+    out->feedback_n = pll_feedback_int;
+    out->feedback_sdm = sdm_numerator >> 2;
+    out->vco = actual_vco;
+    out->freq = actual_out;
 
     return LPCSDR_SUCCESS;
+}
+
+int has_pll_lock(lpcsdr_device_handle *handle) {
+    int error = LPCSDR_SUCCESS;
+    uint8_t buffer;
+    
+    if ((error = lpcsdr_read_tuner_register(handle, TunerR2, 0, &buffer, sizeof(uint8_t))) < 0)
+        return error;
+
+    return extract_tuner_val(buffer, PLL_LOCK);
+}
+
+int init_tuner(lpcsdr_device_handle *handle) {
+    int error = LPCSDR_SUCCESS;
+
+    if ((error = lpcsdr_set_rf_power(handle, 1)) < 0)
+        return error;
+
+    uint8_t buffer;
+    if ((error = lpcsdr_read_tuner_register(handle, TunerR0, 0, &buffer, sizeof(uint8_t))) < 0)
+        return error;
+
+    uint8_t tuner_id = extract_tuner_val(buffer, TUNER_ID);
+    if (tuner_id != 0x96)
+        return LPCSDR_TUNER_INIT_FAILED;
+
+    if ((error = create_change_set(&handle->tuner_change_set)) < 0)
+        return error;
+
+    return error;
 }
 
 // change_set
 int create_change_set(change_set **out) {
     int error = LPCSDR_SUCCESS;
     change_set *cs = NULL;
-    change_set_value **entries = NULL;
     
     if (!(cs = calloc(1, sizeof(change_set)))) {
         error = LPCSDR_ERROR_NO_MEMORY;
         goto failed;
     }
-    cs->entries_count = TUNER_REG_COUNT;
-    if (!(entries = calloc(TUNER_REG_COUNT, sizeof(*entries)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-
-    for (int i = 0; i < TUNER_REG_COUNT; i++) {
-        if (!(entries[i] = calloc(1, sizeof(change_set_value)))){
-            error = LPCSDR_ERROR_NO_MEMORY;
-            goto failed;
-        }
-    }
-
-    cs->entries = entries;
     *out = cs;
 
     return LPCSDR_SUCCESS;
@@ -522,36 +327,9 @@ int create_change_set(change_set **out) {
 failed:
     if (cs)
         free(cs);
-    if (entries) {
-        for (int i = 0; i < TUNER_REG_COUNT; i++) {
-            if (entries[i])
-                free(entries[i]);
-        }
-    }
     return error;
 }
 
-/*
-    Use reg to index into the handles->register array.
-    Search for the desired REGISTER_SYMBOL and update the change_set value + mask.
-*/
-int set_tuner_value_in_change_set(lpcsdr_device_handle *handle, change_set *cs, tuner_reg_num reg, REGISTER_SYMBOL symbol, unsigned int value) {
-    bit_flag *r = handle->registers[reg];
-    for (int i = 0; i < r->symbol_count; i++) {
-        symbol_bit_mask_tuple *s = r->symbols[i];
-        change_set_value *csv = cs->entries[reg];
-
-        if (s->symbol == symbol) {
-            uint8_t old_mask = csv->current_mask;
-            uint8_t mask = s->bit_mask;
-            csv->current_mask = old_mask | mask;
-            csv->current_value = (csv->current_value & ~mask) | (value << s->pos);
-            return LPCSDR_SUCCESS;
-        }
-    }
-
-    return LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND;
-}
 
 /*
     Create a payload of bytes from the changeset.
@@ -560,9 +338,9 @@ int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8
     uint16_t num_entries = 0;
     uint16_t first_entry = 5;
     uint16_t last_entry = 5;
-    
-    for (uint16_t i = 5; i < cs->entries_count; i++) {
-        if (cs->entries[i]->current_mask != 0) {
+
+    for (uint16_t i = 5; i < TUNER_REG_COUNT; i++) {
+        if (cs->entries[i].current_mask != 0) {
             num_entries++;
             if (first_entry >= i)
                 first_entry = i;
@@ -581,11 +359,11 @@ int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8
     for (int i = first_entry; i <= last_entry; i++) {
         /* Read and clear value + mask */
         unsigned offset = i - first_entry;
-        payload[offset] = cs->entries[i]->current_value;
-        payload[offset + count] = cs->entries[i]->current_mask;
+        payload[offset] = cs->entries[i].current_value;
+        payload[offset + count] = cs->entries[i].current_mask;
 
-        cs->entries[i]->current_mask = 0;
-        cs->entries[i]->current_value = 0;
+        cs->entries[i].current_mask = 0;
+        cs->entries[i].current_value = 0;
     }
 
     *first = first_entry;
@@ -595,10 +373,9 @@ int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8
     return LPCSDR_SUCCESS;
 }
 
-void free_change_set(change_set *cs) {
-    for (int i = 0; i < TUNER_REG_COUNT; i++) {
-        free(cs->entries[i]);
-    }
-    free(cs->entries);
-    free(cs);
+void lpcsdr_free_tuner_memory(lpcsdr_device_handle *handle) {
+    if (!handle)
+        return;
+
+    free(handle->tuner_change_set);
 }

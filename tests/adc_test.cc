@@ -183,7 +183,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
     for (uint16_t cur = 0; cur < sizeof(test_cases)/sizeof(test_cases[0]); cur++) {
         candidate_is_better_test_case t = test_cases[cur];
         printf("Tests %s\n",t.name.c_str());
-        EXPECT_EQ(candidate_is_better(t.current_best, t.candidate, t.min_fcco, t.max_fcco, t.minimize_error, t.error_threshold), t.expected);
+        ASSERT_EQ(candidate_is_better(t.current_best, t.candidate, t.min_fcco, t.max_fcco, t.minimize_error, t.error_threshold), t.expected);
     }
 }
 
@@ -225,47 +225,47 @@ TEST(ADCTEST, Test_calculate_adc_divisor_tables) {
         }
     }
 
-    EXPECT_EQ(calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map, &p_i_divisors_map_length), LPCSDR_SUCCESS);
-    EXPECT_EQ(p_i_divisors_map_length, expected_p_i_map_length);
+    ASSERT_EQ(calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map, &p_i_divisors_map_length), LPCSDR_SUCCESS);
+    ASSERT_EQ(p_i_divisors_map_length, expected_p_i_map_length);
     for (uint32_t n = 0; n < expected_p_divisor_length; n++){
-        EXPECT_EQ(p_divisors[n], expected_p_dividers[n]);
+        ASSERT_EQ(p_divisors[n], expected_p_dividers[n]);
     }
     for (uint32_t index = 0; index < expected_n_i_divisor_length; index++){
-        EXPECT_EQ(n_divisors[index], expected_n_i_divisors[index]);
-        EXPECT_EQ(i_divisors[index], expected_n_i_divisors[index]);
+        ASSERT_EQ(n_divisors[index], expected_n_i_divisors[index]);
+        ASSERT_EQ(i_divisors[index], expected_n_i_divisors[index]);
     }
     for (uint32_t index = 0; index < expected_p_i_map_length; index++) {
         uint32_t *pair = p_i_divisors_map[index];
          if (expected_p_i_divisors_map.find(index) != expected_p_i_divisors_map.end()) {
             tuple<uint32_t, uint32_t> expected_pair = expected_p_i_divisors_map[index];
-            EXPECT_EQ(get<0>(expected_pair), pair[0]);
-            EXPECT_EQ(get<1>(expected_pair), pair[1]);
+            ASSERT_EQ(get<0>(expected_pair), pair[0]);
+            ASSERT_EQ(get<1>(expected_pair), pair[1]);
          }
     }
 }
 
 TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     
-    EXPECT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
+    ASSERT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
     uint32_t target_frequency = 5200000; //hz
 
     pll_divisors *int_divisors;
-    EXPECT_EQ(calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, NULL), LPCSDR_SUCCESS);
-    EXPECT_EQ(int_divisors->error, 0);
-    EXPECT_EQ(int_divisors->i, 0);
-    EXPECT_EQ(int_divisors->m, 13);
-    EXPECT_EQ(int_divisors->n, 0);
-    EXPECT_EQ(int_divisors->p, 30);
-    EXPECT_EQ(int_divisors->actual_frequency, (float) target_frequency);
+    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, NULL), LPCSDR_SUCCESS);
+    ASSERT_EQ(int_divisors->error, 0);
+    ASSERT_EQ(int_divisors->i, 0);
+    ASSERT_EQ(int_divisors->m, 13);
+    ASSERT_EQ(int_divisors->n, 0);
+    ASSERT_EQ(int_divisors->p, 30);
+    ASSERT_EQ(int_divisors->actual_frequency, (float) target_frequency);
 
     pll_divisors *frac_divisors;
-    EXPECT_EQ(calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, NULL), LPCSDR_SUCCESS);
-    EXPECT_EQ(frac_divisors->error, 0);
-    EXPECT_EQ(frac_divisors->i, 0);
-    EXPECT_EQ(frac_divisors->m, 13);
-    EXPECT_EQ(frac_divisors->n, 0);
-    EXPECT_EQ(frac_divisors->p, 30);
-    EXPECT_EQ(frac_divisors->actual_frequency, (float) target_frequency);
+    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, NULL), LPCSDR_SUCCESS);
+    ASSERT_EQ(frac_divisors->error, 0);
+    ASSERT_EQ(frac_divisors->i, 0);
+    ASSERT_EQ(frac_divisors->m, 13);
+    ASSERT_EQ(frac_divisors->n, 0);
+    ASSERT_EQ(frac_divisors->p, 30);
+    ASSERT_EQ(frac_divisors->actual_frequency, (float) target_frequency);
 }
 
 TEST(Test_populate_new_current_best, Successful) {
@@ -283,15 +283,15 @@ TEST(Test_populate_new_current_best, Successful) {
         .actual_frequency = 300,
 
     };
-    EXPECT_EQ(populate_new_current_best(&b, &c), LPCSDR_SUCCESS);
-    EXPECT_EQ(b->error, c.error);
-    EXPECT_EQ(b->actual_fcco, c.actual_fcco);
-    EXPECT_EQ(b->actual_frequency, c.actual_frequency);
-    EXPECT_EQ(b->fractional, c.fractional);
-    EXPECT_EQ(b->i, c.i);
-    EXPECT_EQ(b->m, c.m);
-    EXPECT_EQ(b->p, c.p);
-    EXPECT_EQ(b->n, c.n);
+    ASSERT_EQ(populate_new_current_best(&b, &c), LPCSDR_SUCCESS);
+    ASSERT_EQ(b->error, c.error);
+    ASSERT_EQ(b->actual_fcco, c.actual_fcco);
+    ASSERT_EQ(b->actual_frequency, c.actual_frequency);
+    ASSERT_EQ(b->fractional, c.fractional);
+    ASSERT_EQ(b->i, c.i);
+    ASSERT_EQ(b->m, c.m);
+    ASSERT_EQ(b->p, c.p);
+    ASSERT_EQ(b->n, c.n);
 }
 
 #if 0
@@ -315,10 +315,13 @@ TEST(Test_unpack_raw_adc_data, Successful) {
         3,96, 3,80
     };
 
+    ep0_in_board_status_t s = {
+        .usb_samples_per_block = 8,
+        .usb_bytes_per_block = 32
+    };
+
     lpcsdr_device_handle h = {
-        .usb_samples_per_block_multiple = 8,
-        .usb_bytes_per_block_multiple = 32,
-        .individual_sample_bit_size = 12,
+        .last_status = &s
     };
 
     int16_t *out = (int16_t *) calloc(buffer_length, sizeof(uint16_t));
@@ -327,10 +330,10 @@ TEST(Test_unpack_raw_adc_data, Successful) {
     int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
     int16_t expected_unpacked_samples_length = 8;
     int16_t expected_unpacked_samples[expected_unpacked_samples_length] = {32, 32, 64, 80, 48, 48, 96, 80, 48};
-    EXPECT_EQ(return_status, 8);
+    ASSERT_EQ(return_status, 8);
 
     for (int i = 0; i < expected_unpacked_samples_length; i++) {
-        EXPECT_EQ(out[i], expected_unpacked_samples[i]);
+        ASSERT_EQ(out[i], expected_unpacked_samples[i]);
     }
 }
 #endif

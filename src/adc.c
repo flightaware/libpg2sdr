@@ -19,6 +19,7 @@ const uint16_t LPCSDR_FIXED_POINT_SCALE_FACTOR = 32768;
 
 // ADC is outputting values that are 12 bit signed.
 const uint16_t ADC_OUTPUT_VALUE_BIT_LENGTH = 2048;
+const uint8_t SAMPLE_BIT_SIZE = 12;
 
 int effective_n_divisor(uint32_t n) {
     return (n > 0) ? n: 1;
@@ -223,3 +224,73 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
     return LPCSDR_SUCCESS;
 }
 
+void unpack_header(uint32_t offset, uint8_t *in, ep1_header_t* out) {
+    uint8_t header[sizeof(ep1_header_t)];
+    for (uint32_t hx = 0; hx < sizeof(ep1_header_t); hx++) {
+        header[hx] = in[offset + hx];
+    }
+
+    ep1_header_t *h = (ep1_header_t *) header;
+
+    out->magic = le32toh(h->magic);
+    out->block_len = le32toh(h->block_len);
+    out->samples = le32toh(h->samples);
+    out->sequence = le32toh(h->sequence);
+    out->status = le32toh(h->status);
+}
+
+// Unpack raw ADC data. Caller should have checked all blocks are valid and continguous.
+int unpack_raw_adc_data(lpcsdr_device_handle *handle, uint8_t *in, uint32_t in_length, int16_t *out, uint32_t skip, const char *output_file) {
+
+    ep1_header_t h = {};
+    unpack_header(0, in, &h);
+    
+    const uint32_t usb_bytes_per_block = h.block_len;
+    const uint32_t usb_samples_per_block = h.samples;
+    uint32_t out_index = 0;
+
+    for(uint32_t current_block = skip * usb_bytes_per_block; current_block < in_length; current_block+=usb_bytes_per_block) {
+
+        uint8_t block_body[usb_bytes_per_block];
+        uint32_t current_offset = current_block + sizeof(ep1_header_t);
+        for (uint32_t bx = current_offset, new_block_body_offset = 0; bx < current_offset + usb_bytes_per_block; bx++, new_block_body_offset++){
+            block_body[new_block_body_offset] = in[bx];
+        }
+
+        uint32_t total_samples_size_in_bytes = (uint32_t)floor(usb_samples_per_block * SAMPLE_BIT_SIZE / 8);
+        uint32_t packed_size = total_samples_size_in_bytes / 4;
+        uint32_t packed[packed_size];
+
+        for (uint32_t bx = 0, packed_index = 0; bx < total_samples_size_in_bytes; bx+=4, packed_index++){
+            packed[packed_index] = (block_body[bx + 3] << 24) | (block_body[bx + 2] << 16) | (block_body[bx + 1] << 8) | block_body[bx];
+        }
+
+        int16_t unpacked[usb_samples_per_block];
+        for (uint32_t i = 0, unpacked_index = 0; i < packed_size; i += 3, unpacked_index += 8) {
+            uint32_t first = packed[i], second = packed[i + 1], third = packed[i + 2];
+            unpacked[unpacked_index]        =   (first  &   0x00000FFF);
+            unpacked[unpacked_index + 1]    =   (first  &   0x0FFF0000) >> 16;
+            unpacked[unpacked_index + 2]    =   (second &   0x00000FFF);
+            unpacked[unpacked_index + 3]    =   (second &   0x0FFF0000) >> 16;
+
+            unpacked[unpacked_index + 4]    =   (third  &   0x00000FFF);
+            unpacked[unpacked_index + 5]    =   (third  &   0x0FFF0000) >> 16;
+            unpacked[unpacked_index + 6]    =   ((first &   0x0000F000) >> 4)  | ((second & 0x0000F000) >> 8)   | ((third & 0x0000F000) >> 12);
+            unpacked[unpacked_index + 7]    =   ((first &   0xF0000000) >> 20) | ((second & 0xF0000000) >> 24)  | ((third & 0xF0000000) >> 28);
+
+            for (int z = unpacked_index; z < unpacked_index + 8; z++) {
+                out[out_index] = unpacked[z] * LPCSDR_FIXED_POINT_SCALE_FACTOR / ADC_OUTPUT_VALUE_BIT_LENGTH;
+                out_index += 1;
+            }
+        }
+    }
+
+    FILE *file;
+    if (output_file != NULL && (file = fopen(output_file, "a")) != NULL) {
+        for (uint32_t i = 0; i < out_index; i++)
+            fprintf(file, "%d\t%d\n", i, out[i]);
+        fclose(file);
+    }
+
+    return out_index;
+}

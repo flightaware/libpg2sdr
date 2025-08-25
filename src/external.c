@@ -58,6 +58,8 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         return LPCSDR_ERROR_BUSY;
     }
 
+    free(dev->last_status);
+    lpcsdr_free_tuner_memory(dev);
     lpcsdr_dsp_decimate_free(dev->decimation_filter);
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;

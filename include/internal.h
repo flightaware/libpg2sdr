@@ -82,6 +82,7 @@ struct lpcsdr_device_handle {
 
     uint32_t usb_samples_per_block;
     uint32_t usb_bytes_per_block;
+    ep0_in_board_status_t *last_status;
 
     libusb_device_handle *usb_handle;
     libusb_vtable *libusb_vtable;
@@ -110,9 +111,9 @@ struct lpcsdr_device_handle {
     /* completion flag, passed to libusb_handle_events_*, set to true to force wakeup */
     int completion_flag;
 
-    // Tuner stuff
-    bit_flag **registers;
-    unsigned int registers_count;
+    // Tuner
+    // Stores tuner changes
+    change_set *tuner_change_set;
 };
 
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);

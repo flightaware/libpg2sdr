@@ -60,6 +60,7 @@ enum lpcsdr_error {
     /* Tuner errors */
     LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND = -300, /* Could not find provided register symbol for a given register */
     LPCSDR_TUNER_INIT_FAILED = -301,               /* TUNER_ID was not correct value. Tuner init failed somehow */
+    LCPSDR_TUNER_PLL_DIV_OUT_OF_RANGE = -302,
 
     /* system call error range */
     LPCSDR_ERROR_SYSTEM_MAX = -1000,

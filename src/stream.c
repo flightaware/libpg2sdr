@@ -363,7 +363,6 @@ int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, uint32_t rate)
     return error;
 }
 
-
 //Transfers
 
 /* callback from libusb when a transfer completes.
