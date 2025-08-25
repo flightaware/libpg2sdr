@@ -22,15 +22,15 @@
         if (!ctx)                            \
             return LPCSDR_ERROR_BAD_ARGUMENT;\
         if (ctx->magic != MAGIC_CTX)         \
-            return LPCSDR_ERROR_CORRUPTION;   \
+            return LPCSDR_ERROR_CORRUPTION;  \
     } while (0)
 
 #define CHECK_DEV(dev)                                                            \
     do {                                                                          \
         if (!dev)                                                                 \
-            return LPCSDR_ERROR_BAD_ARGUMENT;                                      \
+            return LPCSDR_ERROR_BAD_ARGUMENT;                                     \
         if (!dev->ctx || dev->magic != MAGIC_DEV || dev->ctx->magic != MAGIC_CTX) \
-            return LPCSDR_ERROR_CORRUPTION;                                        \
+            return LPCSDR_ERROR_CORRUPTION;                                       \
     } while (0)
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
