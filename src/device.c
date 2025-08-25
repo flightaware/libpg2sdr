@@ -253,18 +253,10 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
         reenumerated_dev = NULL;
     }
 
-    /* try to set configuration 1 if not already set */
-    int config;
-    if ((error = libusb_get_configuration(usb_handle, &config)) < 0) {
+    /* set configuration 1 always (this does a soft reset of USB state) */
+    if ((error = libusb_set_configuration(usb_handle, 1)) < 0) {
         error = lpcsdr_translate_libusb_error(error);
         goto failed;
-    }
-
-    if (config != 1) {
-        if ((error = libusb_set_configuration(usb_handle, 1)) < 0) {
-            error = lpcsdr_translate_libusb_error(error);
-            goto failed;
-        }
     }
 
     /* claim interface 0, the main data-streaming interface; only one thing can
