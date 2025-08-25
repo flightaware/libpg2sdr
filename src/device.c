@@ -31,17 +31,6 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
     dev->magic = MAGIC_DEV;
     dev->ctx = ctx;
 
-    ep0_in_board_status_t *status;
-    if ((error = lpcsdr_get_status(dev, &status)) < 0)
-        goto cleanup;
-
-    dev->individual_sample_bit_size = 12;
-    dev->usb_samples_per_block_multiple = 8;
-    dev->usb_bytes_per_block_multiple = 512;
-    dev->hsadc_frequency = status->hsadc_frequency;
-    dev->blocks_per_chunk = 128;
-    dev->conversion_mode = LPCSDR_LOWIF_REAL;
-
     pthread_mutexattr_t attrs;
     if (pthread_mutexattr_init(&attrs) < 0 || pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE) < 0 || pthread_mutex_init(&dev->mutex, &attrs) < 0) {
         error = lpcsdr_translate_errno(errno);
@@ -53,6 +42,15 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
     
     if ((error = populate_libusb_vtable(&dev->libusb_vtable))< 0)
         goto cleanup;
+
+    ep0_in_board_status_t status;
+    if ((error = lpcsdr_get_status(dev, &status)) < 0)
+        goto cleanup;
+
+    dev->conversion_mode = LPCSDR_LOWIF_REAL;
+    dev->usb_bytes_per_block = status.usb_bytes_per_block;
+    dev->usb_samples_per_block = status.usb_samples_per_block;
+    dev->buffer_size = 1048576; /* default 1MB */
 
     if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
         goto cleanup;
@@ -119,8 +117,9 @@ static int rank_devices(const void *l, const void *r)
     return (int)left->usb_address - (int)right->usb_address;
 }
 
-int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader) {
-
+int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
+{
+    /* fixme: leaked device list */
     libusb_device **libusb_device_list;
     ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &libusb_device_list);
     if (device_count < 0) {
@@ -155,16 +154,17 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
         }
 
         if (mode == LPCSDR_DEVICE_MODE_NORMAL) {
+            /* todo: get full serial here */
+            /* todo: soft set config 1 if not already set */
+
             libusb_device_handle *handle;
             if ((error = libusb_open(usb_dev, &handle)) != LIBUSB_SUCCESS) {
-                printf("uh oh\n");
                 continue;
             }
 
             printf("Opened handle for lpcsdr\n");
 
             if ((error = lpcsdr_comms_check(handle)) < 0) {
-                printf("error %d", error);
                 continue;
             };
         }
@@ -177,7 +177,6 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
 
         lpc_devices_to_return[matched]->context = ctx;
         lpc_devices_to_return[matched]->mode = mode;
-        lpc_devices_to_return[matched]->usb_superspeed = (libusb_get_device_speed(usb_dev) >= LIBUSB_SPEED_SUPER);
         lpc_devices_to_return[matched]->usb_bus = libusb_get_bus_number(usb_dev);
         lpc_devices_to_return[matched]->usb_address = libusb_get_device_address(usb_dev);
         lpc_devices_to_return[matched]->libusb_device = (void *)libusb_ref_device(usb_dev);

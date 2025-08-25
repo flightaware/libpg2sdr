@@ -52,14 +52,10 @@ enum lpcsdr_error {
     LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed (see dfu_status) */
     LPCSDR_ERROR_FWIMAGE_TIMEOUT = -105,   /* firmware did not re-enumerate within timeout after firmware upload */
 
-    /* Bulk Transfer (BT) errors */
-    LPCSDR_BT_EXPECTED_LENGTH_MISMATCH = -200,  /* Expected length and actual length of bytes read mismatch */
-    LPCSDR_BT_MAGIC_MISMATCH = -201,            /* Magic number at header is wrong */
-    LPCSDR_BT_BLOCKLENGTH_MISMATCH = -202,      /* Block Length mismatch*/
-    LPCSDR_BT_SAMPLELENGTH_MISMATCH = -203,     /* Block Num Samples mismatch*/
-    LPCSDR_BT_GENERIC_ERROR = -204,             /* libusb transfer status not COMPLETED and not otherwise handled */
-    LPCSDR_BT_STALL = -205,                     /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
-    LPCSDR_BT_OVERFLOW = -206,                  /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
+    LPCSDR_ERROR_TRANSFER_ERROR = -200,         /* libusb transfer status not COMPLETED and not otherwise handled */
+    LPCSDR_ERROR_TRANSFER_STALL = -201,         /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
+    LPCSDR_ERROR_TRANSFER_OVERFLOW = -202,      /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
+    LPCSDR_ERROR_TRANSFER_FORMAT = -203,        /* malformed bulk transfer data */
 
     /* Tuner errors */
     LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND = -300, /* Could not find provided register symbol for a given register */
@@ -141,10 +137,6 @@ int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_pa
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
 
-// Control Transfers
-int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status);
-int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
-
 // Open by Methods
 // static int generic_match(lpc_device *dev, void *arg);
 // static int generic_open_by(lpcsdr_context *ctx, struct match_tuple *match, lpcsdr_device_handle **device);
@@ -153,9 +145,13 @@ int lpcsdr_open_by_address(lpcsdr_context *ctx, uint8_t bus, uint8_t address, lp
 int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_handle **device);
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
+// Device configuration
+int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
+int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
+int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, uint32_t rate);
+int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, uint32_t *rate);
+
 //Streaming
-int lpcsdr_set_buffering(lpcsdr_device_handle *dev, unsigned buffer_count, unsigned buffer_size);
-int lpcsdr_get_buffering(lpcsdr_device_handle *dev, unsigned *buffer_count, unsigned *buffer_size);
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
 int lpcsdr_stop_streaming(lpcsdr_device_handle *dev);
 

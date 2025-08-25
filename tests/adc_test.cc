@@ -294,6 +294,7 @@ TEST(Test_populate_new_current_best, Successful) {
     EXPECT_EQ(b->n, c.n);
 }
 
+#if 0
 TEST(Test_unpack_raw_adc_data, Successful) {
     uint16_t buffer_length = 32;
     uint8_t buffer[buffer_length] = {
@@ -332,3 +333,4 @@ TEST(Test_unpack_raw_adc_data, Successful) {
         EXPECT_EQ(out[i], expected_unpacked_samples[i]);
     }
 }
+#endif

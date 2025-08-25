@@ -17,12 +17,16 @@ int lpcsdr_translate_libusb_transfer_status(enum libusb_transfer_status status)
     switch (status) {
     case LIBUSB_TRANSFER_COMPLETED:
         return LPCSDR_SUCCESS;
+    case LIBUSB_TRANSFER_TIMED_OUT:
+        return LPCSDR_ERROR_TIMEOUT;
     case LIBUSB_TRANSFER_STALL:
-        return LPCSDR_BT_STALL;
+        return LPCSDR_ERROR_TRANSFER_STALL;
     case LIBUSB_TRANSFER_OVERFLOW:
-        return LPCSDR_BT_OVERFLOW;
+        return LPCSDR_ERROR_TRANSFER_OVERFLOW;
+    case LIBUSB_TRANSFER_NO_DEVICE:
+        return LPCSDR_ERROR_DISCONNECTED;
     default:
-        return LPCSDR_BT_GENERIC_ERROR;
+        return LPCSDR_ERROR_TRANSFER_ERROR;
     }
 }
 
@@ -128,24 +132,18 @@ const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
         return "Firmware image upload failed";
     case LPCSDR_ERROR_FWIMAGE_TIMEOUT:
         return "Timeout after uploading firmware image";
-    case LPCSDR_BT_MAGIC_MISMATCH:
-        return "LPCSDR_BT_MAGIC_MISMATCH needs a description";
-    case LPCSDR_BT_SAMPLELENGTH_MISMATCH:
-        return "LPCSDR_BT_SAMPLELENGTH_MISMATCH needs a description";
-    case LPCSDR_BT_BLOCKLENGTH_MISMATCH:
-         return "LPCSDR_BT_BLOCKLENGTH_MISMATCH needs a description";
+    case LPCSDR_ERROR_TRANSFER_FORMAT:
+        return "Malformed bulk endpoint data received";
     case LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND:
          return "LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND needs a description";
     case LPCSDR_TUNER_INIT_FAILED:
          return "LPCSDR_TUNER_INIT_FAILED needs a description";
-    case LPCSDR_BT_EXPECTED_LENGTH_MISMATCH:
-        return "Bulk Transfer mismatch between expected and actual length";
-    case LPCSDR_BT_GENERIC_ERROR:
-        return "generic bulk transfer failed";
-    case LPCSDR_BT_STALL:
-        return "bulk transfer endpoint stalled";
-    case LPCSDR_BT_OVERFLOW:
-        return "bulk transfer returned more data that expected";
+    case LPCSDR_ERROR_TRANSFER_ERROR:
+        return "Uncategorized bulk endpoint transfer error";
+    case LPCSDR_ERROR_TRANSFER_STALL:
+        return "Bulk endpoint stall condition";
+    case LPCSDR_ERROR_TRANSFER_OVERFLOW:
+        return "Bulk endpoint transfer returned more data that expected";
 
     case LPCSDR_ERROR_SYSTEM_MIN:
         return "Unknown system error";

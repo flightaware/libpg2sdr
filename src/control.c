@@ -4,41 +4,48 @@
 #include "internal.h"
 #include <endian.h>
 
-typedef enum {
-    IN,
-    OUT
-} CONTROL_TRANSFER_DIR;
+#define CONTROL_TIMEOUT 1000
 
-static int control_transfer(libusb_device_handle *usb_handle, CONTROL_TRANSFER_DIR dir,
-    uint8_t bRequest, uint16_t wValue, uint16_t wIndex, unsigned char *data, 
-    uint16_t wLength, unsigned int timeout) {
-    
-    uint8_t rt = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE;
-
-    if (dir == OUT)
-        rt |= LIBUSB_ENDPOINT_OUT;
-    else
-        rt |= LIBUSB_ENDPOINT_IN;
-
-    int error = libusb_control_transfer(
-                                        usb_handle, 
-                                        rt,
+static int control_in(libusb_device_handle *usb_handle,
+                      uint8_t bRequest, uint16_t wValue, uint16_t wIndex, unsigned char *data,
+                      uint16_t wLength)
+{
+    int count = libusb_control_transfer(usb_handle,
+                                        LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN,
                                         bRequest,
                                         wValue,
                                         wIndex,
                                         data,
                                         wLength,
-                                        timeout
-    );
-    
-    if (error < 0)
-        return error;
-
+                                        CONTROL_TIMEOUT);
+    if (count < 0)
+        return lpcsdr_translate_libusb_error(count);
+    if (count != wLength)
+        return LPCSDR_ERROR_FIRMWARE_MISMATCH;
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency){
+static int control_out(libusb_device_handle *usb_handle,
+                       uint8_t bRequest, uint16_t wValue, uint16_t wIndex, const unsigned char *data,
+                       uint16_t wLength)
+{
+    int count = libusb_control_transfer(usb_handle,
+                                        LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT,
+                                        bRequest,
+                                        wValue,
+                                        wIndex,
+                                        (unsigned char *)data,
+                                        wLength,
+                                        CONTROL_TIMEOUT);
+    if (count < 0)
+        return lpcsdr_translate_libusb_error(count);
+    if (count != wLength)
+        return LPCSDR_ERROR_FIRMWARE_MISMATCH;
+    return LPCSDR_SUCCESS;
+}
 
+int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency)
+{
     pll_divisors *divisors = NULL;
     int error = LPCSDR_SUCCESS;
 
@@ -47,28 +54,19 @@ int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency){
     }
 
     ep0_out_start_transfer_t buffer = {
-        .n_divisor = divisors->n,
+        .n_divisor = htole32(divisors->n),
         // Shift M divisor by 15
-        .m_divisor = round(divisors->m * LPCSDR_FIXED_POINT_SCALE_FACTOR),
-        .p_divisor = divisors->p,
-        .idiv_divisor = divisors->i
+        .m_divisor = htole32(round(divisors->m * 32768.0)),
+        .p_divisor = htole32(divisors->p),
+        .idiv_divisor = htole32(divisors->i)
     };
 
-    error = control_transfer(
-                            dev->usb_handle,
-                            OUT, 
-                            EP0_OUT_START_TRANSFER,
-                            0,
-                            0,
-                            (unsigned char *)&buffer,
-                            sizeof(buffer),
-                            1000
-    );
-
-    if (error < 0) {
-        printf("error starting adc transfer and setting dividers %d", error);
-        return error;
-    }
+    error = control_out(dev->usb_handle,
+                        EP0_OUT_START_TRANSFER,
+                        0,
+                        0,
+                        (unsigned char *)&buffer,
+                        sizeof(buffer));
 
 cleanup:
     if (divisors)
@@ -76,125 +74,140 @@ cleanup:
     return error;
 }
 
-int lpcsdr_stop_transfer(lpcsdr_device_handle *dev) {
-    int error = control_transfer(
-                                dev->usb_handle,
-                                OUT,
-                                EP0_OUT_STOP_TRANSFER,
-                                0,
-                                0,
-                                NULL,
-                                0,
-                                1000
-    );
-
-    if (error < 0) {
-        return error;
-    }
-    return LPCSDR_SUCCESS;
+int lpcsdr_stop_transfer(lpcsdr_device_handle *dev)
+{
+    return control_out(dev->usb_handle,
+                       EP0_OUT_STOP_TRANSFER,
+                       0,
+                       0,
+                       NULL,
+                       0);
 }
 
-int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t **status) {
-
-    ep0_in_board_status_t *buffer = calloc(1, sizeof(ep0_in_board_status_t));
-
-    int error = control_transfer(
-                                dev->usb_handle, 
-                                IN,
-                                EP0_IN_BOARD_STATUS,
-                                0,
-                                0,
-                                (unsigned char *)buffer,
-                                sizeof(ep0_in_board_status_t),
-                                1000
-    );
-
+int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *out)
+{
+    ep0_in_board_status_t status;
+    int error = control_in(dev->usb_handle, 
+                           EP0_IN_BOARD_STATUS,
+                           0,
+                           0,
+                           (unsigned char *)&status,
+                           sizeof(status));
     if (error < 0) {
         return error;
     }
 
-    *status = buffer;
+    /* byteswap all the things, if needed
+     * (these are probably all no-ops, but anyway)
+     */
+    out->flags = le32toh(status.flags);
+    out->hsadc_frequency = le32toh(status.hsadc_frequency);
+    out->pll_stat = le32toh(status.pll_stat);
+    out->pll_ctrl = le32toh(status.pll_ctrl);
+    out->pll_mdiv = le32toh(status.pll_mdiv);
+    out->pll_np_div = le32toh(status.pll_np_div);
+    out->pll_frac = le32toh(status.pll_frac);
+    out->idiv_e_ctrl = le32toh(status.idiv_e_ctrl);
+    out->adchs_fifo_cfg = le32toh(status.adchs_fifo_cfg);
+    out->adchs_config = le32toh(status.adchs_config);
+    out->adchs_adc_speed = le32toh(status.adchs_adc_speed);
+    out->adchs_power_control = le32toh(status.adchs_power_control);
+    out->adchs_int0_status = le32toh(status.adchs_int0_status);
+    out->adchs_fifo_sts = le32toh(status.adchs_fifo_sts);
+    out->adchs_dscr_sts = le32toh(status.adchs_dscr_sts);
+    out->gpdma_config = le32toh(status.gpdma_config);
+    out->gpdma_enbldchns = le32toh(status.gpdma_enbldchns);
+    out->gpdma_rawinttcstat = le32toh(status.gpdma_rawinttcstat);
+    out->gpdma_rawinterrstat = le32toh(status.gpdma_rawinterrstat);
+    out->gpdma0_config = le32toh(status.gpdma0_config);
+    out->gpdma0_control = le32toh(status.gpdma0_control);
+    out->gpdma0_srcaddr = le32toh(status.gpdma0_srcaddr);
+    out->gpdma0_destaddr = le32toh(status.gpdma0_destaddr);
+    out->gpdma0_lli = le32toh(status.gpdma0_lli);
+    out->current_lli = le32toh(status.current_lli);
+    out->next_sequence = le32toh(status.next_sequence);
+    /* tuner_regs is a uint8_t array and doesn't need modification */
+    out->usb_free_buffers = le32toh(status.usb_free_buffers);
+    out->usb_filled_buffers = le32toh(status.usb_filled_buffers);
+    out->usb_samples_per_block = le32toh(status.usb_samples_per_block);
+    out->usb_bytes_per_block = le32toh(status.usb_bytes_per_block);
+    out->m4_freq = le32toh(status.m4_freq);
+    out->m4_mean_idle = le32toh(status.m4_mean_idle);
+    out->m4_mean_idle_scale = le32toh(status.m4_mean_idle_scale);
+    out->m4_min_idle = le32toh(status.m4_min_idle);
+    out->m4_min_idle_scale = le32toh(status.m4_min_idle_scale);
+    out->clock_32k = le32toh(status.clock_32k);
+    out->clock_irc = le32toh(status.clock_irc);
+    out->clock_pll0usb = le32toh(status.clock_pll0usb);
+    out->clock_pll0audio = le32toh(status.clock_pll0audio);
+    out->clock_pll1 = le32toh(status.clock_pll1);
+    out->clock_idiv_a = le32toh(status.clock_idiv_a);
+    out->clock_idiv_b = le32toh(status.clock_idiv_b);
+    out->clock_idiv_c = le32toh(status.clock_idiv_c);
+    out->clock_idiv_d = le32toh(status.clock_idiv_d);
+    out->clock_idiv_e = le32toh(status.clock_idiv_e);
+    out->tuner_xtal = le32toh(status.tuner_xtal);
 
     return LPCSDR_SUCCESS;
 }
 
 int lpcsdr_comms_check(libusb_device_handle *usb_handle)
 {
-    uint32_t buffer[1];
-    int error = control_transfer(
-                                usb_handle, 
-                                IN,
-                                EP0_IN_COMMS_CHECK,
-                                0,
-                                0,
-                                (unsigned char *)buffer,
-                                sizeof(buffer),
-                                1000
-    );
+    int error;
+    ep0_in_comms_check_t in_check;
 
-    if (error < 0) {
+    if ((error = control_in(usb_handle, 
+                            EP0_IN_COMMS_CHECK,
+                            0,
+                            0,
+                            (unsigned char *)&in_check,
+                            sizeof(in_check))) < 0) {
+        return error;
+    }
+    
+    if (le32toh(in_check.magic) != COMMS_CHECK_MAGIC)
+        return LPCSDR_ERROR_FIRMWARE_MISMATCH;
+
+    ep0_out_comms_check_t out_check;
+    out_check.magic = htole32(COMMS_CHECK_MAGIC);
+    if ((error = control_out(usb_handle,
+                             EP0_OUT_COMMS_CHECK,
+                             0,
+                             0,
+                             (unsigned char *)&out_check,
+                             sizeof(out_check))) < 0) {
         return error;
     }
 
-    if (buffer[0] == 0xDEADBEEF)
-        return LPCSDR_SUCCESS;
-    return -1;
+    return LPCSDR_SUCCESS;
 }
 
 int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
 {   
-    int error = control_transfer(
-                                dev->usb_handle,
-                                OUT,
-                                EP0_OUT_TUNER_UPDATE,
-                                first,
-                                0,
-                                (unsigned char *) payload,
-                                payload_size,
-                                1000
-    );
-
-    if (error < 0) {
-        return error;
-    }
-
-    return LPCSDR_SUCCESS;
+    return control_out(dev->usb_handle,
+                       EP0_OUT_TUNER_UPDATE,
+                       first,
+                       0,
+                       (unsigned char *) payload,
+                       payload_size);
 }
 
-int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode) {
-    int error = control_transfer(
-                                dev->usb_handle,
-                                OUT,
-                                EP0_OUT_SET_RF_POWER,
-                                mode,
-                                0,
-                                NULL,
-                                0,
-                                1000
-    );
-
-    if (error < 0) {
-        return error;
-    }
-
-    return LPCSDR_SUCCESS;
+int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode)
+{
+    return control_out(dev->usb_handle,
+                       EP0_OUT_SET_RF_POWER,
+                       mode,
+                       0,
+                       NULL,
+                       0);
 }
 
-int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size) {
-    int error = control_transfer(
-                                dev->usb_handle,
-                                IN,
-                                EP0_IN_TUNER_READ,
-                                (uint16_t) first_reg,
-                                cache,
-                                (unsigned char *) buffer,
-                                buffer_size,
-                                1000
-    );
-
-    if (error < 0) {
-        return error;
-    }
-
-    return LPCSDR_SUCCESS;
+int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size)
+{
+    return control_in(dev->usb_handle,
+                      EP0_IN_TUNER_READ,
+                      (uint16_t) first_reg,
+                      cache,
+                      (unsigned char *) buffer,
+                      buffer_size);
 }
