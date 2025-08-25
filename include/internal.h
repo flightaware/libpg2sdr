@@ -15,8 +15,6 @@
 #define PID_LPCSDR 0xBEEF
 #define EXPECTED_BLOCK_HEADER_MAGIC 0xDEADBEEF
 
-#define DFU_DOWNLOAD_REQUEST 0x1
-#define DFU_GET_STATUS_REQUEST 0x3
 #define USB_BLOCK_SIZE 10240
 
 #define CHECK_CTX(ctx)                       \
