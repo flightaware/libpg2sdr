@@ -20,7 +20,6 @@ typedef struct lpcsdr_context lpcsdr_context;
 typedef enum { LPCDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_level;
 typedef void (*lpcsdr_log_callback)(lpcsdr_context *context, lpcsdr_log_level level, const char *message);
 typedef struct lpcsdr_device_handle lpcsdr_device_handle;
-typedef bool (*lpcsdr_stream_callback)(void *block, void *user_data);
 
 typedef enum { LPCSDR_LOWIF_REAL, LPCSDR_LOWIF_COMPLEX } lpcsdr_conversion_mode;
 
@@ -127,6 +126,7 @@ typedef struct {
 
 } lpcsdr_sample_buffer;
 
+typedef bool (*lpcsdr_stream_callback)(lpcsdr_sample_buffer *buffer, void *user_data);
 
 const char *lpcsdr_strerror(int error);
 const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen);
