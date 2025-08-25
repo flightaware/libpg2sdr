@@ -1,5 +1,7 @@
 # Heard you like Makefiles. So I made a Makefile to call your CMake files
 
+all: build
+
 clean:
 	rm -rf build
 
@@ -41,3 +43,5 @@ tuner:
 	make clean
 	make debug
 	cd build/tests &&  gdb tuner_tests 
+
+.PHONY: build
