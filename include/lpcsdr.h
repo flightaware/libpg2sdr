@@ -82,8 +82,6 @@ typedef struct lpc_device {
     char serial[9];               /* serial number string, ASCIIZ */
     unsigned index;
     /* USB connection details: */
-    bool usb_superspeed; /* true if this device is connected via a USB3.0
-                            superspeed connection */
     uint8_t usb_bus;     /* bus number this device is connected to */
     uint8_t usb_address; /* address within usb_bus */
     void *libusb_device;
