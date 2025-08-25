@@ -82,7 +82,6 @@ struct lpcsdr_device_handle {
 
     uint32_t usb_samples_per_block;
     uint32_t usb_bytes_per_block;
-    ep0_in_board_status_t *last_status;
 
     libusb_device_handle *usb_handle;
     libusb_vtable *libusb_vtable;
