@@ -269,8 +269,9 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
     //build lpcsdr_device_handle
     lpcsdr_device_handle *handle;
-    build_lpc_device(ctx, usb_handle, &handle);
-
+    if ((error = build_lpc_device(ctx, usb_handle, &handle)) < 0) {
+        goto failed;
+    }
 
     *device_handle = handle;
     return LPCSDR_SUCCESS;
