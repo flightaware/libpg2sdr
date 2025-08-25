@@ -127,18 +127,6 @@ typedef struct {
 
 } lpcsdr_sample_buffer;
 
-typedef struct pll_divisors {
-    bool fractional;
-
-    uint32_t n;
-    float m;
-    uint32_t p;
-    uint32_t i;
-
-    float error;
-    float actual_fcco;
-    float actual_frequency;
-} pll_divisors;
 
 const char *lpcsdr_strerror(int error);
 const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen);

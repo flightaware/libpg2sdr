@@ -139,6 +139,19 @@ int lpcsdr_translate_libusb_transfer_status(enum libusb_transfer_status status);
 int lpcsdr_translate_errno(int error);
 
 // ADC
+typedef struct pll_divisors {
+    bool fractional;
+
+    uint32_t n;
+    float m;
+    uint32_t p;
+    uint32_t i;
+
+    float error;
+    float actual_fcco;
+    float actual_frequency;
+} pll_divisors;
+
 int init_global_adc_divisor_tables();
 int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisors_out, uint32_t *p_i_divisors_out_length);
 int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon);
