@@ -4,8 +4,8 @@
 
 #include "internal.h"
 
-
-int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out) {
+static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out)
+{
     int error;
 
     lpcsdr_device_handle *dev = calloc(1, sizeof(lpcsdr_device_handle));
@@ -56,7 +56,6 @@ cleanup:
 cleanup_nomutex:
     free(dev);
     return error;
-
 }
 
 int lpcsdr_free_device_list(lpc_device **device_list)
