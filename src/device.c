@@ -99,7 +99,6 @@ static int rank_devices(const void *l, const void *r)
     return (int)left->usb_address - (int)right->usb_address;
 }
 
-int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
 {
     libusb_device **libusb_device_list;
     ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &libusb_device_list);
@@ -110,6 +109,7 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
     lpc_device **lpc_devices_to_return;
     if (!(lpc_devices_to_return = calloc(device_count, sizeof(*lpc_devices_to_return))))
         return LPCSDR_ERROR_NO_MEMORY;
+ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
 
     
     int error = LPCSDR_SUCCESS;
