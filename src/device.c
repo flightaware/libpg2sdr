@@ -51,6 +51,7 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
     dev->conversion_mode = LPCSDR_LOWIF_REAL;
     dev->usb_bytes_per_block = status.usb_bytes_per_block;
     dev->usb_samples_per_block = status.usb_samples_per_block;
+    dev->tuner_xtal = status.tuner_xtal;
     dev->buffer_size = 1048576; /* default 1MB */
 
     if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)

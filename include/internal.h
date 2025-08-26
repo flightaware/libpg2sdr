@@ -111,8 +111,7 @@ struct lpcsdr_device_handle {
     int completion_flag;
 
     // Tuner
-    // Stores tuner changes
-    change_set *tuner_change_set;
+    uint32_t tuner_xtal;
 };
 
 int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
@@ -159,5 +158,6 @@ int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
 int lpcsdr_stop_transfer(lpcsdr_device_handle *dev);
 int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
 int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
+int lpcsdr_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout, ep0_in_tuner_lock_t *out);
 
 #endif /* INTERNAL_H */

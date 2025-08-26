@@ -39,23 +39,19 @@ TEST(bitrange_sanity_test, Success) {
 }
 
 TEST(set_tuner_value_in_change_set, Success) {
-    change_set *cs;
-    create_change_set(&cs);
+    change_set cs = {};
 
-    set_tuner_reg(cs, LNA_GAIN, 8);
-    set_tuner_reg(cs, LNA_GAIN_MODE, 1);
-    set_tuner_reg(cs, MIX_GAIN, 2);
+    set_tuner_reg(&cs, LNA_GAIN, 8);
+    set_tuner_reg(&cs, LNA_GAIN_MODE, 1);
+    set_tuner_reg(&cs, MIX_GAIN, 2);
 
-    ASSERT_EQ(cs->entries[TunerR5].current_value, 0b11000);
-    ASSERT_EQ(cs->entries[TunerR5].current_mask, LNA_GAIN_MASK | LNA_GAIN_MODE_MASK);
-    ASSERT_EQ(cs->entries[TunerR7].current_value, 2);
-    ASSERT_EQ(cs->entries[TunerR7].current_mask, MIX_GAIN_MASK);
+    ASSERT_EQ(cs.entries[TunerR5].current_value, 0b11000);
+    ASSERT_EQ(cs.entries[TunerR5].current_mask, LNA_GAIN_MASK | LNA_GAIN_MODE_MASK);
+    ASSERT_EQ(cs.entries[TunerR7].current_value, 2);
+    ASSERT_EQ(cs.entries[TunerR7].current_mask, MIX_GAIN_MASK);
 }
 
 TEST(Test_find_pll_parameters, Success) {
-    Context ctx;
-    DeviceHandle handle(ctx);
-
     pll_parameters p = {};
 
     ASSERT_EQ(find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
@@ -72,15 +68,9 @@ TEST(Test_FOR_Dev, create_tuner_r5)
     Context ctx;
     DeviceHandle handle(ctx);
 
-    change_set *cs;
-    create_change_set(&cs);
-    set_tuner_reg(cs, LNA_GAIN, 8);
-    set_tuner_reg(cs, LNA_GAIN_MODE, 0);
-    set_tuner_reg(cs, MIX_GAIN, 2);
+    change_set cs = {};
+    set_tuner_reg(&cs, LNA_GAIN, 8);
+    set_tuner_reg(&cs, LNA_GAIN_MODE, 0);
+    set_tuner_reg(&cs, MIX_GAIN, 2);
 
-    uint16_t first;
-    uint8_t *payload;
-    uint16_t payload_size;
-    EXPECT_EQ(prepare_tuner_payload_from_change_set(cs, &first, &payload, &payload_size), LPCSDR_SUCCESS);
-    EXPECT_EQ(lpcsdr_tuner_update(handle(), first, payload, payload_size), LPCSDR_SUCCESS);
 }

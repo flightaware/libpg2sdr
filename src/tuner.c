@@ -1,6 +1,15 @@
 #include "internal.h"
 #include "math.h"
 
+static int update_tuner_regs(lpcsdr_device_handle *handle, change_set *cs) {
+    uint16_t first;
+    uint8_t payload[64] = {0};
+    uint16_t payload_size;
+
+    prepare_tuner_payload_from_change_set(cs, &first, &payload[0], &payload_size);
+    return lpcsdr_tuner_update(handle, first, &payload[0], payload_size);
+}
+
 lpf_settings lpf_calibration[16] = {
     {
         .cutoff = 2027e3,
@@ -253,22 +262,22 @@ int find_pll_parameters(double requested, double xtal, pll_parameters *out) {
     }
 
     unsigned pll_feedback_int = (unsigned) pll_feedback_int_part;
-    unsigned sdm_numerator = (unsigned) round(pll_feedback_frac * pow(2, 18));
+    unsigned sdm_numerator = (unsigned) round(pll_feedback_frac * (1<<18));
 
     sdm_numerator = (sdm_numerator & ~3) | 1;
 
     if (sdm_numerator < 32)
         sdm_numerator = 0;
-    else if (sdm_numerator > (pow(2, 18) - 32)) {
+    else if (sdm_numerator > ((1<<18) - 32)) {
         sdm_numerator = 0;
         pll_feedback_int += 1;
-    } else if (sdm_numerator > (pow(2, 17) - 32) && sdm_numerator <= pow(2, 17)) {
-        sdm_numerator = pow(2, 17) - 32;
-    } else if (sdm_numerator > pow(2, 17) && sdm_numerator < (pow(2, 17) + 32)) {
-        sdm_numerator = pow(2, 17) + 32;
+    } else if (sdm_numerator > ((1<<17) - 32) && sdm_numerator <= (1<<17)) {
+        sdm_numerator = (1<<17) - 32;
+    } else if (sdm_numerator > (1<<17) && sdm_numerator < ((1<<17) + 32)) {
+        sdm_numerator = (1<<17) + 32;
     }
 
-    double actual_vco = pll_ref * 2 * (pll_feedback_int + sdm_numerator / pow(2, 18));
+    double actual_vco = pll_ref * 2 * (pll_feedback_int + (double) sdm_numerator / (1<<18));
     double actual_out = actual_vco / seldiv;
 
     out->refdiv = refdiv;
@@ -291,6 +300,81 @@ int has_pll_lock(lpcsdr_device_handle *handle) {
     return extract_tuner_val(buffer, PLL_LOCK);
 }
 
+int configure_pll_settings(lpcsdr_device_handle *handle, pll_parameters *params) {
+    uint16_t sdm_disable = ( params->feedback_sdm == 0 ) ? 1 : 0;
+    uint8_t sdm_lsb = params->feedback_sdm & 0xff;
+    uint8_t sdm_msb = (params->feedback_sdm >> 8) & 0xff;
+
+    uint8_t ni2c = (params->feedback_n - 13) / 4;
+    uint8_t si2c = (params->feedback_n - 13) & 3;
+    
+    uint8_t seldiv_lut[6] = {2, 4, 8, 16, 32, 64};
+    uint8_t seldiv = -1;
+    for (unsigned i = 0; i < sizeof(seldiv_lut)/ sizeof(seldiv_lut[0]); i++)
+        if (seldiv_lut[i] == params->seldiv)
+            seldiv = i;
+
+
+    uint8_t refdiv = (params->refdiv == true) ? 1: 0;
+
+    uint8_t vco_dac = round(params->vco * 0.0318e-6 - 49.0);
+    vco_dac = MAX(0, vco_dac);
+    vco_dac = MIN(63, vco_dac);
+
+    change_set cs = {};
+
+    set_tuner_reg(&cs, PW_LDO_A, 1);
+    set_tuner_reg(&cs, PW_LDO_D, 2);
+    set_tuner_reg(&cs, PWD_SDM, sdm_disable);
+    set_tuner_reg(&cs, SEL_DIV, seldiv);
+    set_tuner_reg(&cs, REF_DIV2, refdiv);
+    set_tuner_reg(&cs, S_I2C, si2c);
+    set_tuner_reg(&cs, N_I2C, ni2c);
+    set_tuner_reg(&cs, SDM_IN_LSB, sdm_lsb);
+    set_tuner_reg(&cs, SDM_IN_MSB, sdm_msb);
+    set_tuner_reg(&cs, PLL_AUTO_CLK, 0);
+    set_tuner_reg(&cs, VCO_CURRENT, 4);
+    set_tuner_reg(&cs, VCO_MODE, 1);
+    set_tuner_reg(&cs, VCO_DAC, vco_dac);
+
+    return update_tuner_regs(handle, &cs);
+}
+
+int tune_pll(lpcsdr_device_handle *handle, double requested_frequency) {
+    int error = LPCSDR_SUCCESS;
+
+    pll_parameters params = {};
+
+    if ((error = find_pll_parameters(requested_frequency, handle->tuner_xtal, &params)) < 0)
+        return error;
+
+    if ((error = start_pll(handle, &params)) < 0)
+        return error;
+
+    return error;
+}
+
+int start_pll(lpcsdr_device_handle *handle, pll_parameters *params) {
+    int error = LPCSDR_SUCCESS;
+    
+    if ((error = configure_pll_settings(handle, params)) < 0)
+        return 0;
+    
+
+    // # wait for PLL lock
+    // for vco in (4, 3, 2, 1, 0):
+    //     if dev.tuner_lock(vco, 50):
+    //         break
+    // else:
+    //     raise TunerLockError(f'tuner PLL did not lock for frequency {params.freq}')
+
+    // # clean up PLL_AUTO_CLK
+    // cs = Changeset()
+    // write_field(cs, TunerFields.PLL_AUTO_CLK, 2)  # set PLL_AUTO_CLK=10, 8kHz
+    // dev.tuner_update(cs)
+    return -1;
+}
+
 int init_tuner(lpcsdr_device_handle *handle) {
     int error = LPCSDR_SUCCESS;
 
@@ -305,36 +389,13 @@ int init_tuner(lpcsdr_device_handle *handle) {
     if (tuner_id != 0x96)
         return LPCSDR_TUNER_INIT_FAILED;
 
-    if ((error = create_change_set(&handle->tuner_change_set)) < 0)
-        return error;
-
     return error;
 }
-
-// change_set
-int create_change_set(change_set **out) {
-    int error = LPCSDR_SUCCESS;
-    change_set *cs = NULL;
-    
-    if (!(cs = calloc(1, sizeof(change_set)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
-        goto failed;
-    }
-    *out = cs;
-
-    return LPCSDR_SUCCESS;
-
-failed:
-    if (cs)
-        free(cs);
-    return error;
-}
-
 
 /*
     Create a payload of bytes from the changeset.
  */
-int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t **out, uint16_t *out_size) {
+void prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size) {
     uint16_t num_entries = 0;
     uint16_t first_entry = 5;
     uint16_t last_entry = 5;
@@ -349,33 +410,18 @@ int prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8
         }
     }
 
-    if (num_entries == 0) {
-        return LPCSDR_SUCCESS;
-    }
-
     unsigned count = last_entry - first_entry + 1;
-    uint8_t *payload = calloc(count * 2, sizeof(uint8_t));
 
     for (int i = first_entry; i <= last_entry; i++) {
         /* Read and clear value + mask */
         unsigned offset = i - first_entry;
-        payload[offset] = cs->entries[i].current_value;
-        payload[offset + count] = cs->entries[i].current_mask;
+        out[offset] = cs->entries[i].current_value;
+        out[offset + count] = cs->entries[i].current_mask;
 
         cs->entries[i].current_mask = 0;
         cs->entries[i].current_value = 0;
     }
 
     *first = first_entry;
-    *out = payload;
     *out_size = count * 2;
-
-    return LPCSDR_SUCCESS;
-}
-
-void lpcsdr_free_tuner_memory(lpcsdr_device_handle *handle) {
-    if (!handle)
-        return;
-
-    free(handle->tuner_change_set);
 }

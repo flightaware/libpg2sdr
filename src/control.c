@@ -202,6 +202,15 @@ int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode)
                        0);
 }
 
+int lpcsdr_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout, ep0_in_tuner_lock_t *out) {
+    return control_out(dev->usb_handle,
+                       EP0_IN_TUNER_LOCK,
+                       vco_current,
+                       timeout,
+                       (unsigned char *) out,
+                       sizeof(ep0_in_tuner_lock_t));
+}
+
 int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size)
 {
     return control_in(dev->usb_handle,
