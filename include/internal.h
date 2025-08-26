@@ -2,6 +2,7 @@
 #define INTERNAL_H
 
 #include "lpcsdr.h"
+#include "lpcsdr_protocol.h"
 #include "dsp.h"
 #include "tuner.h"
 
@@ -41,13 +42,6 @@ struct lpcsdr_context {
     libusb_context *libusb_ctx;
     char *firmware_path;
     lpcsdr_log_callback log_cb;
-};
-
-struct match_tuple {
-    const char *serial;
-    int bus;
-    int address;
-    int index;
 };
 
 typedef struct lpcsdr_transfer_state {

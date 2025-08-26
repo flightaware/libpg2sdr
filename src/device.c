@@ -287,6 +287,13 @@ failed:
     return error;
 }
 
+struct match_tuple {
+    const char *serial;
+    int bus;
+    int address;
+    int index;
+};
+
 static int generic_match(lpc_device *dev, void *arg)
 {
     struct match_tuple *match = (struct match_tuple *)arg;
