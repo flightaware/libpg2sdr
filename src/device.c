@@ -148,7 +148,10 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
         libusb_device *usb_dev = lu_device_list[i];
 
         if ((usb_error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            /* todo: warn */
+            lpcsdr__log(ctx, LPCSDR_LOG_ERROR, "error getting device descriptor for USB bus %d device %d: %s",
+                        libusb_get_bus_number(usb_dev),
+                        libusb_get_port_number(usb_dev),
+                        libusb_strerror(usb_error));
             continue;
         }
 
@@ -161,7 +164,11 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
             /* LPCSDR firmware */
             mode = LPCSDR_DEVICE_MODE_NORMAL;
             if ((usb_error = get_serial(usb_dev, serial, sizeof(serial))) < 0) {
-                /* todo: warn (but still use the device) */
+                /* warn (but still use the device) */
+                lpcsdr__log(ctx, LPCSDR_LOG_ERROR, "error getting serial number for USB bus %d device %d: %s",
+                            libusb_get_bus_number(usb_dev),
+                            libusb_get_port_number(usb_dev),
+                            libusb_strerror(usb_error));
             }
         } else {
             /* not an interesting device */
