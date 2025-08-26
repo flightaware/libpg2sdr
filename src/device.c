@@ -58,12 +58,14 @@ cleanup_nomutex:
     return error;
 }
 
-int lpcsdr_free_device_list(lpc_device **device_list)
+void lpcsdr_free_device_list(lpc_device **device_list)
 {
     if (!device_list)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return;
 
     for (int i = 0; device_list[i]; ++i) {
+        if (!device_list[i])
+            continue;
         if (device_list[i]->libusb_device)
             libusb_unref_device((libusb_device *)device_list[i]->libusb_device);
         free(device_list[i]);
@@ -71,7 +73,6 @@ int lpcsdr_free_device_list(lpc_device **device_list)
     }
 
     free(device_list);
-    return LPCSDR_SUCCESS;
 }
 
 
