@@ -1,7 +1,8 @@
-#include "internal.h"
 #include <pthread.h>
 #include <math.h>
 #include <string.h>
+
+#include "internal.h"
 
 int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device) {
     
@@ -10,7 +11,7 @@ int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, 
     for (int i = 0; i < device_count; i++) {
         libusb_device *usb_dev = usb_list[i];
         if ((error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            return lpcsdr_translate_libusb_error(error);
+            return lpcsdr__translate_libusb_error(error);
         }
         
         if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM) {
@@ -34,7 +35,7 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
 
     pthread_mutexattr_t attrs;
     if (pthread_mutexattr_init(&attrs) < 0 || pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE) < 0 || pthread_mutex_init(&dev->mutex, &attrs) < 0) {
-        error = lpcsdr_translate_errno(errno);
+        error = lpcsdr__translate_errno(errno);
         goto cleanup_nomutex;
     }
 
@@ -45,7 +46,7 @@ int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcs
         goto cleanup;
 
     ep0_in_board_status_t status;
-    if ((error = lpcsdr_get_status(dev, &status)) < 0)
+    if ((error = lpcsdr__ctrl_get_status(dev, &status)) < 0)
         goto cleanup;
 
     dev->conversion_mode = LPCSDR_LOWIF_REAL;
@@ -122,7 +123,7 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
     libusb_device **libusb_device_list;
     ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &libusb_device_list);
     if (device_count < 0) {
-        return lpcsdr_translate_libusb_error(device_count);
+        return lpcsdr__translate_libusb_error(device_count);
     }
 
     lpc_device **lpc_devices_to_return;
@@ -138,7 +139,7 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
         lpcsdr_device_mode mode;
         libusb_device *usb_dev = libusb_device_list[i];
         if ((error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            return lpcsdr_translate_libusb_error(error);
+            return lpcsdr__translate_libusb_error(error);
         }
 
         if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM && allow_rom_bootloader) {
@@ -163,7 +164,7 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
 
             printf("Opened handle for lpcsdr\n");
 
-            if ((error = lpcsdr_comms_check(handle)) < 0) {
+            if ((error = lpcsdr__ctrl_comms_check(handle)) < 0) {
                 continue;
             };
         }
@@ -235,13 +236,13 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
 
     if (device->mode == LPCSDR_DEVICE_MODE_DFU_BOOTLOADER) {
-        if ((error = lpcsdr_handle_rom_bootloader(ctx, original_dev, &reenumerated_dev)) < 0) {
+        if ((error = lpcsdr__boot_firmware(ctx, original_dev, &reenumerated_dev)) < 0) {
             goto failed;
         }
     }
 
     if ((error = libusb_open(reenumerated_dev ? reenumerated_dev : original_dev, &usb_handle)) < 0) {
-        error = lpcsdr_translate_libusb_error(error);
+        error = lpcsdr__translate_libusb_error(error);
         goto failed;
     }
 
@@ -253,14 +254,14 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
     /* set configuration 1 always (this does a soft reset of USB state) */
     if ((error = libusb_set_configuration(usb_handle, 1)) < 0) {
-        error = lpcsdr_translate_libusb_error(error);
+        error = lpcsdr__translate_libusb_error(error);
         goto failed;
     }
 
     /* claim interface 0, the main data-streaming interface; only one thing can
      * have that claimed */
     if ((error = libusb_claim_interface(usb_handle, 0)) < 0) {
-        error = lpcsdr_translate_libusb_error(error);
+        error = lpcsdr__translate_libusb_error(error);
         goto failed;
     }
 

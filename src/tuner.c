@@ -285,7 +285,7 @@ int has_pll_lock(lpcsdr_device_handle *handle) {
     int error = LPCSDR_SUCCESS;
     uint8_t buffer;
     
-    if ((error = lpcsdr_read_tuner_register(handle, TunerR2, 0, &buffer, sizeof(uint8_t))) < 0)
+    if ((error = lpcsdr__ctrl_read_tuner_register(handle, TunerR2, 0, &buffer, sizeof(uint8_t))) < 0)
         return error;
 
     return extract_tuner_val(buffer, PLL_LOCK);
@@ -294,11 +294,11 @@ int has_pll_lock(lpcsdr_device_handle *handle) {
 int init_tuner(lpcsdr_device_handle *handle) {
     int error = LPCSDR_SUCCESS;
 
-    if ((error = lpcsdr_set_rf_power(handle, 1)) < 0)
+    if ((error = lpcsdr__ctrl_set_rf_power(handle, 1)) < 0)
         return error;
 
     uint8_t buffer;
-    if ((error = lpcsdr_read_tuner_register(handle, TunerR0, 0, &buffer, sizeof(uint8_t))) < 0)
+    if ((error = lpcsdr__ctrl_read_tuner_register(handle, TunerR0, 0, &buffer, sizeof(uint8_t))) < 0)
         return error;
 
     uint8_t tuner_id = extract_tuner_val(buffer, TUNER_ID);

@@ -82,5 +82,5 @@ TEST(Test_FOR_Dev, create_tuner_r5)
     uint8_t *payload;
     uint16_t payload_size;
     EXPECT_EQ(prepare_tuner_payload_from_change_set(cs, &first, &payload, &payload_size), LPCSDR_SUCCESS);
-    EXPECT_EQ(lpcsdr_tuner_update(handle(), first, payload, payload_size), LPCSDR_SUCCESS);
+    EXPECT_EQ(lpcsdr__ctrl_tuner_update(handle(), first, payload, payload_size), LPCSDR_SUCCESS);
 }

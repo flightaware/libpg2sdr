@@ -115,12 +115,13 @@ struct lpcsdr_device_handle {
     change_set *tuner_change_set;
 };
 
-int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
-int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
+/* boot.c */
+int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
 
-int lpcsdr_translate_libusb_error(int error);
-int lpcsdr_translate_libusb_transfer_status(enum libusb_transfer_status status);
-int lpcsdr_translate_errno(int error);
+/* errors.c */
+int lpcsdr__translate_libusb_error(int error);
+int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
+int lpcsdr__translate_errno(int error);
 
 // ADC
 typedef struct pll_divisors {
@@ -152,12 +153,12 @@ int populate_libusb_vtable(libusb_vtable **out);
 void free_libusb_vtable(libusb_vtable *vtable);
 
 //control transfers
-int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
-int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
-int lpcsdr_comms_check(libusb_device_handle *usb_handle);
-int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
-int lpcsdr_stop_transfer(lpcsdr_device_handle *dev);
-int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
+int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
+int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
+int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle);
+int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
+int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
+int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
+int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
 
 #endif /* INTERNAL_H */

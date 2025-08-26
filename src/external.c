@@ -27,7 +27,7 @@ int lpcsdr_init(struct lpcsdr_context **ctx) {
     int usb_error;
     if ((usb_error = libusb_init(&newctx->libusb_ctx)) < 0) {
         free(newctx);
-        return lpcsdr_translate_libusb_error(usb_error);
+        return lpcsdr__translate_libusb_error(usb_error);
     }
 
     char *firmware_env = getenv("LPCSDR_FIRMWARE_PATH");
