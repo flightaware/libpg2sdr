@@ -148,6 +148,7 @@ int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *ou
     out->clock_idiv_d = le32toh(status.clock_idiv_d);
     out->clock_idiv_e = le32toh(status.clock_idiv_e);
     out->tuner_xtal = le32toh(status.tuner_xtal);
+    out->serial_number = le64toh(status.serial_number);
 
     return LPCSDR_SUCCESS;
 }
