@@ -99,36 +99,70 @@ static int rank_devices(const void *l, const void *r)
     return (int)left->usb_address - (int)right->usb_address;
 }
 
+/* Fill in "serial" with the device serial number for "usb_dev". Returns a libusb error. */
+static int get_serial(libusb_device *usb_dev, unsigned char *serial, size_t length)
 {
-    libusb_device **libusb_device_list;
-    ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &libusb_device_list);
-    if (device_count < 0) {
-        return lpcsdr__translate_libusb_error(device_count);
+    memset(serial, 0, length);
+
+    int usb_error;
+    struct libusb_device_descriptor desc;
+    if ((usb_error = libusb_get_device_descriptor(usb_dev, &desc)) < 0)
+        return usb_error;
+
+    if (!desc.iSerialNumber) {
+        /* no serial number to get */
+        return LIBUSB_SUCCESS;
     }
 
-    lpc_device **lpc_devices_to_return;
-    if (!(lpc_devices_to_return = calloc(device_count, sizeof(*lpc_devices_to_return))))
-        return LPCSDR_ERROR_NO_MEMORY;
+    /* unfortunately, current libusb lacks a way to get string descriptors without opening the device
+     * (though there seems to be some slow movement on an API for that upstream)
+     */
+    libusb_device_handle *handle = NULL;
+    if ((usb_error = libusb_open(usb_dev, &handle)) != LIBUSB_SUCCESS)
+        return usb_error;
+
+    usb_error = libusb_get_string_descriptor_ascii(handle, desc.iSerialNumber, serial, sizeof(serial));
+    libusb_close(handle);
+    return usb_error;
+}
+
 ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
+{
+    libusb_device **lu_device_list = NULL;
+    ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &lu_device_list);
+    if (device_count < 0)
+        return lpcsdr__translate_libusb_error(device_count);
 
-    
     int error = LPCSDR_SUCCESS;
-    int matched = 0;
+    lpc_device **lpc_devices_to_return;
+    if (!(lpc_devices_to_return = calloc(device_count + 1, sizeof(*lpc_devices_to_return)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto failed;
+    }
 
+    int matched = 0;
     for (ssize_t i = 0; i < device_count; ++i) {
+        int usb_error;
         struct libusb_device_descriptor desc;
         lpcsdr_device_mode mode;
-        libusb_device *usb_dev = libusb_device_list[i];
-        if ((error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            return lpcsdr__translate_libusb_error(error);
+        libusb_device *usb_dev = lu_device_list[i];
+
+        if ((usb_error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
+            /* todo: warn */
+            continue;
         }
 
+        unsigned char serial[9];
         if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM && allow_rom_bootloader) {
             /* DFU bootloader */
             mode = LPCSDR_DEVICE_MODE_DFU_BOOTLOADER;
+            memset(serial, 0, sizeof(serial));
         } else if (desc.idVendor == VID_LPCSDR && desc.idProduct == PID_LPCSDR) {
             /* LPCSDR firmware */
             mode = LPCSDR_DEVICE_MODE_NORMAL;
+            if ((usb_error = get_serial(usb_dev, serial, sizeof(serial))) < 0) {
+                /* todo: warn (but still use the device) */
+            }
         } else {
             /* not an interesting device */
             continue;
@@ -141,6 +175,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
 
         lpc_devices_to_return[matched]->context = ctx;
         lpc_devices_to_return[matched]->mode = mode;
+        memcpy(lpc_devices_to_return[matched]->serial, serial, sizeof(serial));
         lpc_devices_to_return[matched]->usb_bus = libusb_get_bus_number(usb_dev);
         lpc_devices_to_return[matched]->usb_address = libusb_get_device_address(usb_dev);
         lpc_devices_to_return[matched]->libusb_device = (void *)libusb_ref_device(usb_dev);
@@ -153,7 +188,6 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
     }
 
     lpc_devices_to_return[matched] = NULL;
-
     *lpc_device_list = lpc_devices_to_return;
     libusb_free_device_list(lu_device_list, /* unref devices */ 1);
     return matched;
@@ -232,7 +266,7 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
 
     //build lpcsdr_device_handle
-    lpcsdr_device_handle *handle;
+    lpcsdr_device_handle *handle = NULL;
     if ((error = build_lpc_device(ctx, usb_handle, &handle)) < 0) {
         goto failed;
     }
