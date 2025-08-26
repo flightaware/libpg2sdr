@@ -372,10 +372,6 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
 {
     CHECK_DEV(dev);
 
-    if (!dev) {
-        return LPCSDR_ERROR_BAD_ARGUMENT;
-    }
-
     pthread_mutex_lock(&dev->mutex);
     if (dev->streaming) {
         pthread_mutex_unlock(&dev->mutex);
