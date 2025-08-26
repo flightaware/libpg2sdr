@@ -220,12 +220,12 @@ int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num fi
 
 int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout) {
     ep0_in_tuner_lock_t out;
-    int error =  control_out(dev->usb_handle,
+    int error =  control_in(dev->usb_handle,
                        EP0_IN_TUNER_LOCK,
                        vco_current,
                        timeout,
                        (unsigned char *) &out,
-                       sizeof(ep0_in_tuner_lock_t));
+                       sizeof(out));
 
     if (error < 0)
         return error;

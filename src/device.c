@@ -24,9 +24,6 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     if ((error = init_global_adc_divisor_tables()) < 0)
         goto cleanup;
     
-    if ((error = populate_libusb_vtable(&dev->libusb_vtable))< 0)
-        goto cleanup;
-
     ep0_in_board_status_t status;
     if ((error = lpcsdr__ctrl_get_status(dev, &status)) < 0)
         goto cleanup;
@@ -40,7 +37,7 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
         goto cleanup;
 
-    if ((error = init_tuner(dev)) < 0)
+    if ((error = lpcsdr__init_tuner(dev)) < 0)
         goto cleanup;
 
     *out = dev;
@@ -49,8 +46,6 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
 cleanup:
     if (dev->decimation_filter)
         lpcsdr_dsp_decimate_free(dev->decimation_filter);
-    if (dev->libusb_vtable)
-        free_libusb_vtable(dev->libusb_vtable);
 
     pthread_mutex_destroy(&dev->mutex);
 
@@ -227,6 +222,8 @@ int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device
 
     if ((error = lpcsdr_open_device(devices[0], device_handle)) < 0)
         goto cleanup;
+
+    return error;
 
 cleanup:
     lpcsdr_free_device_list(devices);

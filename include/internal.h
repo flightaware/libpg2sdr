@@ -61,17 +61,6 @@ typedef struct lpcsdr_transfer_state {
     struct lpcsdr_transfer_state *next; /* next transfer in the list */
 } lpcsdr_transfer_state;
 
-typedef struct {
-    //libusb_bulk_transfer func pointer
-    int (*bulk_transfer)(libusb_device_handle *dev_handle, unsigned char endpoint, 
-    unsigned char *data, int length, int *actual_length, unsigned int timeout);
-
-    //libusb_control_transfer func pointer
-    int (*control_transfer)(libusb_device_handle *dev_handle,
-	uint8_t request_type, uint8_t bRequest, uint16_t wValue, uint16_t wIndex,
-	unsigned char *data, uint16_t wLength, unsigned int timeout);
-
-} libusb_vtable;
 
 struct lpcsdr_device_handle {
     unsigned magic;
@@ -82,7 +71,6 @@ struct lpcsdr_device_handle {
     uint32_t usb_bytes_per_block;
 
     libusb_device_handle *usb_handle;
-    libusb_vtable *libusb_vtable;
 
     bool streaming; /* true when lpcsdr_stream_data is active */
     bool draining;  /* true when we are waiting to drain all active transfers */
@@ -146,9 +134,6 @@ int effective_n_divisor(uint32_t n);
 int effective_p_divisor(uint32_t p);
 int effective_i_divisor(uint32_t i);
 int fixed_point_m(pll_divisors *divisors);
-
-int populate_libusb_vtable(libusb_vtable **out);
-void free_libusb_vtable(libusb_vtable *vtable);
 
 //control transfers
 int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);

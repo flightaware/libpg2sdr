@@ -151,6 +151,14 @@ int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
 int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, uint32_t rate);
 int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, uint32_t *rate);
+int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency);
+int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
+int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
+int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);
+int lpcsdr_set_if_lpf_cs(lpcsdr_device_handle *dev, int cutoff, int *not_above);
+int lpcsdr_set_if_hpf_cs(lpcsdr_device_handle *dev, int cutoff);
+int lpcsdr_set_if_bandpass(lpcsdr_device_handle *dev, int low, int high, int *max);
+
 
 //Streaming
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
