@@ -21,14 +21,14 @@ In the internal headers we can do whatever we want (except for the non-static-
 function naming rule below) as the internal headers won't be included in
 third-party code.
 
-## Naming non-static functions
+## Naming non-static functions and global variables
 
-Every non-static function should start with `lpcsdr_`. This includes both
-internal and external functions.
+Every non-static function, and every non-static global variable, should start
+with `lpcsdr_`. This includes both internal and external functions/globals.
 
-These functions will be visible as public symbols in the compiled library, so
-we need to make sure that they cannot clash with whatever function names
-third-party code uses.
+These symbols will be visible as public symbols in the compiled library, so
+we need to make sure that they cannot clash with whatever names third-party
+code uses.
 
 For internal functions that are non-static, maybe we should follow a convention
 like starting them with `lpcsdr__` (note two underscores) to distinguish them
@@ -39,3 +39,10 @@ symbols. Generally, use static functions for anything internal that does not
 need to be used from more than one `.c` source file (and isn't needed by
 tests)
 
+## Checking for stray symbols
+
+Here's one way to look for stray symbols in the library output:
+
+```
+$ nm -C build/src/liblpcsdr.a  | grep -v lpcsdr_ | grep -v ' [Ua-z] '
+```
