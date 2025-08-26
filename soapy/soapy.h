@@ -1,8 +1,8 @@
 // -*- c++ -*-
 #pragma once
 
-// #ifndef SOAPY_PXSDR_H
-// #define SOAPY_PXSDR_H
+#ifndef SOAPY_PXSDR_H
+#define SOAPY_PXSDR_H
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Logger.hpp>
@@ -13,12 +13,20 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-
+#include <string>
 #include <iostream>
-
 
 namespace SoapySDR {
 namespace LPCSDR {
+
+using namespace std::string_literals;
+
+static inline std::string strerror(int error) {
+    char buf[1024];
+    lpcsdr_strerror_r(error, buf, sizeof(buf));
+    return std::string(buf);
+}
+
 // RAII helper around pxsdr_context
 class Context
 {
@@ -75,11 +83,11 @@ class Context
 
         if ((error = lpcsdr_init(&newctx)) < 0) {
             
-            return Context(std::string("lpcsdr_init: ") + lpcsdr_strerror(NULL, error));
+            return Context("lpcsdr_init: " + strerror(error));
         }
 
         if ((error = lpcsdr_set_log_callback(newctx, &Context::Log)) < 0) {
-            auto errormsg = std::string("lpcsdr_set_log_callback: ") + lpcsdr_strerror(newctx, error);
+            auto errormsg = "lpcsdr_set_log_callback: " + strerror(error);
             lpcsdr_exit(newctx);
             return Context(errormsg);
         }
@@ -123,7 +131,7 @@ class DeviceList
 
 
         if ((error = lpcsdr_discover_devices(ctx, &newlist, true)) < 0) {
-            SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLPCSDR: could not enumerate LPCSDR devices: %s", lpcsdr_strerror(ctx, error));
+            SoapySDR::log(SOAPY_SDR_ERROR, "SoapyLPCSDR: could not enumerate LPCSDR devices: "s + strerror(error));
             return DeviceList(nullptr);
         }
 
@@ -296,4 +304,4 @@ class LPCSDRDevice : public SoapySDR::Device
 }; // namespace PXSDR
 }; // namespace SoapySDR
 
-// // #endif /* SOAPY_PXSDR_H */
+#endif /* SOAPY_PXSDR_H */
