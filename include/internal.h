@@ -142,7 +142,6 @@ int effective_i_divisor(uint32_t i);
 int fixed_point_m(pll_divisors *divisors);
 
 int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out);
-int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
 int populate_libusb_vtable(libusb_vtable **out);
 void free_libusb_vtable(libusb_vtable *vtable);
 

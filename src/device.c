@@ -4,24 +4,6 @@
 
 #include "internal.h"
 
-int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device) {
-    
-    int error = LPCSDR_SUCCESS;
-    struct libusb_device_descriptor desc;
-    for (int i = 0; i < device_count; i++) {
-        libusb_device *usb_dev = usb_list[i];
-        if ((error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            return lpcsdr__translate_libusb_error(error);
-        }
-        
-        if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM) {
-            *device = usb_dev;
-            return LPCSDR_SUCCESS;
-        }
-    }
-
-    return LPCSDR_ERROR_NOT_FOUND;
-}
 
 int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out) {
     int error;
