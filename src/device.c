@@ -101,7 +101,6 @@ static int rank_devices(const void *l, const void *r)
 
 int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
 {
-    /* fixme: leaked device list */
     libusb_device **libusb_device_list;
     ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &libusb_device_list);
     if (device_count < 0) {
@@ -173,11 +172,12 @@ int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, 
     lpc_devices_to_return[matched] = NULL;
 
     *lpc_device_list = lpc_devices_to_return;
+    libusb_free_device_list(lu_device_list, /* unref devices */ 1);
     return matched;
 
 failed:
-    //cleanup list
     lpcsdr_free_device_list(lpc_devices_to_return);
+    libusb_free_device_list(lu_device_list, /* unref devices */ 1);
     return error;
 }
 
