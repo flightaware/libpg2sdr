@@ -280,7 +280,7 @@ static int generic_match(lpc_device *dev, void *arg)
 {
     struct match_tuple *match = (struct match_tuple *)arg;
 
-    if (match->serial && (dev->mode == LPCSDR_DEVICE_MODE_DFU_BOOTLOADER || strcmp(dev->serial, match->serial)))
+    if (match->serial && strcmp(dev->serial, match->serial))
         return 0;
 
     if (match->bus >= 0 && dev->usb_bus != match->bus)
