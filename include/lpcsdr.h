@@ -48,7 +48,7 @@ enum lpcsdr_error {
 
     /* firmware image errors */
     LPCSDR_ERROR_FWIMAGE_MISSING = -100,   /* firmware image not found */
-    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed (see dfu_status) */
+    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed */
     LPCSDR_ERROR_FWIMAGE_TIMEOUT = -105,   /* firmware did not re-enumerate within timeout after firmware upload */
 
     LPCSDR_ERROR_TRANSFER_ERROR = -200,         /* libusb transfer status not COMPLETED and not otherwise handled */
