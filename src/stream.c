@@ -1,7 +1,8 @@
-#include "internal.h"
 #include <stdatomic.h>
 #include <pthread.h>
 #include <assert.h>
+
+#include "internal.h"
 
 #define memory_barrier() atomic_thread_fence(memory_order_acq_rel)
 
@@ -196,11 +197,11 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     /* clear any endpoint halt first */
     if ((usb_error = libusb_clear_halt(dev->usb_handle, 0x81)) < 0) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
 
-    if ((error = lpcsdr_start_transfer(dev, dev->adc_sample_rate)) < 0)
+    if ((error = lpcsdr__ctrl_start_transfer(dev, dev->adc_sample_rate)) < 0)
         goto cleanup;
 
     if ((error = submit_transfers(dev)) < 0)
@@ -222,7 +223,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             };
             usb_error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
             if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
-                error = lpcsdr_translate_libusb_error(usb_error);
+                error = lpcsdr__translate_libusb_error(usb_error);
                 goto drain;
             }
             continue;
@@ -236,7 +237,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         }
 
         if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-            error = lpcsdr_translate_libusb_transfer_status(current->transfer->status);
+            error = lpcsdr__translate_libusb_transfer_status(current->transfer->status);
             goto drain;
         }
 
@@ -256,7 +257,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
  drain:
     dev->draining = true;
-    /* return value ignored */ lpcsdr_stop_transfer(dev);
+    /* return value ignored */ lpcsdr__ctrl_stop_transfer(dev);
 
     int cleanup_error = drain_transfers(dev);
     if (cleanup_error < 0) {
@@ -398,23 +399,24 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
     float fill_time_ms = 1000.0f * blocks_per_buffer * dev->usb_samples_per_block * transfer_count / dev->adc_sample_rate;
     unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + 500); /* half a second of slop */
 
-    fprintf(stderr, "allocate_transfers: \n"
-            "  buffer_size    %u\n"
-            "  samples/buffer %u\n"
-            "  samples/block  %u\n"
-            "  blocks/buffer  %u\n"
-            "  bytes/block    %u\n"
-            "  transfer_size  %u\n"
-            "  transfer_count %u\n"
-            "  transfer_timeout_ms %u\n",
-            (unsigned) dev->buffer_size,
-            samples_per_buffer,
-            dev->usb_samples_per_block,
-            blocks_per_buffer,
-            dev->usb_bytes_per_block,
-            transfer_size,
-            transfer_count,
-            transfer_timeout_ms);
+    LOGDEBUG(dev,
+             "allocate_transfers: \n"
+             "  buffer_size    %u\n"
+             "  samples/buffer %u\n"
+             "  samples/block  %u\n"
+             "  blocks/buffer  %u\n"
+             "  bytes/block    %u\n"
+             "  transfer_size  %u\n"
+             "  transfer_count %u\n"
+             "  transfer_timeout_ms %u\n",
+             (unsigned) dev->buffer_size,
+             samples_per_buffer,
+             dev->usb_samples_per_block,
+             blocks_per_buffer,
+             dev->usb_bytes_per_block,
+             transfer_size,
+             transfer_count,
+             transfer_timeout_ms);
 
     lpcsdr_transfer_state *transfers = calloc(transfer_count, sizeof(lpcsdr_transfer_state));
     if (!transfers) {
@@ -547,7 +549,7 @@ static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer)
     int error = libusb_submit_transfer(dev_transfer->transfer);
     if (error < 0) {
         dev_transfer->state = XFER_IDLE;
-        return lpcsdr_translate_libusb_error(error);
+        return lpcsdr__translate_libusb_error(error);
     }
 
     /* append this one to the active list */
@@ -596,7 +598,7 @@ static int drain_transfers(lpcsdr_device_handle *dev)
         int usb_error = libusb_handle_events_completed(dev->ctx->libusb_ctx, &dev->completion_flag);
         pthread_mutex_lock(&dev->mutex);
         if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
-            error = lpcsdr_translate_libusb_error(usb_error);
+            error = lpcsdr__translate_libusb_error(usb_error);
             goto cleanup;
         }
     }

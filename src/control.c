@@ -1,8 +1,9 @@
 #include <math.h>
 #include <stdlib.h>
 #include <limits.h>
-#include "internal.h"
 #include <endian.h>
+
+#include "internal.h"
 
 #define CONTROL_TIMEOUT 1000
 
@@ -19,7 +20,7 @@ static int control_in(libusb_device_handle *usb_handle,
                                         wLength,
                                         CONTROL_TIMEOUT);
     if (count < 0)
-        return lpcsdr_translate_libusb_error(count);
+        return lpcsdr__translate_libusb_error(count);
     if (count != wLength)
         return LPCSDR_ERROR_FIRMWARE_MISMATCH;
     return LPCSDR_SUCCESS;
@@ -38,13 +39,13 @@ static int control_out(libusb_device_handle *usb_handle,
                                         wLength,
                                         CONTROL_TIMEOUT);
     if (count < 0)
-        return lpcsdr_translate_libusb_error(count);
+        return lpcsdr__translate_libusb_error(count);
     if (count != wLength)
         return LPCSDR_ERROR_FIRMWARE_MISMATCH;
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency)
+int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency)
 {
     pll_divisors *divisors = NULL;
     int error = LPCSDR_SUCCESS;
@@ -74,7 +75,7 @@ cleanup:
     return error;
 }
 
-int lpcsdr_stop_transfer(lpcsdr_device_handle *dev)
+int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev)
 {
     return control_out(dev->usb_handle,
                        EP0_OUT_STOP_TRANSFER,
@@ -84,7 +85,7 @@ int lpcsdr_stop_transfer(lpcsdr_device_handle *dev)
                        0);
 }
 
-int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *out)
+int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *out)
 {
     ep0_in_board_status_t status;
     int error = control_in(dev->usb_handle, 
@@ -147,11 +148,16 @@ int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *out)
     out->clock_idiv_d = le32toh(status.clock_idiv_d);
     out->clock_idiv_e = le32toh(status.clock_idiv_e);
     out->tuner_xtal = le32toh(status.tuner_xtal);
+    out->serial_number = le64toh(status.serial_number);
 
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_comms_check(libusb_device_handle *usb_handle)
+/* This one takes a libusb handle, since we'll be calling it during
+ * device discovery/setup before we have a full lpcsdr_device_handle
+ * prepared
+ */
+int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle)
 {
     int error;
     ep0_in_comms_check_t in_check;
@@ -182,7 +188,7 @@ int lpcsdr_comms_check(libusb_device_handle *usb_handle)
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
+int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
 {   
     return control_out(dev->usb_handle,
                        EP0_OUT_TUNER_UPDATE,
@@ -192,7 +198,7 @@ int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payl
                        payload_size);
 }
 
-int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode)
+int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode)
 {
     return control_out(dev->usb_handle,
                        EP0_OUT_SET_RF_POWER,
@@ -202,16 +208,7 @@ int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode)
                        0);
 }
 
-int lpcsdr_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout, ep0_in_tuner_lock_t *out) {
-    return control_out(dev->usb_handle,
-                       EP0_IN_TUNER_LOCK,
-                       vco_current,
-                       timeout,
-                       (unsigned char *) out,
-                       sizeof(ep0_in_tuner_lock_t));
-}
-
-int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size)
+int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size)
 {
     return control_in(dev->usb_handle,
                       EP0_IN_TUNER_READ,
@@ -219,4 +216,19 @@ int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_re
                       cache,
                       (unsigned char *) buffer,
                       buffer_size);
+}
+
+int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout) {
+    ep0_in_tuner_lock_t out;
+    int error =  control_out(dev->usb_handle,
+                       EP0_IN_TUNER_LOCK,
+                       vco_current,
+                       timeout,
+                       (unsigned char *) &out,
+                       sizeof(ep0_in_tuner_lock_t));
+
+    if (error < 0)
+        return error;
+
+    return out.pll_locked;
 }

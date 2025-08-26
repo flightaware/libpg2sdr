@@ -1,5 +1,6 @@
-#include "internal.h"
 #include <pthread.h>
+
+#include "internal.h"
 
 typedef struct {
     int bStatus;
@@ -29,7 +30,7 @@ static int hotplug_callback(libusb_context *usb_ctx, libusb_device *device, libu
 /* Send DFU_GET_STATUS_REQUEST, populate *status with the returned status
  * Return 0 on success, or a negative libusb error code on failure
  */
-static int dfu_get_status(libusb_device_handle *dev, dfu_status_t *status)
+static int dfu_ctrl_get_status(libusb_device_handle *dev, dfu_status_t *status)
 {
     uint8_t buffer[6];
     int error = libusb_control_transfer(dev, 
@@ -54,7 +55,7 @@ static int dfu_get_status(libusb_device_handle *dev, dfu_status_t *status)
 /* Send DFU_DOWNLOAD_REQUEST for block index "block" with a payload of "count" bytes in "buffer"
  * Return 0 on success, or a negative libusb error code on failure
  */
-static int dfu_download_firmware(libusb_device_handle *handle, int block, const uint8_t *buffer, int count)
+static int dfu_ctrl_download(libusb_device_handle *handle, int block, const uint8_t *buffer, int count)
 {
     return libusb_control_transfer(handle, 
                                    LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
@@ -74,7 +75,7 @@ static int dfu_download_firmware(libusb_device_handle *handle, int block, const 
  *
  * Return 0 on success, or a negative liblpcsdr error code on failure
  */
-int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
+static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
 {
     if (!ctx->firmware_path) {
         /* We want to upload firmware, but no path has been configured */
@@ -86,7 +87,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
         if (errno == ENOENT)
             return LPCSDR_ERROR_FWIMAGE_MISSING;
         else
-            return lpcsdr_translate_errno(errno);
+            return lpcsdr__translate_errno(errno);
     }
     
     uint32_t block = 0;
@@ -99,7 +100,7 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
         int count = read(fd, buffer, sizeof(buffer));
         if (count < 0) {
             /* read error */
-            error = lpcsdr_translate_errno(errno);
+            error = lpcsdr__translate_errno(errno);
             goto cleanup;
         }
 
@@ -108,13 +109,13 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
             break;
         }
 
-        if ((usb_error = dfu_download_firmware(handle, block, buffer, count)) < 0) {
-            error = lpcsdr_translate_libusb_error(usb_error);
+        if ((usb_error = dfu_ctrl_download(handle, block, buffer, count)) < 0) {
+            error = lpcsdr__translate_libusb_error(usb_error);
             goto cleanup;
         }
 
-        if ((usb_error = dfu_get_status(handle, &dfu_status)) < 0) {
-            error = lpcsdr_translate_libusb_error(usb_error);
+        if ((usb_error = dfu_ctrl_get_status(handle, &dfu_status)) < 0) {
+            error = lpcsdr__translate_libusb_error(usb_error);
             goto cleanup;
         }
         if (dfu_status.bState != DFU_DOWNLOAD_IDLE) {
@@ -126,14 +127,14 @@ int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle)
     }
 
     /* end of download */
-    if ((usb_error = dfu_download_firmware(handle, block, NULL, 0)) < 0) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+    if ((usb_error = dfu_ctrl_download(handle, block, NULL, 0)) < 0) {
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
 
     /* Sending the dfu_get_status to trigger manifestaton phase will get a pipe error response. Even though nothing is wrong. */
-    if ((usb_error = dfu_get_status(handle, &dfu_status)) < 0 && usb_error != LIBUSB_ERROR_PIPE) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+    if ((usb_error = dfu_ctrl_get_status(handle, &dfu_status)) < 0 && usb_error != LIBUSB_ERROR_PIPE) {
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
 
@@ -151,7 +152,7 @@ cleanup:
  *   discover the new LPCSDR device, and put the handle in *reenumerated_dev
  * Return 0 on success, or a negative liblpcsdr error on failure
  */
-int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
+int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
 {
     int error;
     int usb_error;
@@ -169,28 +170,28 @@ int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_de
                                                       /* cb_fn */ hotplug_callback,
                                                       /* user_data */ &cb_state,
                                                       /* handle */ &cb_handle)) < 0) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     /* open and configure the original bootloader device */
     if ((usb_error = libusb_open(original_dev, &handle)) < 0) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     if ((usb_error = libusb_set_configuration(handle, 1)) < 0) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     if ((usb_error = libusb_claim_interface(handle, 0)) < 0) {
-        error = lpcsdr_translate_libusb_error(usb_error);
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     /* upload the firmware to the ROM bootloader */
-    if ((error = lpcsdr_upload_firmware(ctx, handle)) < 0) {
+    if ((error = dfu_download_image(ctx, handle)) < 0) {
         goto failed;
     }
 
@@ -228,7 +229,7 @@ int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_de
         }
 
         if ((usb_error = libusb_handle_events_timeout_completed(ctx->libusb_ctx, &timeout, &cb_state.completed)) < 0) {
-            error = lpcsdr_translate_libusb_error(usb_error);
+            error = lpcsdr__translate_libusb_error(usb_error);
             goto failed;
         }
     }

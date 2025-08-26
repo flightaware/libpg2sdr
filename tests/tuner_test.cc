@@ -73,4 +73,9 @@ TEST(Test_FOR_Dev, create_tuner_r5)
     set_tuner_reg(&cs, LNA_GAIN_MODE, 0);
     set_tuner_reg(&cs, MIX_GAIN, 2);
 
+    uint16_t first;
+    uint8_t payload[64] = {0};
+    uint16_t payload_size;
+    prepare_tuner_payload_from_change_set(&cs, &first, &payload[0], &payload_size);
+    EXPECT_EQ(lpcsdr__ctrl_tuner_update(handle(), first, payload, payload_size), LPCSDR_SUCCESS);
 }

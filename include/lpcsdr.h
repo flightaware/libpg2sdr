@@ -10,14 +10,13 @@
 #include <endian.h>
 #include <string.h>
 #include <errno.h>
-#include "lpcsdr_protocol.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 typedef struct lpcsdr_context lpcsdr_context;
-typedef enum { LPCDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_level;
+typedef enum { LPCSDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_level;
 typedef void (*lpcsdr_log_callback)(lpcsdr_context *context, lpcsdr_log_level level, const char *message);
 typedef struct lpcsdr_device_handle lpcsdr_device_handle;
 
@@ -49,7 +48,7 @@ enum lpcsdr_error {
 
     /* firmware image errors */
     LPCSDR_ERROR_FWIMAGE_MISSING = -100,   /* firmware image not found */
-    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed (see dfu_status) */
+    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed */
     LPCSDR_ERROR_FWIMAGE_TIMEOUT = -105,   /* firmware did not re-enumerate within timeout after firmware upload */
 
     LPCSDR_ERROR_TRANSFER_ERROR = -200,         /* libusb transfer status not COMPLETED and not otherwise handled */
@@ -126,13 +125,16 @@ typedef bool (*lpcsdr_stream_callback)(lpcsdr_sample_buffer *buffer, void *user_
 const char *lpcsdr_strerror(int error);
 const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen);
 
+/* context.c */
 int lpcsdr_init(lpcsdr_context **ctx);
 int lpcsdr_exit(lpcsdr_context *ctx);
-int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle);
+int lpcsdr_set_firmware_path(lpcsdr_context *ctx, const char *firmware_path);
 int lpcsdr_set_log_callback(lpcsdr_context *ctx, lpcsdr_log_callback callback);
-int lpcsdr_free_device_list(lpc_device **device_list);
-int lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
-int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path);
+
+/* device.c */
+int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle);
+void lpcsdr_free_device_list(lpc_device **device_list);
+ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
 

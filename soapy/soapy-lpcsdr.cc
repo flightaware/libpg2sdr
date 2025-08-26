@@ -18,9 +18,9 @@ namespace LPCSDR {
 static inline int ReportLPCSDRError(lpcsdr_context *ctx, const char *fname, int error, bool throw_on_error)
 {
     if (error < 0) {
-        SoapySDR::logf(SOAPY_SDR_ERROR, "SoapyLPCSDR: %s: %s", fname, lpcsdr_strerror(ctx, error));
+        SoapySDR::log(SOAPY_SDR_ERROR, "SoapyLPCSDR: "s + fname + ":" + strerror(error));
         if (throw_on_error)
-            throw std::runtime_error(std::string(fname) + ": " + lpcsdr_strerror(ctx, error));
+            throw std::runtime_error(std::string(fname) + ": " + strerror(error));
     }
     return error;
 }
@@ -28,11 +28,11 @@ static inline int ReportLPCSDRError(lpcsdr_context *ctx, const char *fname, int 
 #define TRACECALL SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
 #define TRACECALLF(_format, ...) SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__, __VA_ARGS__)
 
-#define PXCALL_DIRECT(_ctx, fn, ...) SoapySDR::LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), true)
-#define PXCALL_DIRECT_NOTHROW(_ctx, fn, ...) SoapySDR::LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), false)
+#define LIBCALL_DIRECT(_ctx, fn, ...) SoapySDR::LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), true)
+#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) SoapySDR::LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), false)
 
-#define PXCALL(fn, ...) PXCALL_DIRECT(ctx_, fn, handle_, __VA_ARGS__)
-#define PXCALL_NOTHROW(fn, ...) PXCALL_DIRECT_NOTHROW(ctx_, fn, handle_, __VA_ARGS__)
+#define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_, __VA_ARGS__)
+#define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_, __VA_ARGS__)
 
 static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
 {
@@ -59,8 +59,6 @@ static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMat
         if (kwarg.first == "decimation")
             decimation = kwarg.second;
     }
-
-    std::cout << "hello!";
 
     SoapySDR::KwargsList result_args;
     std::vector<lpc_device *> result_devices;
@@ -115,7 +113,7 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     }
 
     lpcsdr_device_handle *handle;
-    PXCALL_DIRECT(ctx, lpcsdr_open_device, matching.second[0], &handle);
+    LIBCALL_DIRECT(ctx, lpcsdr_open_device, matching.second[0], &handle);
 
     // if (kwargs.count("decimation")) {
     //     auto &decimation = kwargs.at("decimation");
@@ -125,7 +123,7 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     //     else
     //         factor = std::stoi(decimation);
 
-    //     PXCALL_DIRECT(ctx, pxsdr_set_decimation, handle, factor);
+    //     LIBCALL_DIRECT(ctx, pxsdr_set_decimation, handle, factor);
     // }
 
     std::cout << "created handle\n";
@@ -148,7 +146,7 @@ static SoapySDR::Registry registerLPCSDRDevice("lpcsdr", &LPCSDRDevice::FindDevi
 LPCSDRDevice::~LPCSDRDevice()
 {
     if (handle_) {
-        if (PXCALL_DIRECT_NOTHROW(ctx_, lpcsdr_close_device, handle_) < 0) {
+        if (LIBCALL_DIRECT_NOTHROW(ctx_, lpcsdr_close_device, handle_) < 0) {
             // this can happen if e.g. the underlying device is still busy in another thread
             // this is bad, because
             //  (a) we will leak the handle and
@@ -162,11 +160,11 @@ LPCSDRDevice::~LPCSDRDevice()
 
 LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle)
 {
-    // PXCALL(pxsdr_set_sampling_mode, PXSDR_SAMPLING_MODE_COMPLEX_BASEBAND, PXSDR_SAMPLE_FORMAT_INT16);
+    // LIBCALL(pxsdr_set_sampling_mode, PXSDR_SAMPLING_MODE_COMPLEX_BASEBAND, PXSDR_SAMPLE_FORMAT_INT16);
 
     // unsigned quantum;
-    // PXCALL(pxsdr_get_buffer_quantum, &quantum);
-    // PXCALL(pxsdr_set_buffering, 8, quantum * 64); /* default to about 1MB per buffer */
+    // LIBCALL(pxsdr_get_buffer_quantum, &quantum);
+    // LIBCALL(pxsdr_set_buffering, 8, quantum * 64); /* default to about 1MB per buffer */
 
     // /* set up device specific stuff */
     // switch (pxsdr_get_device_info(handle)->variant) {
@@ -207,27 +205,30 @@ static inline void CheckChannel(const int direction, const size_t channel)
 
 
 void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, const double rate) {
-    TRACECALLF("(Setting ADC clock target frequency %u)", rate);
+    TRACECALLF("(%d,%u,%f)", direction, channel, rate);
     CheckChannel(direction, channel);
-    std::cout << "starting tarnsfer\n";
-    int resp = lpcsdr_start_transfer(handle_, (int) rate);
-    // lpcsdr_comms_check(handle_->usb_handle);
-    std::cout << resp;
-    sample_frequency = rate;
+
+    if (rate < 0 || rate > std::numeric_limits<uint32_t>::max())
+        throw std::invalid_argument("sampling rate out of range");
+
+    LIBCALL(lpcsdr_set_sample_rate, (uint32_t)rate);
 }
 
 double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const {
-    TRACECALLF("(Getting ADC clock target frequency %u)", sample_frequency);
+    TRACECALLF("(%d,%u)", direction, channel);
     CheckChannel(direction, channel);
-    return sample_frequency;
+
+    uint32_t freq;
+    LIBCALL(lpcsdr_get_sample_rate, &freq);
+    return freq;
 }
 
 void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value)
 {
     TRACECALLF("(\"%s\",\"%s\")", key.c_str(), value.c_str());
-    if (key == "buffers") {
-        lpcsdr_set_buffering(handle_, 2, 10212 + 20);
-        // PXCALL(lpcsdr_set_buffering, handle_, buffers, buffersize);
+    if (key == "buffer_size") {
+        size_t size = std::stoi(value);
+        LIBCALL(lpcsdr_set_buffer_size, size);
         return;
     }
     throw std::invalid_argument("unrecognized setting " + key);
@@ -235,13 +236,10 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
 
 std::string LPCSDRDevice::readSetting(const std::string &key) const
 {
-    if (key == "buffers") {
-        unsigned buffer;
-        unsigned buffersize;
-        lpcsdr_get_buffering(handle_, &buffer, &buffersize);
-        std::stringstream ss;
-        ss << std::to_string(buffer) + ", " + std::to_string(buffersize) ;
-        return ss.str();
+    if (key == "buffer_size") {
+        size_t size;
+        LIBCALL(lpcsdr_get_buffer_size, &size);
+        return std::to_string(size);
     }
     throw std::invalid_argument("unrecognized setting " + key);
 }

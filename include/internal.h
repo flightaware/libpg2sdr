@@ -2,6 +2,7 @@
 #define INTERNAL_H
 
 #include "lpcsdr.h"
+#include "lpcsdr_protocol.h"
 #include "dsp.h"
 #include "tuner.h"
 
@@ -36,18 +37,15 @@
 #define memmove_elements(_dst, _src, _count) memmove((_dst), (_src), (_count) * sizeof((_dst)[0]))
 #define memcpy_elements(_dst, _src, _count) memcpy((_dst), (_src), (_count) * sizeof((_dst)[0]))
 
+#define LOGDEBUG(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGINFO(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGERROR(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
+
 struct lpcsdr_context {
     int magic;
     libusb_context *libusb_ctx;
     char *firmware_path;
     lpcsdr_log_callback log_cb;
-};
-
-struct match_tuple {
-    const char *serial;
-    int bus;
-    int address;
-    int index;
 };
 
 typedef struct lpcsdr_transfer_state {
@@ -114,12 +112,16 @@ struct lpcsdr_device_handle {
     uint32_t tuner_xtal;
 };
 
-int lpcsdr_upload_firmware(lpcsdr_context *ctx, libusb_device_handle *handle);
-int lpcsdr_handle_rom_bootloader(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
+/* context.c */
+void lpcsdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
 
-int lpcsdr_translate_libusb_error(int error);
-int lpcsdr_translate_libusb_transfer_status(enum libusb_transfer_status status);
-int lpcsdr_translate_errno(int error);
+/* boot.c */
+int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
+
+/* errors.c */
+int lpcsdr__translate_libusb_error(int error);
+int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
+int lpcsdr__translate_errno(int error);
 
 // ADC
 typedef struct pll_divisors {
@@ -145,19 +147,17 @@ int effective_p_divisor(uint32_t p);
 int effective_i_divisor(uint32_t i);
 int fixed_point_m(pll_divisors *divisors);
 
-int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out);
-int get_initial_device_from_list(lpcsdr_context *ctx, libusb_device **usb_list, int device_count, libusb_device **device);
 int populate_libusb_vtable(libusb_vtable **out);
 void free_libusb_vtable(libusb_vtable *vtable);
 
 //control transfers
-int lpcsdr_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
-int lpcsdr_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
-int lpcsdr_comms_check(libusb_device_handle *usb_handle);
-int lpcsdr_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
-int lpcsdr_stop_transfer(lpcsdr_device_handle *dev);
-int lpcsdr_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int lpcsdr_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
-int lpcsdr_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout, ep0_in_tuner_lock_t *out);
+int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
+int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
+int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle);
+int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
+int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
+int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
+int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
+int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
 
 #endif /* INTERNAL_H */

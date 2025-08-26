@@ -7,7 +7,7 @@ static int update_tuner_regs(lpcsdr_device_handle *handle, change_set *cs) {
     uint16_t payload_size;
 
     prepare_tuner_payload_from_change_set(cs, &first, &payload[0], &payload_size);
-    return lpcsdr_tuner_update(handle, first, &payload[0], payload_size);
+    return lpcsdr__ctrl_tuner_update(handle, first, &payload[0], payload_size);
 }
 
 lpf_settings lpf_calibration[16] = {
@@ -294,7 +294,7 @@ int has_pll_lock(lpcsdr_device_handle *handle) {
     int error = LPCSDR_SUCCESS;
     uint8_t buffer;
     
-    if ((error = lpcsdr_read_tuner_register(handle, TunerR2, 0, &buffer, sizeof(uint8_t))) < 0)
+    if ((error = lpcsdr__ctrl_read_tuner_register(handle, TunerR2, 0, &buffer, sizeof(uint8_t))) < 0)
         return error;
 
     return extract_tuner_val(buffer, PLL_LOCK);
@@ -360,29 +360,17 @@ int start_pll(lpcsdr_device_handle *handle, pll_parameters *params) {
     if ((error = configure_pll_settings(handle, params)) < 0)
         return 0;
     
-
-    // # wait for PLL lock
-    // for vco in (4, 3, 2, 1, 0):
-    //     if dev.tuner_lock(vco, 50):
-    //         break
-    // else:
-    //     raise TunerLockError(f'tuner PLL did not lock for frequency {params.freq}')
-
-    // # clean up PLL_AUTO_CLK
-    // cs = Changeset()
-    // write_field(cs, TunerFields.PLL_AUTO_CLK, 2)  # set PLL_AUTO_CLK=10, 8kHz
-    // dev.tuner_update(cs)
-    return -1;
+    return error;
 }
 
 int init_tuner(lpcsdr_device_handle *handle) {
     int error = LPCSDR_SUCCESS;
 
-    if ((error = lpcsdr_set_rf_power(handle, 1)) < 0)
+    if ((error = lpcsdr__ctrl_set_rf_power(handle, 1)) < 0)
         return error;
 
     uint8_t buffer;
-    if ((error = lpcsdr_read_tuner_register(handle, TunerR0, 0, &buffer, sizeof(uint8_t))) < 0)
+    if ((error = lpcsdr__ctrl_read_tuner_register(handle, TunerR0, 0, &buffer, sizeof(uint8_t))) < 0)
         return error;
 
     uint8_t tuner_id = extract_tuner_val(buffer, TUNER_ID);
