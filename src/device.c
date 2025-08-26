@@ -208,14 +208,14 @@ cleanup:
     return error;
 }
 
-int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle) {
-    int error;
+int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
+{
+    int error, usb_error;
 
     lpcsdr_context *ctx = device->context;
     libusb_device *original_dev = (libusb_device *) device->libusb_device;
     libusb_device *reenumerated_dev = NULL;
     libusb_device_handle *usb_handle = NULL;
-
 
     if (device->mode == LPCSDR_DEVICE_MODE_DFU_BOOTLOADER) {
         if ((error = lpcsdr__boot_firmware(ctx, original_dev, &reenumerated_dev)) < 0) {
@@ -223,8 +223,8 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
         }
     }
 
-    if ((error = libusb_open(reenumerated_dev ? reenumerated_dev : original_dev, &usb_handle)) < 0) {
-        error = lpcsdr__translate_libusb_error(error);
+    if ((usb_error = libusb_open(reenumerated_dev ? reenumerated_dev : original_dev, &usb_handle)) < 0) {
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
@@ -235,15 +235,15 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
     }
 
     /* set configuration 1 always (this does a soft reset of USB state) */
-    if ((error = libusb_set_configuration(usb_handle, 1)) < 0) {
-        error = lpcsdr__translate_libusb_error(error);
+    if ((usb_error = libusb_set_configuration(usb_handle, 1)) < 0) {
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     /* claim interface 0, the main data-streaming interface; only one thing can
      * have that claimed */
-    if ((error = libusb_claim_interface(usb_handle, 0)) < 0) {
-        error = lpcsdr__translate_libusb_error(error);
+    if ((usb_error = libusb_claim_interface(usb_handle, 0)) < 0) {
+        error = lpcsdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
