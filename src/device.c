@@ -134,23 +134,6 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
             continue;
         }
 
-        if (mode == LPCSDR_DEVICE_MODE_NORMAL) {
-            /* todo: get full serial here */
-            /* todo: soft set config 1 if not already set */
-
-            libusb_device_handle *handle;
-            if ((error = libusb_open(usb_dev, &handle)) != LIBUSB_SUCCESS) {
-                continue;
-            }
-
-            printf("Opened handle for lpcsdr\n");
-
-            if ((error = lpcsdr__ctrl_comms_check(handle)) < 0) {
-                continue;
-            };
-        }
-            
-
         if (!(lpc_devices_to_return[matched] = calloc(sizeof(lpc_device), 1))) {
             error = LPCSDR_ERROR_NO_MEMORY;
             goto failed;
