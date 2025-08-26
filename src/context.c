@@ -1,5 +1,20 @@
-#include "internal.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
 #include <pthread.h>
+
+#include "internal.h"
+
+static void default_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message)
+{
+    if (level >= LPCSDR_LOG_INFO)
+        fprintf(stderr, "liblpcsdr: %s\n", message);
+}
+
+static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message)
+{
+    fprintf(stderr, "liblpcsdr: %s\n", message);
+}
 
 int lpcsdr_init(struct lpcsdr_context **ctx) {
 
@@ -12,6 +27,11 @@ int lpcsdr_init(struct lpcsdr_context **ctx) {
 
     newctx->magic = MAGIC_CTX;
     newctx->firmware_path = NULL;
+
+    if (getenv("LPCSDR_DEBUG"))
+        newctx->log_cb = debug_logger;
+    else
+        newctx->log_cb = default_logger;
 
     int usb_error;
     if ((usb_error = libusb_init(&newctx->libusb_ctx)) < 0) {
@@ -61,4 +81,19 @@ int lpcsdr_exit(lpcsdr_context *ctx)
     ctx->magic = MAGIC_FREE; /* try to detect use-after-free */
     free(ctx);
     return LPCSDR_SUCCESS;
+}
+
+void lpcsdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...)
+{
+    if (!ctx || !ctx->log_cb)
+        return;
+
+    char buf[512];
+
+    va_list ap;
+    va_start(ap, format);
+    vsnprintf(buf, sizeof(buf), format, ap);
+    va_end(ap);
+
+    ctx->log_cb(ctx, level, buf);
 }

@@ -37,6 +37,10 @@
 #define memmove_elements(_dst, _src, _count) memmove((_dst), (_src), (_count) * sizeof((_dst)[0]))
 #define memcpy_elements(_dst, _src, _count) memcpy((_dst), (_src), (_count) * sizeof((_dst)[0]))
 
+#define LOGDEBUG(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGINFO(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGERROR(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
+
 struct lpcsdr_context {
     int magic;
     libusb_context *libusb_ctx;
@@ -108,6 +112,9 @@ struct lpcsdr_device_handle {
     // Stores tuner changes
     change_set *tuner_change_set;
 };
+
+/* context.c */
+void lpcsdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
 
 /* boot.c */
 int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
