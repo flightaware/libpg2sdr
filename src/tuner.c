@@ -588,7 +588,6 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, pll_parameters *pa
     vco_dac = MIN(63, vco_dac);
 
     change_set cs = {0};
-    // memset(&cs, 1, sizeof(cs));
 
     set_tuner_reg(&cs, PW_LDO_A, 1);
     set_tuner_reg(&cs, PW_LDO_D, 2);
