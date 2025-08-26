@@ -10,7 +10,6 @@
 #include <endian.h>
 #include <string.h>
 #include <errno.h>
-#include "lpcsdr_protocol.h"
 
 #if defined(__cplusplus)
 extern "C" {
