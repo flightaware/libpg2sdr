@@ -1,17 +1,6 @@
 #include "internal.h"
 #include <pthread.h>
 
-int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path) {
-    CHECK_CTX(ctx);
-
-    char *dup_path;
-    if (!(dup_path = strdup(firmware_path)))
-        return LPCSDR_ERROR_NO_MEMORY;
-
-    ctx->firmware_path = dup_path;
-    return LPCSDR_SUCCESS;
-}
-
 int lpcsdr_init(struct lpcsdr_context **ctx) {
 
     if (!ctx)
@@ -39,34 +28,19 @@ int lpcsdr_init(struct lpcsdr_context **ctx) {
             return error;
         }
     }
-    
+
     *ctx = newctx;
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_close_device(lpcsdr_device_handle *dev)
-{
-    CHECK_DEV(dev);
+int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path) {
+    CHECK_CTX(ctx);
 
-    if (!dev) {
-        return LPCSDR_ERROR_BAD_ARGUMENT;
-    }
+    char *dup_path;
+    if (!(dup_path = strdup(firmware_path)))
+        return LPCSDR_ERROR_NO_MEMORY;
 
-    pthread_mutex_lock(&dev->mutex);
-    if (dev->streaming) {
-        pthread_mutex_unlock(&dev->mutex);
-        return LPCSDR_ERROR_BUSY;
-    }
-
-    lpcsdr_free_tuner_memory(dev);
-    lpcsdr_dsp_decimate_free(dev->decimation_filter);
-    libusb_close(dev->usb_handle);
-    dev->magic = MAGIC_FREE;
-    pthread_mutex_unlock(&dev->mutex);
-    pthread_mutex_destroy(&dev->mutex);
-
-    free(dev);
-
+    ctx->firmware_path = dup_path;
     return LPCSDR_SUCCESS;
 }
 

@@ -366,3 +366,29 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
     lpcsdr_free_device_list(device_list);
     return error;
 }
+
+int lpcsdr_close_device(lpcsdr_device_handle *dev)
+{
+    CHECK_DEV(dev);
+
+    if (!dev) {
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+    }
+
+    pthread_mutex_lock(&dev->mutex);
+    if (dev->streaming) {
+        pthread_mutex_unlock(&dev->mutex);
+        return LPCSDR_ERROR_BUSY;
+    }
+
+    lpcsdr_free_tuner_memory(dev);
+    lpcsdr_dsp_decimate_free(dev->decimation_filter);
+    libusb_close(dev->usb_handle);
+    dev->magic = MAGIC_FREE;
+    pthread_mutex_unlock(&dev->mutex);
+    pthread_mutex_destroy(&dev->mutex);
+
+    free(dev);
+
+    return LPCSDR_SUCCESS;
+}
