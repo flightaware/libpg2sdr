@@ -399,23 +399,24 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
     float fill_time_ms = 1000.0f * blocks_per_buffer * dev->usb_samples_per_block * transfer_count / dev->adc_sample_rate;
     unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + 500); /* half a second of slop */
 
-    fprintf(stderr, "allocate_transfers: \n"
-            "  buffer_size    %u\n"
-            "  samples/buffer %u\n"
-            "  samples/block  %u\n"
-            "  blocks/buffer  %u\n"
-            "  bytes/block    %u\n"
-            "  transfer_size  %u\n"
-            "  transfer_count %u\n"
-            "  transfer_timeout_ms %u\n",
-            (unsigned) dev->buffer_size,
-            samples_per_buffer,
-            dev->usb_samples_per_block,
-            blocks_per_buffer,
-            dev->usb_bytes_per_block,
-            transfer_size,
-            transfer_count,
-            transfer_timeout_ms);
+    LOGDEBUG(dev,
+             "allocate_transfers: \n"
+             "  buffer_size    %u\n"
+             "  samples/buffer %u\n"
+             "  samples/block  %u\n"
+             "  blocks/buffer  %u\n"
+             "  bytes/block    %u\n"
+             "  transfer_size  %u\n"
+             "  transfer_count %u\n"
+             "  transfer_timeout_ms %u\n",
+             (unsigned) dev->buffer_size,
+             samples_per_buffer,
+             dev->usb_samples_per_block,
+             blocks_per_buffer,
+             dev->usb_bytes_per_block,
+             transfer_size,
+             transfer_count,
+             transfer_timeout_ms);
 
     lpcsdr_transfer_state *transfers = calloc(transfer_count, sizeof(lpcsdr_transfer_state));
     if (!transfers) {
