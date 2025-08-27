@@ -19,9 +19,9 @@ TEST(lpf_settings_for, Success) {
     lpf = lpcsdr__lpf_settings_for(6555e3, &max);
     ASSERT_EQ(lpf.cutoff, (float) 5920e3);
 
-    max = 6000e3;
-    lpf = lpcsdr__lpf_settings_for(6555e3, &max);
-    ASSERT_EQ(lpf.cutoff, (float) 5920e3);
+    max = 4000e3;
+    lpf = lpcsdr__lpf_settings_for(3100e3, &max);
+    ASSERT_EQ(lpf.cutoff, (float) 3177e3);
 
     max = 11196e3;
     lpf = lpcsdr__lpf_settings_for(11190e3, &max);
@@ -87,9 +87,9 @@ TEST(prepare_tuner_payload_from_change_set, Success) {
     set_tuner_reg(&cs, VCO_DAC, 1); //19
 
     uint16_t first;
-    uint8_t payload;
+    uint8_t payload[TUNER_REG_MAX_PAYLOAD_SIZE]= {};
     uint16_t payload_size;
-    lpcsdr__prepare_tuner_payload_from_change_set(&cs, &first, &payload, &payload_size);
+    lpcsdr__prepare_tuner_payload_from_change_set(&cs, &first, payload, &payload_size);
     ASSERT_EQ(first, 16);
     ASSERT_EQ(payload_size, 22);
 
@@ -131,15 +131,15 @@ TEST(gain_sanity_check, Success) {
     ASSERT_EQ(lpcsdr_set_vga_gain(h, 3), LPCSDR_SUCCESS);
 
 
-    uint8_t buffer;
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR5, 0, &buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-    ASSERT_EQ(extract_tuner_val(buffer, LNA_GAIN), 1);
+    uint8_t buffer[1] = {};
+    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR5, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
+    ASSERT_EQ(extract_tuner_val(buffer[0], LNA_GAIN), 1);
 
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR7, 0, &buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-    ASSERT_EQ(extract_tuner_val(buffer, MIX_GAIN), 2);
+    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR7, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
+    ASSERT_EQ(extract_tuner_val(buffer[0], MIX_GAIN), 2);
 
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR12, 0, &buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-    ASSERT_EQ(extract_tuner_val(buffer, VGA_GAIN), 3);
+    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR12, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
+    ASSERT_EQ(extract_tuner_val(buffer[0], VGA_GAIN), 3);
 }
 
 TEST(filter_sanity_check, Success) {
@@ -147,11 +147,10 @@ TEST(filter_sanity_check, Success) {
     DeviceHandle handle(ctx);
 
     lpcsdr_device_handle *h = handle();
-    int max = 3177e3;
     ASSERT_EQ(lpcsdr_set_if_bandpass(h, 659e3, 3177e3, NULL), LPCSDR_SUCCESS);
 
     uint8_t buffer[2] = {0};
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, &buffer[0], sizeof(buffer)), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
 
     // Check High-Pass HPF_CORNER set to 14
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_HPF_CORNER), 14);
@@ -159,8 +158,29 @@ TEST(filter_sanity_check, Success) {
     // Check TunerR11 Low-Pass
     ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), 0);
     ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), 8);
-
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), 1);
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 0);
+}
 
+TEST(lpcsdr_set_if_lpf, Success) {
+    Context ctx;
+    DeviceHandle handle(ctx);
+
+    lpcsdr_device_handle *h = handle();
+    ASSERT_EQ(lpcsdr_set_if_lpf(h, 2027e3, NULL), LPCSDR_SUCCESS);
+
+    uint8_t buffer[2] = {0};
+    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
+
+    // Check TunerR11 Low-Pass
+    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), 0);
+    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), 15);
+    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), 1);
+    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 3);
+}
+
+TEST(vco_scan, Success) {
+    Context ctx;
+    DeviceHandle handle(ctx);
+    ASSERT_EQ(lpcsdr__vco_scan(handle()), LPCSDR_SUCCESS);
 }

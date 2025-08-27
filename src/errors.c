@@ -139,7 +139,9 @@ const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
     case LCPSDR_TUNER_PLL_DIV_OUT_OF_RANGE:
         return "The requested pll frequency is out of range";
     case LPCSDR_TUNER_INIT_FAILED:
-         return "LPCSDR_TUNER_INIT_FAILED needs a description";
+        return "The tuner could not be initialized. TunerR0 TUNER_ID was incorrect";
+    case LPCSDR_TUNER_LOCK_ERR:
+        return "The tuner pll could not obtain a lock on given frequency";
     case LPCSDR_ERROR_TRANSFER_ERROR:
         return "Uncategorized bulk endpoint transfer error";
     case LPCSDR_ERROR_TRANSFER_STALL:
