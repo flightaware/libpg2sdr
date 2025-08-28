@@ -103,7 +103,7 @@ SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
     if (driver != kwargs.end() && driver->second != "lpcsdr")
         return {};
 
-    TRACECALLF("(\"%s\")", KwargsToString(kwargs).c_str());
+    TRACECALLF("(\"%s\")", SoapySDR::KwargsToString(kwargs).c_str());
 
     Context ctx = Context::Make();
 
@@ -113,12 +113,16 @@ SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
 
     auto devices = DeviceList::Enumerate(ctx);
     auto matching = FindDevicesMatching(devices, kwargs);
+    for (auto &match : matching.first) {
+        SoapySDR::log(SOAPY_SDR_DEBUG, "candidate: " + SoapySDR::KwargsToString(match));
+    }
+
     return matching.first;
 }
 
 SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
 {
-    TRACECALLF("(\"%s\")", KwargsToString(kwargs).c_str());
+    TRACECALLF("(\"%s\")", SoapySDR::KwargsToString(kwargs).c_str());
 
     Context ctx = Context::Make();
     if (!ctx)
@@ -130,7 +134,7 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
         return nullptr;
 
     if (matching.second.size() > 1) {
-        SoapySDR::logf(SOAPY_SDR_WARNING, "SoapyLPCSDR: more than one LCPSDR device matched the given criteria; trying the first one");
+        SoapySDR::log(SOAPY_SDR_WARNING, "LPCSDR: more than one LPCSDR device matched '" + SoapySDR::KwargsToString(kwargs) + "'; trying the first one");
     }
 
     lpcsdr_device_handle *handle;
@@ -160,7 +164,7 @@ LPCSDRDevice::~LPCSDRDevice()
             //  (a) we will leak the handle and
             //  (b) we can't safely free the context and must leak it
             // so yell about it a bit
-            SoapySDR::logf(SOAPY_SDR_CRITICAL, "SoapyLPCSDR: LPCSDRDevice destructor could not clean up properly - resources leaked");
+            Logf(SOAPY_SDR_CRITICAL, "LPCSDR: LPCSDRDevice destructor could not clean up properly - resources leaked");
             ctx_.Release(); // leak the context to avoid freeing it while still in use
         }
     }
@@ -212,8 +216,9 @@ static inline void CheckChannel(const int direction, const size_t channel)
 
 
 
-void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, const double rate) {
-    TRACECALLF("(%d,%u,%f)", direction, channel, rate);
+void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, const double rate)
+{
+    TRACECALLF("(%d,%zu,%f)", direction, channel, rate);
     CheckChannel(direction, channel);
 
     if (rate < 0 || rate > std::numeric_limits<uint32_t>::max())
@@ -222,8 +227,9 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     LIBCALL(lpcsdr_set_sample_rate, (uint32_t)rate);
 }
 
-double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const {
-    TRACECALLF("(%d,%u)", direction, channel);
+double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const
+{
+    TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
 
     uint32_t freq;
