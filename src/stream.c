@@ -109,7 +109,7 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
     const uint32_t swpb = spb / 8 * 3; /* "sample words per block", number of uint32_t words of sample data per block */
 
     switch(dev->conversion_mode) {
-    case LPCSDR_LOWIF_REAL:
+    case LPCSDR_MODE_LOWIF_REAL:
         {
             unsigned count = 0;
             for (unsigned i = 0; i < length; i += bpb, count += spb)
@@ -135,7 +135,7 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
 {
     assert (length % dev->usb_bytes_per_block == 0);
 
-    /* todo: this is only true for LPCSDR_LOWIF_REAL with int16, update once we support other versions */
+    /* todo: this is only true for LPCSDR_MODE_LOWIF_REAL with int16, update once we support other versions */
     const unsigned expected_samples = length / dev->usb_bytes_per_block * dev->usb_samples_per_block;
     assert (expected_samples * sizeof(int16_t) <= dev->buffer_size);
 
@@ -149,7 +149,7 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
     unpack_header(data, &h);
 
     switch(dev->conversion_mode) {
-    case LPCSDR_LOWIF_REAL:
+    case LPCSDR_MODE_LOWIF_REAL:
         buffer->timestamp = h.sequence * dev->usb_samples_per_block;
         buffer->count = count;
         break;

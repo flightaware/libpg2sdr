@@ -30,7 +30,7 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     if ((error = lpcsdr__ctrl_get_status(dev, &status)) < 0)
         goto cleanup;
 
-    dev->conversion_mode = LPCSDR_LOWIF_REAL;
+    dev->conversion_mode = LPCSDR_MODE_LOWIF_REAL;
     dev->usb_bytes_per_block = status.usb_bytes_per_block;
     dev->usb_samples_per_block = status.usb_samples_per_block;
     dev->tuner_xtal = status.tuner_xtal;

@@ -20,7 +20,7 @@ typedef enum { LPCSDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_
 typedef void (*lpcsdr_log_callback)(lpcsdr_context *context, lpcsdr_log_level level, const char *message);
 typedef struct lpcsdr_device_handle lpcsdr_device_handle;
 
-typedef enum { LPCSDR_LOWIF_REAL, LPCSDR_LOWIF_COMPLEX } lpcsdr_conversion_mode;
+typedef enum { LPCSDR_MODE_LOWIF_REAL, LPCSDR_MODE_BASEBAND } lpcsdr_conversion_mode;
 
 enum lpcsdr_error {
     LPCSDR_SUCCESS = 0, /* no error */
@@ -105,9 +105,8 @@ typedef struct {
     lpcsdr_device_handle *dev;
 
     /* Sample data.
-     * In REAL_INVERTED mode, each sample is a single value.
-     * In COMPLEX_BASEBAND mode, each sample is two values representing the I and Q channels respectively.
-     * The type of each value is controled by the sample format - int16_t or float
+     * In LOWIF_REAL mode, each sample is a single 16-bit value.
+     * In BASEBAND mode, each sample is two 16-bit values representing the I and Q channels respectively.
      */
     int16_t *samples;
 
