@@ -15,7 +15,6 @@
 
 #include <sys/prctl.h>
 
-namespace SoapySDR {
 namespace LPCSDR {
 
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
@@ -680,4 +679,3 @@ bool LPCSDRStream::StreamCallback(lpcsdr_sample_buffer *buffer)
 
 
 }; // namespace LPCSDR
-}; // namespace SoapySDR

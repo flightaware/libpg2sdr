@@ -18,7 +18,6 @@
 #include <optional>
 #include <cstddef>
 
-namespace SoapySDR {
 namespace LPCSDR {
 
 static inline std::string lpcsdr_strerror_string(int error) {
@@ -310,6 +309,5 @@ private:
 };
 
 }; // namespace LPCSDR
-}; // namespace SoapySDR
 
 #endif /* SOAPY_LPCSDR_H */
