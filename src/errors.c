@@ -142,6 +142,8 @@ const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
         return "The tuner could not be initialized. TunerR0 TUNER_ID was incorrect";
     case LPCSDR_TUNER_LOCK_ERR:
         return "The tuner pll could not obtain a lock on given frequency";
+    case LPCSDR_TUNER_LPF_INVALID_ARG:
+        return "Attempted to set low-pass filter with a maximum lower than given cutoff target";
     case LPCSDR_ERROR_TRANSFER_ERROR:
         return "Uncategorized bulk endpoint transfer error";
     case LPCSDR_ERROR_TRANSFER_STALL:
