@@ -403,6 +403,13 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         return LPCSDR_ERROR_BUSY;
     }
 
+    int error = lpcsdr__ctrl_set_rf_power(dev, 0);
+    if (error < 0) {
+        char buf[1024];
+        LOGERROR(dev, "warning: could not disable RF power on device close: %s", lpcsdr_strerror_r(error, buf, sizeof(buf)));
+        /* continue anyway */
+    }
+
     lpcsdr_dsp_decimate_free(dev->decimation_filter);
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;
