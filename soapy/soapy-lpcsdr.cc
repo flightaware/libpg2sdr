@@ -11,25 +11,40 @@
 #include <cstring>
 #include <limits>
 #include <iostream>
+#include <cstdarg>
 
 
 namespace SoapySDR {
 namespace LPCSDR {
+
+// This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
+static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
+
 static inline int ReportLPCSDRError(lpcsdr_context *ctx, const char *fname, int error, bool throw_on_error)
 {
     if (error < 0) {
-        SoapySDR::log(SOAPY_SDR_ERROR, "SoapyLPCSDR: "s + fname + ":" + strerror(error));
+        std::string message = std::string(fname) + ": " + std::to_string(error) + "/" + lpcsdr_strerror_string(error);
+        SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: " + message);
         if (throw_on_error)
-            throw std::runtime_error(std::string(fname) + ": " + strerror(error));
+            throw std::runtime_error(message);
     }
     return error;
 }
 
-#define TRACECALL SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
-#define TRACECALLF(_format, ...) SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__, __VA_ARGS__)
+static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
+{
+    va_list ap;
 
-#define LIBCALL_DIRECT(_ctx, fn, ...) SoapySDR::LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), true)
-#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) SoapySDR::LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), false)
+    va_start(ap, format);
+    SoapySDR::vlogf(level, format, ap);
+    va_end(ap);
+}
+
+#define TRACECALL LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
+#define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__, __VA_ARGS__)
+
+#define LIBCALL_DIRECT(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), true)
+#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), false)
 
 #define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_, __VA_ARGS__)
 #define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_, __VA_ARGS__)
