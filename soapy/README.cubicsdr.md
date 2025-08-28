@@ -27,6 +27,7 @@ $ make
 $ export LPCSDR_FIRMWARE=$HOME/git/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin
 $ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/soapy
 $ export SOAPY_SDR_LOG_LEVEL=DEBUG
+```
 
 ## Check that the lpcsdr driver works OK standalone:
 
