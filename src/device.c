@@ -1,6 +1,8 @@
 #include <pthread.h>
 #include <math.h>
 #include <string.h>
+#include <assert.h>
+#include <inttypes.h>
 
 #include "internal.h"
 
@@ -117,7 +119,7 @@ static int get_serial(libusb_device *usb_dev, unsigned char *serial, size_t leng
     if ((usb_error = libusb_open(usb_dev, &handle)) != LIBUSB_SUCCESS)
         return usb_error;
 
-    usb_error = libusb_get_string_descriptor_ascii(handle, desc.iSerialNumber, serial, sizeof(serial));
+    usb_error = libusb_get_string_descriptor_ascii(handle, desc.iSerialNumber, serial, length);
     libusb_close(handle);
     return usb_error;
 }
@@ -151,7 +153,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
             continue;
         }
 
-        unsigned char serial[9];
+        unsigned char serial[17];
         if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM && allow_rom_bootloader) {
             /* DFU bootloader */
             mode = LPCSDR_DEVICE_MODE_DFU_BOOTLOADER;
@@ -178,6 +180,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
 
         lpc_devices_to_return[matched]->context = ctx;
         lpc_devices_to_return[matched]->mode = mode;
+        static_assert(sizeof(lpc_devices_to_return[matched]->serial) == sizeof(serial));
         memcpy(lpc_devices_to_return[matched]->serial, serial, sizeof(serial));
         lpc_devices_to_return[matched]->usb_bus = libusb_get_bus_number(usb_dev);
         lpc_devices_to_return[matched]->usb_address = libusb_get_device_address(usb_dev);
@@ -409,4 +412,22 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
     free(dev);
 
     return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_get_serial(lpcsdr_device_handle *dev, char *serial, size_t length)
+{
+    CHECK_DEV(dev);
+    pthread_mutex_lock(&dev->mutex);
+
+    ep0_in_board_status_t status;
+    int error = lpcsdr__ctrl_get_status(dev, &status);
+    if (error < 0)
+        goto done;
+
+    snprintf(serial, length, "%" PRIX64, status.serial_number);
+    error = LPCSDR_SUCCESS;
+
+ done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
 }

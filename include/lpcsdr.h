@@ -79,7 +79,7 @@ typedef enum {
 typedef struct lpc_device {
     lpcsdr_context *context;
     lpcsdr_device_mode mode;
-    char serial[9];               /* serial number string, ASCIIZ */
+    char serial[17];               /* serial number string, ASCIIZ */
     unsigned index;
     /* USB connection details: */
     uint8_t usb_bus;     /* bus number this device is connected to */
@@ -138,6 +138,7 @@ void lpcsdr_free_device_list(lpc_device **device_list);
 ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
 int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle);
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
+int lpcsdr_get_serial(lpcsdr_device_handle *dev, char *serial, size_t length);
 
 // Open by Methods
 // static int generic_match(lpc_device *dev, void *arg);
