@@ -161,10 +161,10 @@ int lpcsdr_set_if_lpf(lpcsdr_device_handle *dev, int cutoff, int *not_above);
 int lpcsdr_set_if_hpf(lpcsdr_device_handle *dev, int cutoff);
 int lpcsdr_set_if_bandpass(lpcsdr_device_handle *dev, int low, int high, int *max);
 
-
-//Streaming
+// Streaming
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
 int lpcsdr_stop_streaming(lpcsdr_device_handle *dev);
+void lpcsdr_release_buffer(lpcsdr_sample_buffer *buffer);
 
 #if defined(__cplusplus)
 }

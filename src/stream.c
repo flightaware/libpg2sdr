@@ -11,7 +11,6 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
 static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t *data, size_t length, lpcsdr_stream_callback callback, void *user_data);
 
 static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev);
-static void release_buffer(lpcsdr_sample_buffer *buf);
 
 static int allocate_transfers(lpcsdr_device_handle *dev);
 static void cancel_transfers(lpcsdr_device_handle *dev);
@@ -86,8 +85,8 @@ static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev)
     return buf;
 }
 
-/* Release a lpcsdr_sample_buffer that is no longer used by used code */
-static void release_buffer(lpcsdr_sample_buffer *buf)
+/* Release a lpcsdr_sample_buffer that is no longer used by user code */
+void lpcsdr_release_buffer(lpcsdr_sample_buffer *buf)
 {
     free(buf);
 }
@@ -162,7 +161,7 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
 
     bool result = callback(buffer, user_data);
     if (result) {
-        release_buffer(buffer);
+        lpcsdr_release_buffer(buffer);
     }
 }
 
