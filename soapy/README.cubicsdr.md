@@ -131,7 +131,7 @@ frequencies in the waterfall that are <99.5MHz reflect what's being received. Fr
 
 It should look something like this:
 
-![CubicSDR FM waterfall](screenshot/cubicsdr-fm-waterfall.png)
+![CubicSDR FM waterfall](screenshots/cubicsdr-fm-waterfall.png)
 
 ## Listen to some FM radio!
 
