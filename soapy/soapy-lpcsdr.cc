@@ -173,6 +173,8 @@ LPCSDRDevice::~LPCSDRDevice()
 
 LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle)
 {
+    LIBCALL(lpcsdr_set_buffer_size, 128*1024);
+
     // LIBCALL(pxsdr_set_sampling_mode, PXSDR_SAMPLING_MODE_COMPLEX_BASEBAND, PXSDR_SAMPLE_FORMAT_INT16);
 
     // unsigned quantum;
