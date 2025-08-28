@@ -131,7 +131,7 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     auto devices = DeviceList::Enumerate(ctx); // this needs to live beyond the match loop
     auto matching = FindDevicesMatching(devices, kwargs);
     if (matching.second.empty())
-        return nullptr;
+        throw std::runtime_error("No LPCSDR device found that matches '" + SoapySDR::KwargsToString(kwargs) + "'");
 
     if (matching.second.size() > 1) {
         SoapySDR::log(SOAPY_SDR_WARNING, "LPCSDR: more than one LPCSDR device matched '" + SoapySDR::KwargsToString(kwargs) + "'; trying the first one");
