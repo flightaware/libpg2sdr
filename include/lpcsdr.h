@@ -109,7 +109,7 @@ typedef struct {
      * In COMPLEX_BASEBAND mode, each sample is two values representing the I and Q channels respectively.
      * The type of each value is controled by the sample format - int16_t or float
      */
-    void *samples;
+    int16_t *samples;
 
     /* Number of samples available */
     unsigned count;

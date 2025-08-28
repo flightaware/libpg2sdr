@@ -78,7 +78,7 @@ static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev)
     lpcsdr_sample_buffer *buf = malloc(sizeof(lpcsdr_sample_buffer) + dev->buffer_size);
 
     buf->dev = dev;
-    buf->samples = (buf + 1); /* sample data immediately follows the header */
+    buf->samples = (int16_t*) (buf + 1); /* sample data immediately follows the header */
     buf->count = 0;
     buf->timestamp = 0;
 
