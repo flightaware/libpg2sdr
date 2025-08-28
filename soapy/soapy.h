@@ -19,8 +19,6 @@
 namespace SoapySDR {
 namespace LPCSDR {
 
-using namespace std::string_literals;
-
 static inline std::string lpcsdr_strerror_string(int error) {
     char buf[1024];
     return std::string(lpcsdr_strerror_r(error, buf, sizeof(buf)));
