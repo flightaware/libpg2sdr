@@ -1,8 +1,8 @@
 // -*- c++ -*-
 #pragma once
 
-#ifndef SOAPY_PXSDR_H
-#define SOAPY_PXSDR_H
+#ifndef SOAPY_LPCSDR_H
+#define SOAPY_LPCSDR_H
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Logger.hpp>
@@ -304,4 +304,4 @@ class LPCSDRDevice : public SoapySDR::Device
 }; // namespace PXSDR
 }; // namespace SoapySDR
 
-#endif /* SOAPY_PXSDR_H */
+#endif /* SOAPY_LPCSDR_H */
