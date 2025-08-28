@@ -218,8 +218,10 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         dev->completion_flag = 0;
         memory_barrier();
 
-        if (dev->draining)
+        if (dev->draining) {
+            LOGDEBUG(dev, "lpcsdr_stream_data: something set the draining flag, stopping");
             break;
+        }
 
         if (dev->active_transfers_head->state == XFER_BUSY) {
             struct timeval timeout = {
@@ -230,6 +232,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             usb_error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
             pthread_mutex_lock(&dev->mutex);
             if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
+                LOGDEBUG(dev, "lpcsdr_stream_data: got a libusb error in the main loop: %s", libusb_strerror(usb_error));
                 error = lpcsdr__translate_libusb_error(usb_error);
                 goto drain;
             }
@@ -239,11 +242,13 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         lpcsdr_transfer_state *current = dev->active_transfers_head;
 
         if (current->state != XFER_COMPLETED) {
+            LOGERROR(dev, "lpcsdr_stream_data: active transfer has state %d", (int)current->state);
             error = LPCSDR_ERROR_BAD_STATE;
             goto drain;
         }
 
         if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+            LOGERROR(dev, "lpcsdr_stream_data: bulk transfer failed with status %d", (int)current->transfer->status);
             error = lpcsdr__translate_libusb_transfer_status(current->transfer->status);
             goto drain;
         }
@@ -553,10 +558,11 @@ static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer)
     lpcsdr_device_handle *dev = dev_transfer->dev;
 
     dev_transfer->state = XFER_BUSY;
-    int error = libusb_submit_transfer(dev_transfer->transfer);
-    if (error < 0) {
+    int usb_error = libusb_submit_transfer(dev_transfer->transfer);
+    if (usb_error < 0) {
+        LOGERROR(dev, "failed to submit bulk transfer: %s", libusb_strerror(usb_error));
         dev_transfer->state = XFER_IDLE;
-        return lpcsdr__translate_libusb_error(error);
+        return lpcsdr__translate_libusb_error(usb_error);
     }
 
     /* append this one to the active list */
