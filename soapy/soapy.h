@@ -15,6 +15,8 @@
 #include <thread>
 #include <string>
 #include <iostream>
+#include <optional>
+#include <cstddef>
 
 namespace SoapySDR {
 namespace LPCSDR {
@@ -71,10 +73,6 @@ class Context
 
     static Context Make()
     {
-
-
-
-        
         lpcsdr_context *newctx;
         int error;
 
@@ -126,7 +124,6 @@ class DeviceList
         int error;
         lpc_device **newlist;
 
-
         if ((error = lpcsdr_discover_devices(ctx, &newlist, true)) < 0) {
             SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: could not enumerate LPCSDR devices: " + lpcsdr_strerror_string(error));
             return DeviceList(nullptr);
@@ -164,7 +161,7 @@ class DeviceList
     size_t size_;
 };
 
-// class PXSDRStream;
+class LPCSDRStream;
 
 class LPCSDRDevice : public SoapySDR::Device
 {
@@ -192,15 +189,15 @@ class LPCSDRDevice : public SoapySDR::Device
     // std::string readSetting(const std::string &key) const override;
 
     // /* stream */
-    // size_t getNumChannels(const int direction) const override;
-    // std::vector<std::string> getStreamFormats(const int direction, const size_t channel) const override;
-    // std::string getNativeStreamFormat(const int direction, const size_t channel, double &fullScale) const override;
-    // Stream *setupStream(const int direction, const std::string &format, const std::vector<size_t> &channels, const Kwargs &args) override;
-    // void closeStream(SoapySDR::Stream *stream) override;
-    // size_t getStreamMTU(Stream *stream) const override;
-    // int activateStream(Stream *stream, const int flags, const long long timeNs, const size_t numElems) override;
-    // int deactivateStream(Stream *stream, const int flags = 0, const long long timeNs = 0) override;
-    // int readStream(Stream *stream, void *const *buffs, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs) override;
+    size_t getNumChannels(const int direction) const override;
+    std::vector<std::string> getStreamFormats(const int direction, const size_t channel) const override;
+    std::string getNativeStreamFormat(const int direction, const size_t channel, double &fullScale) const override;
+    SoapySDR::Stream *setupStream(const int direction, const std::string &format, const std::vector<size_t> &channels, const SoapySDR::Kwargs &args) override;
+    void closeStream(SoapySDR::Stream *stream) override;
+    size_t getStreamMTU(SoapySDR::Stream *stream) const override;
+    int activateStream(SoapySDR::Stream *stream, const int flags, const long long timeNs, const size_t numElems) override;
+    int deactivateStream(SoapySDR::Stream *stream, const int flags = 0, const long long timeNs = 0) override;
+    int readStream(SoapySDR::Stream *stream, void *const *buffs, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs) override;
 
     // /* gains */
     // std::vector<std::string> listGains(const int direction, const size_t channel) const override;
@@ -234,68 +231,85 @@ class LPCSDRDevice : public SoapySDR::Device
     // std::vector<double> listBandwidths(const int direction, const size_t channel) const override;
     // RangeList getBandwidthRange(const int direction, const size_t channel) const override;
 
-    // Context &context() { return ctx_; }
-    // lpcsdr_device_handle *handle() { return handle_; }
+    Context &context() { return ctx_; }
+    lpcsdr_device_handle *handle() { return handle_; }
     // double wanted_bandwidth() const { return wanted_bandwidth_; }
 
   private:
     LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle);
 
-    std::mutex mutex_; // protects active_stream_
-    // PXSDRStream *active_stream_ = nullptr;
+    std::mutex mutex_;                      // protects active_stream_
+    LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
 
     mutable Context ctx_;
     mutable lpcsdr_device_handle *handle_;
-    uint32_t sample_frequency;
 
-    double wanted_bandwidth_ = 0.0; // last bandwidth value set, 0 = never set
+    //uint32_t sample_frequency;
+    //double wanted_bandwidth_ = 0.0; // last bandwidth value set, 0 = never set
 
-    SoapySDR::Range frequencies_;                  // device frequency range
-    SoapySDR::Range bandwidths_;                   // device bandwidth range
-    std::map<std::string, SoapySDR::Range> gains_; // device gain range per stage
+    //SoapySDR::Range frequencies_;                  // device frequency range
+    //SoapySDR::Range bandwidths_;                   // device bandwidth range
+    //std::map<std::string, SoapySDR::Range> gains_; // device gain range per stage
 };
 
-// typedef std::unique_ptr<pxsdr_sample_block, decltype(&pxsdr_release_block)> BlockPointer;
+/* The implementation hiding behind our opaque Stream* handle */
+class LPCSDRStream
+{
+public:
+    LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::size_t queue_limit);
+    ~LPCSDRStream();
 
-// class PXSDRStream
-// {
-//   public:
-//     PXSDRStream(PXSDRDevice &dev, const std::string &format);
-//     ~PXSDRStream();
+    // not copyable
+    LPCSDRStream(const LPCSDRDevice &) = delete;
+    LPCSDRStream &operator=(const LPCSDRDevice &) = delete;
 
-//     PXSDRStream(const PXSDRDevice &) = delete;
-//     PXSDRStream &operator=(const PXSDRDevice &) = delete;
+    size_t getMTU() const;
+    int activate();
+    int deactivate();
+    int read(void *out, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs);
 
-//     size_t getStreamMTU() const;
-//     int activateStream(const int flags, const long long timeNs, const size_t numElems);
-//     int deactivateStream(const int flags, const long long timeNs);
-//     int readStream(void *const *buffs, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs);
+private:
+    // A unique_ptr for lpcsdr_sample_buffer that frees buffers via the liblpcsdr API
+    typedef std::unique_ptr<lpcsdr_sample_buffer, decltype(&lpcsdr_release_buffer)> BufferPtr;
 
-//   private:
-//     void StreamingWorker();
+    // Items contained in queue_ and pending_
+    struct QueueItem {
+        BufferPtr buffer;
+        std::size_t offset;
+        int error;
 
-//     static bool StreamCallback(pxsdr_sample_block *block, void *user_data);
-//     bool StreamCallback(pxsdr_sample_block *block);
+        unsigned size() const { return buffer ? buffer->count : 0; }
 
-//     PXSDRDevice &dev_;
+        QueueItem(lpcsdr_sample_buffer *buf) : buffer(buf, &lpcsdr_release_buffer), offset(0), error(0) {}
+        QueueItem(int err) : buffer(nullptr, &lpcsdr_release_buffer), offset(0), error(err) {}
+    };
 
-//     pxsdr_sample_format format_;
-//     pxsdr_sampling_mode mode_;
-//     uint32_t sample_rate_;
+    // Streaming thread entry point
+    void StreamingWorker();
 
-//     std::unique_ptr<std::thread> thread_;
-//     std::mutex mutex_;
+    // Callback implementation for lpcsdr_stream_data
+    static bool StreamCallback(lpcsdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning LPCSDRStream
+    bool StreamCallback(lpcsdr_sample_buffer *buffer);
 
-//     std::list<BlockPointer> queue_;
-//     bool queue_error_;
-//     std::condition_variable queue_signal_;
+    LPCSDRDevice &dev_;
 
-//     BlockPointer pending_;
-//     unsigned pending_offset_;
-//     bool pending_overflow_;
-// };
+    void (*convert_)(void *, const void *, std::size_t);   // converter for provided int16_t samples -> requested format
+    std::size_t bytes_per_sample_;         // sizeof(requested format)
 
-}; // namespace PXSDR
+    std::uint32_t sample_rate_;            // configured sample rate for this stream (needed to derive timestamps)
+    std::size_t queue_limit_;              // maximum # of samples we're willing to queue before dropping data
+
+    std::unique_ptr<std::thread> thread_;  // currently running streaming thread, if any
+
+    std::mutex queue_mutex_;               // protects queue_, queue_signal_, queue_size_
+    std::condition_variable queue_signal_; // notified when an item is added to the queue
+    std::list<QueueItem> queue_;           // queue of pending buffers/errors
+    std::size_t queue_size_;               // sum of buffer->count_ for all items in queue_
+
+    std::optional<QueueItem> pending_;     // Next partially processed queue item waiting to be consumed
+};
+
+}; // namespace LPCSDR
 }; // namespace SoapySDR
 
 #endif /* SOAPY_LPCSDR_H */
