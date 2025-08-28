@@ -126,8 +126,8 @@ to baseband. What you're seeing is directly the spectrum of the real-valued sign
 the ADC. The left-hand side of the spectrum is what you want to be looking at; this is the
 uninverted part of spectrum immediately below the PLL frequency you set. So in the above case
 you should set the CubicSDR "center frequency" to 99.5MHz, to match the PLL, and then all the
-frequencies in the waterfall that are <99.5MHz reflect what's being received. Frequencies
->99.5MHz are a mirror-image of the other side.
+frequencies in the waterfall that are below 99.5MHz show what's being received.
+Frequencies above 99.5MHz are a mirror-image of the low side, not actually new RF signals.
 
 It should look something like this:
 
