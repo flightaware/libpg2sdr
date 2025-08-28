@@ -226,7 +226,9 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
                 .tv_sec = timeout_ms / 1000,
                 .tv_usec = (timeout_ms % 1000) * 1000
             };
+            pthread_mutex_unlock(&dev->mutex);
             usb_error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
+            pthread_mutex_lock(&dev->mutex);
             if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
                 error = lpcsdr__translate_libusb_error(usb_error);
                 goto drain;
