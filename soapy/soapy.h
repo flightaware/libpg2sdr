@@ -21,10 +21,9 @@ namespace LPCSDR {
 
 using namespace std::string_literals;
 
-static inline std::string strerror(int error) {
+static inline std::string lpcsdr_strerror_string(int error) {
     char buf[1024];
-    lpcsdr_strerror_r(error, buf, sizeof(buf));
-    return std::string(buf);
+    return std::string(lpcsdr_strerror_r(error, buf, sizeof(buf)));
 }
 
 // RAII helper around pxsdr_context
@@ -83,11 +82,11 @@ class Context
 
         if ((error = lpcsdr_init(&newctx)) < 0) {
             
-            return Context("lpcsdr_init: " + strerror(error));
+            return Context("lpcsdr_init: " + lpcsdr_strerror_string(error));
         }
 
         if ((error = lpcsdr_set_log_callback(newctx, &Context::Log)) < 0) {
-            auto errormsg = "lpcsdr_set_log_callback: " + strerror(error);
+            auto errormsg = "lpcsdr_set_log_callback: " + lpcsdr_strerror_string(error);
             lpcsdr_exit(newctx);
             return Context(errormsg);
         }
@@ -131,7 +130,7 @@ class DeviceList
 
 
         if ((error = lpcsdr_discover_devices(ctx, &newlist, true)) < 0) {
-            SoapySDR::log(SOAPY_SDR_ERROR, "SoapyLPCSDR: could not enumerate LPCSDR devices: "s + strerror(error));
+            SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: could not enumerate LPCSDR devices: " + lpcsdr_strerror_string(error));
             return DeviceList(nullptr);
         }
 
