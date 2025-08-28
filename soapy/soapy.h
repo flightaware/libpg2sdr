@@ -66,7 +66,7 @@ class Context
             break;
         }
 
-        SoapySDR::logf(ll, "SoapyLPCSDR: %s", message);
+        SoapySDR::logf(ll, "liblpcsdr: %s", message);
     }
 
     void Release() { ctx_ = nullptr; }
