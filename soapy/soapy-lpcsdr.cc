@@ -58,6 +58,17 @@ static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
         entry["serial"] = device->serial;
     entry["bus"] = std::to_string(device->usb_bus);
     entry["address"] = std::to_string(device->usb_address);
+
+    std::string basename = std::string("LPCSDR@" + std::to_string(device->usb_bus) + ":" + std::to_string(device->usb_address));
+
+    switch (device->mode) {
+    case LPCSDR_DEVICE_MODE_NORMAL:
+        entry["label"] = basename + " S/N " + device->serial;
+        break;
+    case LPCSDR_DEVICE_MODE_DFU_BOOTLOADER:
+        entry["label"] = basename + " in bootloader mode";
+        break;
+    }
     return entry;
 }
 
