@@ -2,7 +2,7 @@
 LPCSDR_DIR=../build/src
 LIB_HEADERS=../include
 
-CXXFLAGS += -std=c++14 -O3 -g -Wall -Werror -D_DEFAULT_SOURCE
+CXXFLAGS += -std=c++17 -O3 -g -Wall -Werror -D_DEFAULT_SOURCE
 LDFLAGS += -g -fpic -shared
 
 CXXFLAGS += $(shell pkg-config --cflags SoapySDR)
