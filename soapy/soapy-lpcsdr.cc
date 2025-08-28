@@ -78,21 +78,16 @@ static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMat
     // a device is a match if every entry in 'matchers' is present in its own per-device args;
     // extra per-device args, or extra args in the criteria we don't recognize, are ignored
     SoapySDR::Kwargs matchers;
-    std::string decimation = "auto";
     for (auto kwarg : kwargs) {
         if (!kwarg.second.empty() && (kwarg.first == "driver" || kwarg.first == "index" || kwarg.first == "serial" || kwarg.first == "bus" || kwarg.first == "address"))
             matchers.insert(kwarg);
-        if (kwarg.first == "decimation")
-            decimation = kwarg.second;
     }
 
     SoapySDR::KwargsList result_args;
     std::vector<lpc_device *> result_devices;
     for (unsigned i = 0; i < devices.size(); ++i) {
-
         auto dev_kwargs = DeviceToKwargs(devices[i]);
         if (std::includes(dev_kwargs.begin(), dev_kwargs.end(), matchers.begin(), matchers.end())) {
-            dev_kwargs["decimation"] = decimation;
             result_args.emplace_back(dev_kwargs);
             result_devices.emplace_back(devices[i]);
         }
@@ -140,19 +135,6 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
 
     lpcsdr_device_handle *handle;
     LIBCALL_DIRECT(ctx, lpcsdr_open_device, matching.second[0], &handle);
-
-    // if (kwargs.count("decimation")) {
-    //     auto &decimation = kwargs.at("decimation");
-    //     unsigned factor;
-    //     if (decimation == "auto")
-    //         factor = 0;
-    //     else
-    //         factor = std::stoi(decimation);
-
-    //     LIBCALL_DIRECT(ctx, pxsdr_set_decimation, handle, factor);
-    // }
-
-    std::cout << "created handle\n";
 
     return new LPCSDRDevice(std::move(ctx), handle);
 }
