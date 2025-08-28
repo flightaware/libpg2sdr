@@ -204,7 +204,7 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(s
 
 std::string LPCSDRDevice::getDriverKey(void) const { return "lpcsdr"; }
 
-// std::string PXSDRDevice::getHardwareKey(void) const { return pxsdr_device_variant_string(pxsdr_get_device_info(handle_)->variant); }
+std::string LPCSDRDevice::getHardwareKey(void) const { return "lpcsdr"; }
 
 static inline void CheckChannel(const int direction, const size_t channel)
 {

@@ -183,7 +183,7 @@ class LPCSDRDevice : public SoapySDR::Device
 
     /* identification */
     std::string getDriverKey(void) const override;
-    // std::string getHardwareKey(void) const override;
+    std::string getHardwareKey(void) const override;
 
     /* settings */
     void setSampleRate(const int direction, const size_t channel, const double rate) override;
