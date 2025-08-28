@@ -184,9 +184,6 @@ class LPCSDRDevice : public SoapySDR::Device
     std::string getHardwareKey(void) const override;
 
     /* settings */
-    void setSampleRate(const int direction, const size_t channel, const double rate) override;
-    double getSampleRate(const int direction, const size_t channel) const override;
-
     void writeSetting(const std::string &key, const std::string &value) override;
     std::string readSetting(const std::string &key) const override;
 
@@ -226,10 +223,10 @@ class LPCSDRDevice : public SoapySDR::Device
     // SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel, const std::string &name) const override;
 
     // /* sample rate */
-    // void setSampleRate(const int direction, const size_t channel, const double rate) override;
-    // double getSampleRate(const int direction, const size_t channel) const override;
-    // std::vector<double> listSampleRates(const int direction, const size_t channel) const override;
-    // RangeList getSampleRateRange(const int direction, const size_t channel) const override;
+    void setSampleRate(const int direction, const size_t channel, const double rate) override;
+    double getSampleRate(const int direction, const size_t channel) const override;
+    std::vector<double> listSampleRates(const int direction, const size_t channel) const override;
+    SoapySDR::RangeList getSampleRateRange(const int direction, const size_t channel) const override;
 
     // /* bandwidth */
     // void setBandwidth(const int direction, const size_t channel, const double bw) override;

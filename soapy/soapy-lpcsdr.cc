@@ -237,6 +237,27 @@ double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) co
     return freq;
 }
 
+std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const size_t channel) const
+{
+    TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+
+    std::vector<double> result;
+    for (auto i = 1; i < 20; ++i)
+        result.push_back(i * 1e6);
+    return result;
+}
+
+SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const size_t channel) const
+{
+    TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+
+    SoapySDR::RangeList ranges;
+    ranges.push_back(SoapySDR::Range(1.0, 20.0));
+    return ranges;
+}
+
 void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value)
 {
     TRACECALLF("(\"%s\",\"%s\")", key.c_str(), value.c_str());
