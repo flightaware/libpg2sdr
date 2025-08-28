@@ -471,7 +471,7 @@ static void copy_s16_to_cf32(void *out, const void *in, std::size_t samples)
 }        
 
 LPCSDRStream::LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::size_t queue_limit)
-    : dev_(dev), sample_rate_(0), queue_limit_(queue_limit)
+    : dev_(dev), sample_rate_(0), queue_limit_(queue_limit), queue_size_(0)
 {
     // todo: use soapysdr-provided converters?
     if (format == SOAPY_SDR_S16) {
