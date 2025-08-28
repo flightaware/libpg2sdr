@@ -191,6 +191,12 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
      */
     dev->adc_sample_rate = dev->sample_rate;
 
+    if (!timeout_ms) {
+        /* estimate time for one transfer to complete, add an arbitrary 500ms */
+        float fill_time_ms = 1000.0 * dev->transfer_size / dev->usb_bytes_per_block * dev->usb_samples_per_block / dev->adc_sample_rate;
+        timeout_ms = (unsigned) (fill_time_ms + 500);
+    }
+
     if ((error = allocate_transfers(dev)) < 0)
         goto done;
 
