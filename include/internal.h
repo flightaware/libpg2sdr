@@ -137,7 +137,7 @@ int fixed_point_m(pll_divisors *divisors);
 
 //control transfers
 int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
-int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode);
+int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode);
 int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle);
 int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
 int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);

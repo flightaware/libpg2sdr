@@ -198,11 +198,11 @@ int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t
                        payload_size);
 }
 
-int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, uint16_t mode)
+int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode)
 {
     return control_out(dev->usb_handle,
                        EP0_OUT_SET_RF_POWER,
-                       mode,
+                       (uint16_t) mode,
                        0,
                        NULL,
                        0);
