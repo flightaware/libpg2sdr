@@ -102,32 +102,39 @@ You should now have a waterfall display running.
 
 ## Tuning
 
-The tuner logic is not yet hooked up to liblpcsdr / the soapysdr driver. You will need to
-manually configure the tuner using the python scripts. Changing the "center frequency" in
-CubicSDR (top right corner) does _nothing_ -- but you probably want to set it to the same
-frequency as you actually tuned the tuner to, for simplicity. Same with gain, changing the gain
-in CubicSDR does nothing.
+The "center frequency" (top right corner) in CubicSDR controls the tuned PLL frequency.
+Frequencies immediately below the PLL will be captured (e.g., to see the broadcast FM
+spectrum, try tuning to 100MHz and you will see 95-100MHz)
 
-Keep CubicSDR running. In a separate console window, run the python tuner.py script to
-configure the tuner. You'll want to tune just above the frequency region you're interested in:
+## Gain
+
+Currently the soapy driver just sets a fixed gain.
+
+You can use the python tuner.py script in a separate console while CubicSDR is running, to
+change the gains manually:
 
 ```
 $ cd ~/git/liblpcsdr/lpcsdr_firmware
-$ python/tuner.py --reset
-$ python/tuner.py --pll 99.5M
 $ python/tuner.py --lna-gain 7 --mix-gain 7 --vga-gain 7
-$ python/tuner.py --hpf 500 --lpf-below 5M
 ```
 
 ## Interpreting the waterfall
 
 The current implementation is a bit of a hack, in that it does not actually shift the signal
 to baseband. What you're seeing is directly the spectrum of the real-valued signal coming from
-the ADC. The left-hand side of the spectrum is what you want to be looking at; this is the
-uninverted part of spectrum immediately below the PLL frequency you set. So in the above case
-you should set the CubicSDR "center frequency" to 99.5MHz, to match the PLL, and then all the
-frequencies in the waterfall that are below 99.5MHz show what's being received.
-Frequencies above 99.5MHz are a mirror-image of the low side, not actually new RF signals.
+the ADC.
+
+You will see a mirrored signal, mirrored around a center frequency which is the PLL / center
+frequency you set. The right-hand side of the spectrum is exactly what the ADC is seeing,
+relative to the center frequency. Because we're capturing the low sideband (i.e. frequencies
+below the PLL frequency), this spectrum is an inverted version of the RF signal. The frequency
+markings in CubicSDR won't correspond to real RF frequencies on the right-hand side.
+
+The left-hand side is a mirror-image of the right-hand side (because we are doing a discrete
+Fourier transform on a real-valued signal, and that produces negative frequency components that
+mirror the positive frequency components). The frequency markings in CubicSDR _are_ correct
+for this side of the spectrum. For example, if you tune the PLL to 100MHz, and then see a
+signal at 98MHz, then that reflects a RF signal input that really is at 98MHz.
 
 It should look something like this:
 
