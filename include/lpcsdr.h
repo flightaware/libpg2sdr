@@ -61,6 +61,7 @@ enum lpcsdr_error {
     LPCSDR_TUNER_INIT_FAILED = -301,               /* TUNER_ID was not correct value. Tuner init failed somehow */
     LCPSDR_TUNER_PLL_DIV_OUT_OF_RANGE = -302,      /* Requested PLL Divisor was our of range */
     LPCSDR_TUNER_LOCK_ERR = -303,                   /* Tuner PLL could not get lock */
+    LPCSDR_TUNER_LPF_INVALID_ARG = -304,
 
     /* system call error range */
     LPCSDR_ERROR_SYSTEM_MAX = -1000,
@@ -156,9 +157,9 @@ int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency);
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);
-int lpcsdr_set_if_lpf(lpcsdr_device_handle *dev, int cutoff, int *not_above);
-int lpcsdr_set_if_hpf(lpcsdr_device_handle *dev, int cutoff);
-int lpcsdr_set_if_bandpass(lpcsdr_device_handle *dev, int low, int high, int *max);
+int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, int *not_above);
+int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff);
+int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high, int *max);
 
 // Streaming
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
