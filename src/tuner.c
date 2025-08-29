@@ -291,7 +291,7 @@ hpf_settings lpcsdr__hpf_settings_for(int target) {
 int lpcsdr__init_tuner(lpcsdr_device_handle *dev) {
     int error = LPCSDR_SUCCESS;
 
-    if ((error = lpcsdr__ctrl_set_rf_power(dev, RF_POWER_ON)) < 0)
+    if ((error = lpcsdr__ctrl_set_rf_power(dev, RF_POWER_RESET)) < 0)
         return error;
 
     uint8_t buffer;
