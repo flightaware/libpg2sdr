@@ -174,6 +174,11 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(s
 {
     LIBCALL(lpcsdr_set_buffer_size, 128*1024);
 
+    // todo: soapy gain API
+    LIBCALL(lpcsdr_set_lna_gain, 7);
+    LIBCALL(lpcsdr_set_mix_gain, 7);
+    LIBCALL(lpcsdr_set_vga_gain, 7);
+
     // LIBCALL(pxsdr_set_sampling_mode, PXSDR_SAMPLING_MODE_COMPLEX_BASEBAND, PXSDR_SAMPLE_FORMAT_INT16);
 
     // unsigned quantum;
@@ -237,6 +242,10 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
             active_stream_->deactivate();
 
         LIBCALL(lpcsdr_set_sample_rate, (uint32_t)rate);
+
+        // todo: use soapy bandwidth API
+        int nyquist = (int)round(rate/2.0);
+        LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate/2.0, /* max */ &nyquist);
 
         if (active_stream_)
             active_stream_->activate();
