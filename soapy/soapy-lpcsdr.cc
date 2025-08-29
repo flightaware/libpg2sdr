@@ -268,7 +268,7 @@ std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const siz
     CheckChannel(direction, channel);
 
     std::vector<double> result;
-    for (auto i = 1; i < 20; ++i)
+    for (auto i = 1; i <= 20; ++i)
         result.push_back(i * 1e6);
     return result;
 }
