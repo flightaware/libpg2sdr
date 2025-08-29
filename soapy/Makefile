@@ -16,7 +16,7 @@ all: liblpcsdrSupport.so
 %.o: %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-soapy-lpcsdr.o: soapy-lpcsdr.h
+soapy-lpcsdr.o: soapy-lpcsdr.h $(LIB_HEADERS)/lpcsdr.h
 
 liblpcsdrSupport.so: soapy-lpcsdr.o $(LPCSDR_DIR)/liblpcsdr.a
 	$(CXX) $(LDFLAGS) -o $@ $< $(LIBS)
