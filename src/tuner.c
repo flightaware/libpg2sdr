@@ -502,12 +502,15 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, pll_parameters *o
 
     double required_vco = requested * seldiv;
     if (required_vco < VCO_MIN || required_vco > VCO_MAX) {
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        // todo: we could continue here, since sometimes the VCO is okay
+        // running somewhat outside the nominal limits,
+        // and just report any PLL lock failure
+        return LPCSDR_TUNER_PLL_DIV_OUT_OF_RANGE;
     }
 
     double pll_feedback = (required_vco / 2) / pll_ref;
     if (pll_feedback < 13 || pll_feedback >= 269) {
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return LPCSDR_TUNER_PLL_DIV_OUT_OF_RANGE;
     }
 
     double pll_feedback_int_part;
