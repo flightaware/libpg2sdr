@@ -402,7 +402,13 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
     unsigned samples_per_buffer = dev->buffer_size / sizeof(int16_t);             /* # of ADC samples that will fill the user buffer (rounded down) */
     unsigned blocks_per_buffer = samples_per_buffer / dev->usb_samples_per_block; /* # of ADC blocks that will fill the user buffer (rounded down) */
     unsigned transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;        /* Exact transfer size for that many ADC blocks */
-    unsigned transfer_count = 4; /* hardcoded for now */
+
+    /* allocate enough transfers for ~ 250ms, within reason */
+    unsigned transfer_count = dev->adc_sample_rate / 4 / samples_per_buffer;
+    if (transfer_count < 4)
+        transfer_count = 4;
+    if (transfer_count > 32)
+        transfer_count = 32;
 
     /*
      * set our transfer timeout conservatively, based on the expected time to fill all our transfers
