@@ -153,6 +153,8 @@ int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
 int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, uint32_t rate);
 int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, uint32_t *rate);
+int lpcsdr_set_spectrum_inversion(lpcsdr_device_handle *dev, bool invert);
+int lpcsdr_get_spectrum_inversion(lpcsdr_device_handle *dev, bool *invert);
 int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency);
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);

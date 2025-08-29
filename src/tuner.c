@@ -1,3 +1,5 @@
+#include <pthread.h>
+
 #include "internal.h"
 #include "math.h"
 
@@ -262,6 +264,44 @@ int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, in
     return error;
 }
 
+int lpcsdr_set_spectrum_inversion(lpcsdr_device_handle *dev, bool invert)
+{
+    CHECK_DEV(dev);
+
+    int error;
+    pthread_mutex_lock(&dev->mutex);
+    if (dev->streaming) {
+        error = LPCSDR_ERROR_BAD_STATE;
+        goto done;
+    }
+
+    if (invert != dev->invert_spectrum) {
+        change_set cs = {0};
+        set_tuner_reg(&cs, IMG_R, invert ? 0 : 1);
+        if ((error = update_tuner_regs(dev, &cs)) < 0)
+            goto done;
+
+        dev->invert_spectrum = invert;
+    }
+
+    error = LPCSDR_SUCCESS;
+
+ done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
+}
+
+int lpcsdr_get_spectrum_inversion(lpcsdr_device_handle *dev, bool *invert)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    *invert = dev->invert_spectrum;
+    pthread_mutex_unlock(&dev->mutex);
+
+    return LPCSDR_SUCCESS;
+}
+
 /* 
     Find the lowest setting with cutoff >= target, but never above max.
     Assumes max >= target.
@@ -334,7 +374,7 @@ int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
     set_tuner_reg(&cs, PW_LNA, 2);
 
     // TunerR7
-    set_tuner_reg(&cs, IMG_R, 0);
+    set_tuner_reg(&cs, IMG_R, dev->invert_spectrum ? 0 : 1);
     set_tuner_reg(&cs, PW_MIX, 1);
     set_tuner_reg(&cs, PW0_MIX, 1);
     set_tuner_reg(&cs, MIXGAIN_MODE, 0);
