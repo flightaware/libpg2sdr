@@ -511,10 +511,7 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, pll_parameters *o
     }
 
     double pll_feedback_int_part;
-    double pll_feedback_frac;
-    if (!(pll_feedback_frac = modf(pll_feedback, &pll_feedback_int_part))) {
-        return LCPSDR_TUNER_PLL_DIV_OUT_OF_RANGE;
-    }
+    double pll_feedback_frac = modf(pll_feedback, &pll_feedback_int_part);
 
     unsigned pll_feedback_int = (unsigned) pll_feedback_int_part;
     unsigned sdm_numerator = (unsigned) round(pll_feedback_frac * (1<<18));
