@@ -232,6 +232,8 @@ int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, i
     lpf_settings s = lpcsdr__lpf_settings_for(cutoff, not_above);
     change_set cs = {0};
 
+    LOGDEBUG(dev, "set LPF cutoff = %.3fMHz", s.cutoff/1e6);
+
     set_tuner_reg(&cs, IFFILT_Q, s.lpf_q);
     set_tuner_reg(&cs, IFFILT_NARROW, s.lpf_narrow);
     set_tuner_reg(&cs, IFFILT_FINE_LPF, s.lpf_fine);
@@ -242,6 +244,8 @@ int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, i
 int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff) {
     hpf_settings s = lpcsdr__hpf_settings_for(cutoff);
     change_set cs = {0};
+
+    LOGDEBUG(dev, "set HPF cutoff = %.3fMHz", s.cutoff/1e6);
 
     set_tuner_reg(&cs, IFFILT_HPF_CORNER, s.hpf_corner);
     return update_tuner_regs(dev, &cs);
@@ -573,6 +577,20 @@ int lpcsdr__start_pll(lpcsdr_device_handle *dev, pll_parameters *params) {
 }
 
 int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, pll_parameters *params) {
+    LOGDEBUG(dev, "configuring PLL with:\n"
+             "  SDM:    %u\n"
+             "  SELDIV: %u\n"
+             "  REFDIV: %u\n"
+             "  N:      %u\n"
+             "  VCO:    %.3fMHz\n"
+             "  PLL:    %.3fMHz",
+             params->feedback_sdm,
+             params->seldiv,
+             params->refdiv ? 2 : 1,
+             params->feedback_n,
+             params->vco / 1e6,
+             params->freq / 1e6);
+
     uint16_t sdm_disable = ( params->feedback_sdm == 0 ) ? 1 : 0;
     uint8_t sdm_lsb = params->feedback_sdm & 0xff;
     uint8_t sdm_msb = (params->feedback_sdm >> 8) & 0xff;
