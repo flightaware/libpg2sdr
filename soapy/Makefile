@@ -18,7 +18,7 @@ all: liblpcsdrSupport.so
 
 soapy-lpcsdr.o: soapy-lpcsdr.h
 
-liblpcsdrSupport.so: soapy-lpcsdr.o
+liblpcsdrSupport.so: soapy-lpcsdr.o $(LPCSDR_DIR)/liblpcsdr.a
 	$(CXX) $(LDFLAGS) -o $@ $< $(LIBS)
 
 clean:
