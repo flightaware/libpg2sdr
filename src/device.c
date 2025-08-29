@@ -403,7 +403,7 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         return LPCSDR_ERROR_BUSY;
     }
 
-    int error = lpcsdr__ctrl_set_rf_power(dev, 0);
+    int error = lpcsdr__ctrl_set_rf_power(dev, RF_POWER_OFF);
     if (error < 0) {
         char buf[1024];
         LOGERROR(dev, "warning: could not disable RF power on device close: %s", lpcsdr_strerror_r(error, buf, sizeof(buf)));
