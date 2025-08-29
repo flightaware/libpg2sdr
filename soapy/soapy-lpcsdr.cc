@@ -170,7 +170,7 @@ LPCSDRDevice::~LPCSDRDevice()
     }
 }
 
-LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle)
+LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle), tuned_freq_(0)
 {
     LIBCALL(lpcsdr_set_buffer_size, 128*1024);
 
@@ -221,7 +221,60 @@ static inline void CheckChannel(const int direction, const size_t channel)
         throw std::invalid_argument("channel out of range");
 }
 
+void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
+{
+    setFrequency(direction, channel, "RF", frequency, args);
+}
 
+void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args)
+{
+    TRACECALLF("(%d,%zu,\"%s\",%f,\"%s\")", direction, channel, name.c_str(), frequency, SoapySDR::KwargsToString(args).c_str());
+    CheckChannel(direction, channel);
+    if (name != "" && name != "RF")
+        throw std::invalid_argument("unrecognized tunable element " + name);
+
+    // don't enforce frequency ranges, some out-of-range values might actually work
+    LIBCALL(lpcsdr_tune_pll, frequency);
+    tuned_freq_ = frequency;
+}
+
+double LPCSDRDevice::getFrequency(const int direction, const size_t channel) const
+{
+    return getFrequency(direction, channel, "RF");
+}
+
+double LPCSDRDevice::getFrequency(const int direction, const size_t channel, const std::string &name) const
+{
+    TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
+    CheckChannel(direction, channel);
+    if (name != "" && name != "RF")
+        throw std::invalid_argument("unrecognized tuneable element " + name);
+
+    return tuned_freq_; // todo: liblpcsdr needs a get-frequency API
+}
+
+std::vector<std::string> LPCSDRDevice::listFrequencies(const int direction, const size_t channel) const
+{
+    // This slightly-confusingly-named method wants us to return a list of tuneable elements, not a list of frequencies
+    return { "RF" };
+}
+
+SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const size_t channel) const
+{
+    return getFrequencyRange(direction, channel, "RF");
+}
+
+SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const size_t channel, const std::string &name) const
+{
+    TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
+    CheckChannel(direction, channel);
+    if (name != "" && name != "RF")
+        throw std::invalid_argument("unrecognized tuneable element " + name);
+
+    SoapySDR::RangeList result;
+    result.push_back(SoapySDR::Range(28e6, 1850e6));
+    return result;
+}
 
 void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, const double rate)
 {

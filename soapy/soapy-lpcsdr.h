@@ -208,15 +208,14 @@ class LPCSDRDevice : public SoapySDR::Device
     // // const override;
     // SoapySDR::Range getGainRange(const int direction, const size_t channel, const std::string &name) const override;
 
-    // /* frequency */
-    // void setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args) override;
-    // void setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const Kwargs &args) override;
-    // double getFrequency(const int direction, const size_t channel) const override;
-    // double getFrequency(const int direction, const size_t channel, const std::string &name) const override;
-    // std::vector<std::string> listFrequencies(const int direction, const size_t channel) const override;
-    // // SoapySDR::RangeList getFrequencyRange(const int direction, const size_t
-    // // channel) const override;
-    // SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel, const std::string &name) const override;
+    /* frequency */
+    void setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args) override;
+    void setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args) override;
+    double getFrequency(const int direction, const size_t channel) const override;
+    double getFrequency(const int direction, const size_t channel, const std::string &name) const override;
+    std::vector<std::string> listFrequencies(const int direction, const size_t channel) const override;
+    SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel) const override;
+    SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel, const std::string &name) const override;
 
     // /* sample rate */
     void setSampleRate(const int direction, const size_t channel, const double rate) override;
@@ -242,6 +241,8 @@ class LPCSDRDevice : public SoapySDR::Device
 
     mutable Context ctx_;
     mutable lpcsdr_device_handle *handle_;
+
+    double tuned_freq_; // todo: goes away once liblpcsdr has an API for this
 
     //uint32_t sample_frequency;
     //double wanted_bandwidth_ = 0.0; // last bandwidth value set, 0 = never set
