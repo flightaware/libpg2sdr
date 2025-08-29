@@ -195,7 +195,10 @@ static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
     return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
-int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency) {
+int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency)
+{
+    CHECK_DEV(dev);
+
     int error = LPCSDR_SUCCESS;
 
     pll_parameters params = {};
@@ -209,25 +212,34 @@ int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency) {
     return error;
 }
 
-int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain) {
+int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain)
+{
+    CHECK_DEV(dev);
     change_set cs = {0};
     set_tuner_reg(&cs, LNA_GAIN, gain);
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain) {
+int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain)
+{
+    CHECK_DEV(dev);
     change_set cs = {0};
     set_tuner_reg(&cs, MIX_GAIN, gain);
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain) {
+int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain)
+{
+    CHECK_DEV(dev);
     change_set cs = {0};
     set_tuner_reg(&cs, VGA_GAIN, gain);
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, int *not_above) {
+int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, int *not_above)
+{
+    CHECK_DEV(dev);
+
     if (not_above && (*not_above < cutoff))
         return LPCSDR_TUNER_LPF_INVALID_ARG;
 
@@ -243,7 +255,10 @@ int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, i
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff) {
+int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff)
+{
+    CHECK_DEV(dev);
+
     hpf_settings s = lpcsdr__hpf_settings_for(cutoff);
     change_set cs = {0};
 
@@ -253,7 +268,10 @@ int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff) {
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high, int *max) {
+int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high, int *max)
+{
+    CHECK_DEV(dev);
+
     int error = LPCSDR_SUCCESS;
 
     if ((error = lpcsdr_set_bandwidth_lowend_cutoff(dev, MIN(low, high))) < 0)
