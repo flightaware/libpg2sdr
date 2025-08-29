@@ -103,8 +103,12 @@ You should now have a waterfall display running.
 ## Tuning
 
 The "center frequency" (top right corner) in CubicSDR controls the tuned PLL frequency.
-Frequencies immediately below the PLL will be captured (e.g., to see the broadcast FM
-spectrum, try tuning to 100MHz and you will see 95-100MHz)
+Frequencies immediately above the PLL will be captured (e.g., to see the broadcast FM
+spectrum, try tuning to 90MHz and you will capture 90-95MHz)
+
+Unlike earlier iterations of this code, we are capturing the upper sideband, so the PLL
+should be tuned below the frequency you want to look at, and the resulting ADC spectrum
+is _not_ inverted.
 
 ## Gain
 
@@ -125,16 +129,15 @@ to baseband. What you're seeing is directly the spectrum of the real-valued sign
 the ADC.
 
 You will see a mirrored signal, mirrored around a center frequency which is the PLL / center
-frequency you set. The right-hand side of the spectrum is exactly what the ADC is seeing,
-relative to the center frequency. Because we're capturing the low sideband (i.e. frequencies
-below the PLL frequency), this spectrum is an inverted version of the RF signal. The frequency
-markings in CubicSDR won't correspond to real RF frequencies on the right-hand side.
+frequency you set. The right-hand side of the spectrum is exactly what the ADC is seeing, with
+the center frequency corresponding to a 0Hz (DC) signal from the ADC. Frequency marks on the
+right-hand side will correctly reflect the RF frequency. For example, if you tune the PLL to
+90MHz, then a signal showing at 92MHz corresponds to a RF signal at 92MHz, and an ADC signal
+at 2MHz.
 
 The left-hand side is a mirror-image of the right-hand side (because we are doing a discrete
 Fourier transform on a real-valued signal, and that produces negative frequency components that
-mirror the positive frequency components). The frequency markings in CubicSDR _are_ correct
-for this side of the spectrum. For example, if you tune the PLL to 100MHz, and then see a
-signal at 98MHz, then that reflects a RF signal input that really is at 98MHz.
+mirror the positive frequency components). There are no new signals in there.
 
 It should look something like this:
 
