@@ -225,7 +225,10 @@ int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain) {
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_if_lpf(lpcsdr_device_handle *dev, int cutoff, int *not_above) {
+int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, int *not_above) {
+    if (not_above && (*not_above < cutoff))
+        return LPCSDR_TUNER_LPF_INVALID_ARG;
+
     lpf_settings s = lpcsdr__lpf_settings_for(cutoff, not_above);
     change_set cs = {0};
 
@@ -236,7 +239,7 @@ int lpcsdr_set_if_lpf(lpcsdr_device_handle *dev, int cutoff, int *not_above) {
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_if_hpf(lpcsdr_device_handle *dev, int cutoff) {
+int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff) {
     hpf_settings s = lpcsdr__hpf_settings_for(cutoff);
     change_set cs = {0};
 
@@ -244,18 +247,21 @@ int lpcsdr_set_if_hpf(lpcsdr_device_handle *dev, int cutoff) {
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_if_bandpass(lpcsdr_device_handle *dev, int low, int high, int *max) {
+int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high, int *max) {
     int error = LPCSDR_SUCCESS;
 
-    if ((error = lpcsdr_set_if_hpf(dev, MIN(low, high))) < 0)
+    if ((error = lpcsdr_set_bandwidth_lowend_cutoff(dev, MIN(low, high))) < 0)
         return error;
-    if ((error = lpcsdr_set_if_lpf(dev, MAX(low, high), max)) < 0)
+    if ((error = lpcsdr_set_bandwidth_highend_cutoff(dev, MAX(low, high), max)) < 0)
         return error;
 
     return error;
 }
 
-/* Find the lowest setting with cutoff >= target, but never above max */
+/* 
+    Find the lowest setting with cutoff >= target, but never above max.
+    Assumes max >= target.
+*/
 lpf_settings lpcsdr__lpf_settings_for(int target, int *max) {
     int limit = sizeof(lpf_calibration)/sizeof(lpf_calibration[0]);
     if (max != NULL) {
@@ -654,49 +660,4 @@ void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *fir
 
     *first = first_entry;
     *out_size = count * 2;
-}
-
-int lpcsdr__vco_scan(lpcsdr_device_handle *dev) {
-    int error = LPCSDR_SUCCESS;
-    bool refdiv = 1;
-    int pll_ref = dev->tuner_xtal / 2;
-    int seldiv = 2;
-
-
-    double scan_start = 1650e6;
-    double scan_end = 3800e6;
-
-    int feedback_lo = MAX(13, floor(scan_start / pll_ref / 2));
-    int feedback_hi = MIN(268, ceil(scan_end / pll_ref / 2));
-
-    for (int pll_feedback = feedback_lo; pll_feedback < feedback_hi; pll_feedback++) {
-        double actual_vco = pll_ref * 2 * pll_feedback;
-        double actual_out = actual_vco / seldiv;
-
-        pll_parameters p = {
-            .refdiv = refdiv,
-            .seldiv = seldiv,
-            .feedback_n = pll_feedback,
-            .vco = actual_vco,
-            .freq = actual_out,
-        };
-
-        error = lpcsdr__start_pll(dev, &p);
-
-        if (error < 0 && error != LPCSDR_TUNER_LOCK_ERR)
-            return error;
-        else {
-            continue;
-        }
-
-        uint8_t buffer[1];
-        if ((error = lpcsdr__ctrl_read_tuner_register(dev, TunerR2, 0, buffer, 1)) < 0)
-            return error;
-        
-        uint8_t vco_adc = extract_tuner_val(buffer[0], VCO_ADC);
-
-        printf("%lu\t%u" , (long) actual_vco, vco_adc);
-    }
-
-    return LPCSDR_SUCCESS;
 }

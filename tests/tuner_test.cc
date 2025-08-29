@@ -147,7 +147,7 @@ TEST(filter_sanity_check, Success) {
     DeviceHandle handle(ctx);
 
     lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_if_bandpass(h, 659e3, 3177e3, NULL), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr_set_center_frequency_bandwidth(h, 659e3, 3177e3, NULL), LPCSDR_SUCCESS);
 
     uint8_t buffer[2] = {0};
     ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
@@ -162,12 +162,12 @@ TEST(filter_sanity_check, Success) {
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 0);
 }
 
-TEST(lpcsdr_set_if_lpf, Success) {
+TEST(lpcsdr_set_bandwidth_highend_cutoff, Success) {
     Context ctx;
     DeviceHandle handle(ctx);
 
     lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_if_lpf(h, 2027e3, NULL), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2027e3, NULL), LPCSDR_SUCCESS);
 
     uint8_t buffer[2] = {0};
     ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
@@ -179,8 +179,11 @@ TEST(lpcsdr_set_if_lpf, Success) {
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 3);
 }
 
-TEST(vco_scan, Success) {
+TEST(lpcsdr_set_bandwidth_highend_cutoff, Bad_argument) {
     Context ctx;
     DeviceHandle handle(ctx);
-    ASSERT_EQ(lpcsdr__vco_scan(handle()), LPCSDR_SUCCESS);
+    lpcsdr_device_handle *h = handle();
+
+    int max = 1000e3;
+    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2027e3, &max), LPCSDR_TUNER_LPF_INVALID_ARG);
 }
