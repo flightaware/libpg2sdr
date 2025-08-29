@@ -535,6 +535,15 @@ static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *d
         if (h.magic != BLOCK_MAGIC || h.block_len != dev->usb_bytes_per_block || h.samples != dev->usb_samples_per_block)
             return LPCSDR_ERROR_TRANSFER_FORMAT;
 
+        if (h.status & BLOCK_STATUS_ADC_OVERRUN)
+            LOGDEBUG(dev, "ADC overrun");
+        if (h.status & BLOCK_STATUS_DMA_ERROR)
+            LOGDEBUG(dev, "DMA error");
+        if (h.status & BLOCK_STATUS_PACKING_OVERRUN)
+            LOGDEBUG(dev, "Packing overrun");
+        if (h.status & BLOCK_STATUS_USB_OVERRUN)
+            LOGDEBUG(dev, "USB overrun");
+
         if (offset != 0 && h.sequence != expected_sequence) {
             /* Sequence discontinuity, dispatch up to the end of the previous block */
             dispatch_contiguous_blocks(dev, dev_transfer->buffer + start, offset - start, callback, user_data);
