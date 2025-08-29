@@ -1,4 +1,4 @@
-#include "soapy.h"
+#include "soapy-lpcsdr.h"
 
 #include <SoapySDR/Formats.hpp>
 #include <SoapySDR/Registry.hpp>
