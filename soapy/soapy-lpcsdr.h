@@ -307,6 +307,8 @@ private:
     std::size_t queue_size_;               // sum of buffer->count_ for all items in queue_
 
     std::optional<QueueItem> pending_;     // Next partially processed queue item waiting to be consumed
+
+    std::uint64_t expected_timestamp_;
 };
 
 }; // namespace LPCSDR

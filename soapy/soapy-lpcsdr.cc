@@ -12,6 +12,7 @@
 #include <limits>
 #include <iostream>
 #include <cstdarg>
+#include <cinttypes>
 
 #include <sys/prctl.h>
 
@@ -535,7 +536,7 @@ static void copy_s16_to_cf32(void *out, const void *in, std::size_t samples)
 }        
 
 LPCSDRStream::LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::size_t queue_limit)
-    : dev_(dev), sample_rate_(0), queue_limit_(queue_limit), queue_size_(0)
+    : dev_(dev), sample_rate_(0), queue_limit_(queue_limit), queue_size_(0), expected_timestamp_(0)
 {
     // todo: use soapysdr-provided converters?
     if (format == SOAPY_SDR_S16) {
@@ -585,7 +586,9 @@ int LPCSDRStream::activate()
     // so we can compute timestamps appropriately
     if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_get_sample_rate, dev_.handle(), &sample_rate_) < 0)
         return SOAPY_SDR_STREAM_ERROR;
-    
+
+    expected_timestamp_ = 0;
+
     // start the streaming thread
     thread_.reset(new std::thread(std::bind(&LPCSDRStream::StreamingWorker, this)));
     return 0;
@@ -623,7 +626,6 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
     auto deadline = std::chrono::steady_clock::now() + std::chrono::microseconds(timeoutUs);
     int received = 0;
     size_t remaining = numElems;
-    std::uint64_t expected_timestamp = 0;
     char *out = (char *)buf;
 
     flags = 0;
@@ -657,12 +659,16 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
             return SOAPY_SDR_STREAM_ERROR;
         }
 
-        auto timestamp = pending_->buffer->timestamp + pending_->offset;
+        std::uint64_t timestamp = pending_->buffer->timestamp + pending_->offset;
         if (received == 0) {
             // Start of output buffer, set the timestamp
+            if (expected_timestamp_ != 0 && expected_timestamp_ < timestamp) {
+                SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: timestamp jumped by %" PRIu64 " (samples dropped)", timestamp - expected_timestamp_);
+            }
+
             timeNs = (unsigned long long)(timestamp * 1e9 / sample_rate_);
             flags = SOAPY_SDR_HAS_TIME;
-        } else if (timestamp != expected_timestamp) {
+        } else if (timestamp != expected_timestamp_) {
             // Timestamp discontinuity, return whatever we have already,
             // so we can report the timestamp change in the next call
             break;
@@ -678,7 +684,7 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
         out += to_copy * bytes_per_sample_;
         received += to_copy;
         remaining -= to_copy;
-        expected_timestamp = timestamp + to_copy;
+        expected_timestamp_ = timestamp + to_copy;
 
         pending_->offset += to_copy;
         if (pending_->offset >= pending_->buffer->count) {
