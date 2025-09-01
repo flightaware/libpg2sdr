@@ -96,8 +96,8 @@ struct lpcsdr_device_handle {
     /* completion flag, passed to libusb_handle_events_*, set to true to force wakeup */
     int completion_flag;
 
-    /* invert spectrum i.e. tune PLL above center frequency? */
-    bool invert_spectrum;
+    /* use upper sideband i.e. tune PLL below center frequency? */
+    bool upper_sideband;
 
     // Tuner
     uint32_t tuner_xtal;

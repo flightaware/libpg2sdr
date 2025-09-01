@@ -282,7 +282,7 @@ int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, in
     return error;
 }
 
-int lpcsdr_set_spectrum_inversion(lpcsdr_device_handle *dev, bool invert)
+int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband)
 {
     CHECK_DEV(dev);
 
@@ -293,13 +293,13 @@ int lpcsdr_set_spectrum_inversion(lpcsdr_device_handle *dev, bool invert)
         goto done;
     }
 
-    if (invert != dev->invert_spectrum) {
+    if (upper_sideband != dev->upper_sideband) {
         change_set cs = {0};
-        set_tuner_reg(&cs, IMG_R, invert ? 0 : 1);
+        set_tuner_reg(&cs, IMG_R, upper_sideband ? 1 : 0);
         if ((error = update_tuner_regs(dev, &cs)) < 0)
             goto done;
 
-        dev->invert_spectrum = invert;
+        dev->upper_sideband = upper_sideband;
     }
 
     error = LPCSDR_SUCCESS;
@@ -309,12 +309,12 @@ int lpcsdr_set_spectrum_inversion(lpcsdr_device_handle *dev, bool invert)
     return error;
 }
 
-int lpcsdr_get_spectrum_inversion(lpcsdr_device_handle *dev, bool *invert)
+int lpcsdr_get_sideband(lpcsdr_device_handle *dev, bool *upper_sideband)
 {
     CHECK_DEV(dev);
 
     pthread_mutex_lock(&dev->mutex);
-    *invert = dev->invert_spectrum;
+    *upper_sideband = dev->upper_sideband;
     pthread_mutex_unlock(&dev->mutex);
 
     return LPCSDR_SUCCESS;
@@ -392,7 +392,7 @@ int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
     set_tuner_reg(&cs, PW_LNA, 2);
 
     // TunerR7
-    set_tuner_reg(&cs, IMG_R, dev->invert_spectrum ? 0 : 1);
+    set_tuner_reg(&cs, IMG_R, 0);
     set_tuner_reg(&cs, PW_MIX, 1);
     set_tuner_reg(&cs, PW0_MIX, 1);
     set_tuner_reg(&cs, MIXGAIN_MODE, 0);
@@ -671,6 +671,7 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, pll_parameters *pa
 
     change_set cs = {0};
 
+    set_tuner_reg(&cs, IMG_R, dev->upper_sideband ? 1 : 0);
     set_tuner_reg(&cs, PW_LDO_A, 1);
     set_tuner_reg(&cs, PW_LDO_D, 2);
     set_tuner_reg(&cs, PWD_SDM, sdm_disable);

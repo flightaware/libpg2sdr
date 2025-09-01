@@ -180,7 +180,7 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(s
     LIBCALL(lpcsdr_set_mix_gain, 7);
     LIBCALL(lpcsdr_set_vga_gain, 7);
 
-    LIBCALL(lpcsdr_set_spectrum_inversion, false);
+    LIBCALL(lpcsdr_set_sideband, true);
 
     // LIBCALL(pxsdr_set_sampling_mode, PXSDR_SAMPLING_MODE_COMPLEX_BASEBAND, PXSDR_SAMPLE_FORMAT_INT16);
 
