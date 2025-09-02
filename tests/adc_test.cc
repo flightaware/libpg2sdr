@@ -11,8 +11,8 @@ extern "C" {
 
 struct candidate_is_better_test_case {
     string name;
-    adc_pll_config_t *current_best;
-    adc_pll_config_t *candidate;
+    adc_pll_config_t current_best;
+    adc_pll_config_t candidate;
     uint32_t min_fcco;
     uint32_t max_fcco;
     bool minimize_error;
@@ -24,8 +24,9 @@ TEST(ADCTEST, Test_candidate_is_better) {
     candidate_is_better_test_case test_cases[10] = {
         {
             .name = "candidate actual_fcco below min",
-            .current_best = NULL,
-            .candidate = new adc_pll_config_t{
+            .current_best = {},
+            .candidate = {
+                .valid = true,
                 .actual_fcco = 0,
             },
             .min_fcco = 1,
@@ -36,8 +37,9 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "candidate actual_fcco above max",
-            .current_best = NULL,
-            .candidate = new adc_pll_config_t{
+            .current_best = {},
+            .candidate = {
+                .valid = true,
                 .actual_fcco = 7,
             },
             .min_fcco = 1,
@@ -48,8 +50,9 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "candidate not fractional, m < 1",
-            .current_best = NULL,
-            .candidate = new adc_pll_config_t{
+            .current_best = {},
+            .candidate = {
+                .valid = true,
                 .fractional = false,
                 .m = -1,
                 .actual_fcco = 3,
@@ -62,8 +65,9 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "candidate fractional, m < fixed_point",
-            .current_best = NULL,
-            .candidate = new adc_pll_config_t{
+            .current_best = {},
+            .candidate = {
+                .valid = true,
                 .fractional = true,
                 .m = .00000000000000001,
                 .actual_fcco = 3,
@@ -76,8 +80,9 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "error > error_threshold",
-            .current_best = NULL,
-            .candidate = new adc_pll_config_t{
+            .current_best = {},
+            .candidate = {
+                .valid = true,
                 .fractional = false,
                 .m = 2,
                 .error = 5,
@@ -91,8 +96,9 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "candidate is good, current is null",
-            .current_best = NULL,
-            .candidate = new adc_pll_config_t{
+            .current_best = {},
+            .candidate = {
+                .valid = true,
                 .fractional = false,
                 .m = 2,
                 .error = 1,
@@ -106,10 +112,12 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "candidate error < current best error",
-            .current_best = new adc_pll_config_t{
+            .current_best = {
+                .valid = true,
                 .error = 5,
             },
-            .candidate = new adc_pll_config_t{
+            .candidate = {
+                .valid = true,
                 .fractional = false,
                 .m = 2,
                 .error = 1,
@@ -123,12 +131,14 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "same type, candidate m < current best m",
-            .current_best = new adc_pll_config_t{
+            .current_best = {
+                .valid = true,
                 .fractional = true,
                 .m = 10,
                 .error = 5,
             },
-            .candidate = new adc_pll_config_t{
+            .candidate = {
+                .valid = true,
                 .fractional = false,
                 .m = 2,
                 .error = 1,
@@ -142,12 +152,14 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "current_best fractional, candidate m <= current best m * 4",
-            .current_best = new adc_pll_config_t{
+            .current_best = {
+                .valid = true,
                 .fractional = true,
                 .m = 4,
                 .error = 5,
             },
-            .candidate = new adc_pll_config_t{
+            .candidate = {
+                .valid = true,
                 .fractional = false,
                 .m = 1,
                 .error = 1,
@@ -161,12 +173,14 @@ TEST(ADCTEST, Test_candidate_is_better) {
         }, 
         {
             .name = "candidate integer, not candidate m <= current best m * 4",
-            .current_best = new adc_pll_config_t{
+            .current_best = {
+                .valid = true,
                 .fractional = false,
                 .m = 4,
                 .error = 5,
             },
-            .candidate = new adc_pll_config_t{
+            .candidate = {
+                .valid = true,
                 .fractional = true,
                 .m = 1,
                 .error = 1,
@@ -183,7 +197,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
     for (uint16_t cur = 0; cur < sizeof(test_cases)/sizeof(test_cases[0]); cur++) {
         candidate_is_better_test_case t = test_cases[cur];
         printf("Tests %s\n",t.name.c_str());
-        ASSERT_EQ(candidate_is_better(t.current_best, t.candidate, t.min_fcco, t.max_fcco, t.minimize_error, t.error_threshold), t.expected);
+        ASSERT_EQ(candidate_is_better(&t.current_best, &t.candidate, t.min_fcco, t.max_fcco, t.minimize_error, t.error_threshold), t.expected);
     }
 }
 
@@ -249,49 +263,25 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
     uint32_t target_frequency = 5200000; //hz
 
-    adc_pll_config_t *int_divisors;
-    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, NULL), LPCSDR_SUCCESS);
-    ASSERT_EQ(int_divisors->error, 0);
-    ASSERT_EQ(int_divisors->i, 0);
-    ASSERT_EQ(int_divisors->m, 13);
-    ASSERT_EQ(int_divisors->n, 0);
-    ASSERT_EQ(int_divisors->p, 30);
-    ASSERT_EQ(int_divisors->actual_frequency, (float) target_frequency);
+    adc_pll_config_t int_divisors;
+    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(int_divisors.valid, true);
+    ASSERT_EQ(int_divisors.error, 0);
+    ASSERT_EQ(int_divisors.i, 0);
+    ASSERT_EQ(int_divisors.m, 13);
+    ASSERT_EQ(int_divisors.n, 0);
+    ASSERT_EQ(int_divisors.p, 30);
+    ASSERT_EQ(int_divisors.actual_frequency, (float) target_frequency);
 
-    adc_pll_config_t *frac_divisors;
-    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, NULL), LPCSDR_SUCCESS);
-    ASSERT_EQ(frac_divisors->error, 0);
-    ASSERT_EQ(frac_divisors->i, 0);
-    ASSERT_EQ(frac_divisors->m, 13);
-    ASSERT_EQ(frac_divisors->n, 0);
-    ASSERT_EQ(frac_divisors->p, 30);
-    ASSERT_EQ(frac_divisors->actual_frequency, (float) target_frequency);
-}
-
-TEST(Test_populate_new_current_best, Successful) {
-    adc_pll_config_t *b = NULL;
-    adc_pll_config_t c = {
-        .fractional = true,
-
-        .n = 5,
-        .m = 3,
-        .p = 4,
-        .i = 2,
-
-        .error = 1,
-        .actual_fcco = 200,
-        .actual_frequency = 300,
-
-    };
-    ASSERT_EQ(populate_new_current_best(&b, &c), LPCSDR_SUCCESS);
-    ASSERT_EQ(b->error, c.error);
-    ASSERT_EQ(b->actual_fcco, c.actual_fcco);
-    ASSERT_EQ(b->actual_frequency, c.actual_frequency);
-    ASSERT_EQ(b->fractional, c.fractional);
-    ASSERT_EQ(b->i, c.i);
-    ASSERT_EQ(b->m, c.m);
-    ASSERT_EQ(b->p, c.p);
-    ASSERT_EQ(b->n, c.n);
+    adc_pll_config_t frac_divisors;
+    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(frac_divisors.valid, true);
+    ASSERT_EQ(frac_divisors.error, 0);
+    ASSERT_EQ(frac_divisors.i, 0);
+    ASSERT_EQ(frac_divisors.m, 13);
+    ASSERT_EQ(frac_divisors.n, 0);
+    ASSERT_EQ(frac_divisors.p, 30);
+    ASSERT_EQ(frac_divisors.actual_frequency, (float) target_frequency);
 }
 
 #if 0

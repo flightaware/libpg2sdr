@@ -63,6 +63,8 @@ typedef struct lpcsdr_transfer_state {
 
 // ADC
 typedef struct {
+    bool valid;
+
     bool fractional;
     uint32_t n;
     double m;
@@ -128,9 +130,8 @@ int lpcsdr__translate_errno(int error);
 
 int init_global_adc_divisor_tables();
 int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisors_out, uint32_t *p_i_divisors_out_length);
-int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon);
+int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
 int candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold);
-int populate_new_current_best(adc_pll_config_t **current_best, adc_pll_config_t *candidate);
 int effective_n_divisor(uint32_t n);
 int effective_p_divisor(uint32_t p);
 int effective_i_divisor(uint32_t i);
