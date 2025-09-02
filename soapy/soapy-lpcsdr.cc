@@ -171,7 +171,7 @@ LPCSDRDevice::~LPCSDRDevice()
     }
 }
 
-LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle), tuned_freq_(0)
+LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle)
 {
     LIBCALL(lpcsdr_set_buffer_size, 128*1024);
 
@@ -237,8 +237,14 @@ void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const
         throw std::invalid_argument("unrecognized tunable element " + name);
 
     // don't enforce frequency ranges, some out-of-range values might actually work
-    LIBCALL(lpcsdr_tune_pll, frequency);
-    tuned_freq_ = frequency;
+    LIBCALL(lpcsdr_set_frequency, frequency);
+
+    // If we have an active stream, we want to retune immediately
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        if (active_stream_)
+            LIBCALL(lpcsdr_apply_changes);
+    }
 }
 
 double LPCSDRDevice::getFrequency(const int direction, const size_t channel) const
@@ -253,7 +259,9 @@ double LPCSDRDevice::getFrequency(const int direction, const size_t channel, con
     if (name != "" && name != "RF")
         throw std::invalid_argument("unrecognized tuneable element " + name);
 
-    return tuned_freq_; // todo: liblpcsdr needs a get-frequency API
+    double freq;
+    LIBCALL(lpcsdr_get_frequency, &freq, NULL);
+    return freq;
 }
 
 std::vector<std::string> LPCSDRDevice::listFrequencies(const int direction, const size_t channel) const
@@ -287,25 +295,13 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     if (rate < 0 || rate > std::numeric_limits<uint32_t>::max())
         throw std::invalid_argument("sampling rate out of range");
 
-    {
-        /* liblpcsdr won't change sample rate while actively streaming (it's complicated)
-         * but soapysdr clients want to do that
-         * so deactivate/reactivate the stream if we have one active
-         */
+    // This changes only the _requested_ rate. It won't actually kick in until the next
+    // activation of the stream.
+    LIBCALL(lpcsdr_set_sample_rate, (uint32_t)rate);
 
-        std::unique_lock<std::mutex> lock(mutex_); /* protect access to active_stream_ */
-        if (active_stream_)
-            active_stream_->deactivate();
-
-        LIBCALL(lpcsdr_set_sample_rate, (uint32_t)rate);
-
-        // todo: use soapy bandwidth API
-        int nyquist = (int)round(rate/2.0);
-        LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate/2.0, /* max */ &nyquist);
-
-        if (active_stream_)
-            active_stream_->activate();
-    }
+    // todo: use soapy bandwidth API
+    int nyquist = (int)round(rate/2.0);
+    LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate/2.0, /* max */ &nyquist);
 }
 
 double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const
@@ -313,8 +309,8 @@ double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) co
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
 
-    uint32_t freq;
-    LIBCALL(lpcsdr_get_sample_rate, &freq);
+    double freq;
+    LIBCALL(lpcsdr_get_sample_rate, &freq, NULL);
     return freq;
 }
 
@@ -584,7 +580,7 @@ int LPCSDRStream::activate()
 
     // record sampling rate at start of streaming,
     // so we can compute timestamps appropriately
-    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_get_sample_rate, dev_.handle(), &sample_rate_) < 0)
+    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_get_sample_rate, dev_.handle(), &sample_rate_, NULL) < 0)
         return SOAPY_SDR_STREAM_ERROR;
 
     expected_timestamp_ = 0;

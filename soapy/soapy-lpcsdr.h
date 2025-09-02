@@ -242,8 +242,6 @@ class LPCSDRDevice : public SoapySDR::Device
     mutable Context ctx_;
     mutable lpcsdr_device_handle *handle_;
 
-    double tuned_freq_; // todo: goes away once liblpcsdr has an API for this
-
     //uint32_t sample_frequency;
     //double wanted_bandwidth_ = 0.0; // last bandwidth value set, 0 = never set
 
@@ -296,7 +294,7 @@ private:
     void (*convert_)(void *, const void *, std::size_t);   // converter for provided int16_t samples -> requested format
     std::size_t bytes_per_sample_;         // sizeof(requested format)
 
-    std::uint32_t sample_rate_;            // configured sample rate for this stream (needed to derive timestamps)
+    double sample_rate_;                   // configured sample rate for this stream (needed to derive timestamps)
     std::size_t queue_limit_;              // maximum # of samples we're willing to queue before dropping data
 
     std::unique_ptr<std::thread> thread_;  // currently running streaming thread, if any
