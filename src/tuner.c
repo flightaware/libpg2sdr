@@ -201,7 +201,7 @@ int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency)
 
     int error = LPCSDR_SUCCESS;
 
-    pll_parameters params = {};
+    tuner_pll_config_t params = {};
 
     if ((error = lpcsdr__find_pll_parameters(requested_frequency, dev->tuner_xtal, &params)) < 0)
         return error;
@@ -547,7 +547,7 @@ int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr__find_pll_parameters(double requested, double xtal, pll_parameters *out) {
+int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_t *out) {
     bool refdiv = false;
     double pll_ref = xtal;
 
@@ -607,7 +607,7 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, pll_parameters *o
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr__start_pll(lpcsdr_device_handle *dev, pll_parameters *params) {
+int lpcsdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
     int error = LPCSDR_SUCCESS;
     int resp = 0;
     
@@ -634,7 +634,7 @@ int lpcsdr__start_pll(lpcsdr_device_handle *dev, pll_parameters *params) {
     return error;
 }
 
-int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, pll_parameters *params) {
+int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
     LOGDEBUG(dev, "configuring PLL with:\n"
              "  SDM:    %u\n"
              "  SELDIV: %u\n"

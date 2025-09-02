@@ -100,7 +100,7 @@ TEST(prepare_tuner_payload_from_change_set, Success) {
 }
 
 TEST(Test_find_pll_parameters, Success) {
-    pll_parameters p = {};
+    tuner_pll_config_t p = {};
 
     ASSERT_EQ(lpcsdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
     ASSERT_EQ(p.refdiv, true);

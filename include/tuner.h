@@ -53,7 +53,7 @@ typedef struct {
     int feedback_sdm;
     double vco;
     double freq;
-} pll_parameters;
+} tuner_pll_config_t;
 
 typedef enum { 
     TunerR0 = 0,
@@ -95,10 +95,10 @@ hpf_settings lpcsdr__hpf_settings_for(int target);
 
 int lpcsdr__init_tuner(lpcsdr_device_handle *dev);
 int lpcsdr__set_initial_values(lpcsdr_device_handle *dev);
-int lpcsdr__start_pll(lpcsdr_device_handle *dev, pll_parameters *params);
-int lpcsdr__find_pll_parameters(double requested, double xtal, pll_parameters *out);
+int lpcsdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params);
+int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_t *out);
 int lpcsdr__has_pll_lock(lpcsdr_device_handle *dev);
-int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, pll_parameters *params);
+int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t *params);
 
 void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size);
 int lpcsdr__set_tuner_value_in_change_set(change_set *cs, uint8_t reg, uint8_t mask, uint8_t value);
