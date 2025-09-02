@@ -45,21 +45,14 @@ static int control_out(libusb_device_handle *usb_handle,
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency)
+int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config)
 {
-    adc_pll_config_t divisors;
-    int error;
-
-    if ((error = calculate_adc_clock_divisors(target_frequency, &divisors, false, false, 0)) < 0) {
-        return error;
-    }
-
     ep0_out_start_transfer_t buffer = {
-        .n_divisor = htole32(divisors.n),
+        .n_divisor = htole32(config->n),
         // Shift M divisor by 15
-        .m_divisor = htole32(round(divisors.m * 32768.0)),
-        .p_divisor = htole32(divisors.p),
-        .idiv_divisor = htole32(divisors.i)
+        .m_divisor = htole32(round(config->m * 32768.0)),
+        .p_divisor = htole32(config->p),
+        .idiv_divisor = htole32(config->i)
     };
 
     return control_out(dev->usb_handle,

@@ -195,23 +195,6 @@ static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
     return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
-int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency)
-{
-    CHECK_DEV(dev);
-
-    int error = LPCSDR_SUCCESS;
-
-    tuner_pll_config_t params = {};
-
-    if ((error = lpcsdr__find_pll_parameters(requested_frequency, dev->tuner_xtal, &params)) < 0)
-        return error;
-
-    if ((error = lpcsdr__start_pll(dev, &params)) < 0)
-        return error;
-
-    return error;
-}
-
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain)
 {
     CHECK_DEV(dev);
@@ -280,44 +263,6 @@ int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, in
         return error;
 
     return error;
-}
-
-int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband)
-{
-    CHECK_DEV(dev);
-
-    int error;
-    pthread_mutex_lock(&dev->mutex);
-    if (dev->streaming) {
-        error = LPCSDR_ERROR_BAD_STATE;
-        goto done;
-    }
-
-    if (upper_sideband != dev->upper_sideband) {
-        change_set cs = {0};
-        set_tuner_reg(&cs, IMG_R, upper_sideband ? 1 : 0);
-        if ((error = update_tuner_regs(dev, &cs)) < 0)
-            goto done;
-
-        dev->upper_sideband = upper_sideband;
-    }
-
-    error = LPCSDR_SUCCESS;
-
- done:
-    pthread_mutex_unlock(&dev->mutex);
-    return error;
-}
-
-int lpcsdr_get_sideband(lpcsdr_device_handle *dev, bool *upper_sideband)
-{
-    CHECK_DEV(dev);
-
-    pthread_mutex_lock(&dev->mutex);
-    *upper_sideband = dev->upper_sideband;
-    pthread_mutex_unlock(&dev->mutex);
-
-    return LPCSDR_SUCCESS;
 }
 
 /* 

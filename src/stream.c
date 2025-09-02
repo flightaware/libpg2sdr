@@ -178,22 +178,15 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     int error = LPCSDR_SUCCESS;
     int usb_error;
 
-    if (!dev->sample_rate) {
+    if (!dev->adc_pll_config.valid) {
         /* sample rate not set */
         error = LPCSDR_ERROR_BAD_STATE;
         goto done;
     }
 
-    /* set sample rate early, as allocate_transfers needs to know
-     * it to set an appropriate transfer timeout.
-     *
-     * todo: ADC sample rate depends on output mode, etc
-     */
-    dev->adc_sample_rate = dev->sample_rate;
-
     if (!timeout_ms) {
         /* estimate time for one transfer to complete, add an arbitrary 500ms */
-        float fill_time_ms = 1000.0 * dev->transfer_size / dev->usb_bytes_per_block * dev->usb_samples_per_block / dev->adc_sample_rate;
+        double fill_time_ms = 1000.0 * dev->transfer_size / dev->usb_bytes_per_block * dev->usb_samples_per_block / dev->adc_pll_config.actual_frequency;
         timeout_ms = (unsigned) (fill_time_ms + 500);
     }
 
@@ -206,7 +199,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         goto cleanup;
     }
 
-    if ((error = lpcsdr__ctrl_start_transfer(dev, dev->adc_sample_rate)) < 0)
+    if ((error = lpcsdr__ctrl_start_transfer(dev, &dev->adc_pll_config)) < 0)
         goto cleanup;
 
     if ((error = submit_transfers(dev)) < 0)
@@ -342,39 +335,236 @@ int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size)
     return error;
 }
 
-int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, uint32_t *rate)
+static int apply_rate_change(lpcsdr_device_handle *dev)
 {
-    CHECK_DEV(dev);
+    /* can't change sample rate while streaming data */
+    if (dev->streaming)
+        return LPCSDR_ERROR_BAD_STATE;
 
-    pthread_mutex_lock(&dev->mutex);
-    *rate = dev->sample_rate;
-    pthread_mutex_unlock(&dev->mutex);
+    double target = 0;
+    switch (dev->conversion_mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+        target = dev->requested_sample_rate;
+        break;
+
+    case LPCSDR_MODE_BASEBAND:
+        target = dev->requested_sample_rate * 2.0;
+        break;
+
+    default:
+        return LPCSDR_ERROR_CORRUPTION;
+    }
+
+    /* work out the PLL config so we know it's possible & what the exact
+     * ADC rate is. The actual PLL programming only happens when we start streaming data
+     */
+    adc_pll_config_t new_config;
+    int error;
+    if ((error = calculate_adc_clock_divisors(target, &new_config, true, true, 0)) < 0)
+        return error;
+
+    dev->adc_pll_config = new_config;
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, uint32_t rate)
+static int apply_freq_change(lpcsdr_device_handle *dev)
+{
+    double target = 0;
+    switch (dev->conversion_mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+        target = dev->requested_frequency;
+        break;
+
+    case LPCSDR_MODE_BASEBAND:
+        /* lower sideband case: LO = freq + Fs/4
+         * upper sideband case: LO = freq - Fs/4
+         */
+        if (!dev->adc_pll_config.valid) {
+            /* no sampling rate configured, so no work to do right now. Later, when the
+             * sample rate is eventually set (and lpcsdr_apply_changes is called
+             * again), we'll configure both the sampling rate & tuner LO
+             */
+            return LPCSDR_SUCCESS;
+        }
+        target = dev->requested_frequency + (dev->adc_pll_config.actual_frequency / 4.0) * (dev->upper_sideband ? -1.0 : 1.0);
+        break;
+
+    default:
+        return LPCSDR_ERROR_CORRUPTION;
+    }
+
+    int error;
+    tuner_pll_config_t new_config;
+    if ((error = lpcsdr__find_pll_parameters(target, dev->tuner_xtal, &new_config)) < 0) {
+        /* new value is out of range */
+        return error;
+    }
+
+    if ((error = lpcsdr__start_pll(dev, &new_config)) < 0) {
+        /* we failed while configuring the tuner, so the LO state is uncertain.
+         * Mark the current config as invalid as it probably no longer matches
+         * the hardware state.
+         */
+        dev->tuner_pll_config.valid = false;
+        return error;
+    }
+
+    dev->tuner_pll_config = new_config;
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_apply_changes(lpcsdr_device_handle *dev)
 {
     CHECK_DEV(dev);
 
-    pthread_mutex_lock(&dev->mutex);
     int error = LPCSDR_SUCCESS;
+    pthread_mutex_lock(&dev->mutex);
 
-    if (dev->streaming) {
-        error = LPCSDR_ERROR_BAD_STATE;
-        goto done;
+    if (dev->changing_rate) {
+        if ((error = apply_rate_change(dev)) < 0)
+            goto done;
+        dev->changing_rate = false;   /* we are done reconfiguring the ADC .. */
+        dev->changing_freq = true;    /* but we may need to reconfigure the tuner LO too */
     }
 
-    if (rate < 20000 || rate > 20000000) {
-        error = LPCSDR_ERROR_BAD_ARGUMENT;
-        goto done;
+    if (dev->changing_freq) {
+        if ((error = apply_freq_change(dev)) < 0)
+            goto done;
+        dev->changing_freq = false;   /* we are done reconfiguring the tuner LO */
     }
-
-    dev->sample_rate = rate;
 
  done:
     pthread_mutex_unlock(&dev->mutex);
     return error;
 }
+
+int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+
+    if (rate != dev->requested_sample_rate) {
+        dev->requested_sample_rate = rate;
+        dev->changing_freq = true;
+    }
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+static double actual_sample_rate(lpcsdr_device_handle *dev)
+{
+    if (!dev->adc_pll_config.valid || dev->changing_rate)
+        return 0;
+
+    switch (dev->conversion_mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+        return dev->adc_pll_config.actual_frequency;
+    case LPCSDR_MODE_BASEBAND:
+        return dev->adc_pll_config.actual_frequency / 2.0;
+    default:
+        return 0;
+    }
+}
+
+int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, double *requested, double *actual)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+
+    if (requested)
+        *requested = dev->requested_sample_rate;
+    if (actual)
+        *actual = actual_sample_rate(dev);
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+static double actual_frequency(lpcsdr_device_handle *dev)
+{
+    if (!dev->tuner_pll_config.valid || dev->changing_freq) {
+        return 0;
+    }
+
+    switch (dev->conversion_mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+        return dev->tuner_pll_config.actual_frequency;
+        break;
+
+    case LPCSDR_MODE_BASEBAND:
+        /* lower sideband case: LO = freq + Fs/4  -> freq = LO - Fs/4
+         * upper sideband case: LO = freq - Fs/4 - > freq = LO + Fs/4
+         */
+        if (!dev->adc_pll_config.valid) {
+            return 0;
+        }
+
+        return dev->tuner_pll_config.actual_frequency +
+            (dev->adc_pll_config.actual_frequency / 4.0) * (dev->upper_sideband ? 1.0 : -1.0);
+
+    default:
+        return 0;
+    }
+}
+
+int lpcsdr_get_frequency(lpcsdr_device_handle *dev, double *requested, double *actual)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+
+    if (requested)
+        *requested = dev->requested_frequency;
+    if (actual)
+        *actual = actual_frequency(dev);
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_set_frequency(lpcsdr_device_handle *dev, double freq)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    if (freq != dev->requested_frequency) {
+        dev->requested_frequency = freq;
+        dev->changing_freq = true;
+    }
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_get_sideband(lpcsdr_device_handle *dev, bool *upper_sideband)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    *upper_sideband = dev->upper_sideband;
+    pthread_mutex_unlock(&dev->mutex);
+
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+
+    if (upper_sideband != dev->upper_sideband) {
+        dev->upper_sideband = upper_sideband;
+        dev->changing_freq = true;
+    }
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+
 
 //Transfers
 
@@ -404,7 +594,7 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
     unsigned transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;        /* Exact transfer size for that many ADC blocks */
 
     /* allocate enough transfers for ~ 250ms, within reason */
-    unsigned transfer_count = dev->adc_sample_rate / 4 / samples_per_buffer;
+    unsigned transfer_count = dev->adc_pll_config.actual_frequency / 4 / samples_per_buffer;
     if (transfer_count < 4)
         transfer_count = 4;
     if (transfer_count > 32)
@@ -414,7 +604,7 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
      * set our transfer timeout conservatively, based on the expected time to fill all our transfers
      * at the current sample rate
      */
-    float fill_time_ms = 1000.0f * blocks_per_buffer * dev->usb_samples_per_block * transfer_count / dev->adc_sample_rate;
+    float fill_time_ms = 1000.0f * blocks_per_buffer * dev->usb_samples_per_block * transfer_count / dev->adc_pll_config.actual_frequency;
     unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + 500); /* half a second of slop */
 
     LOGDEBUG(dev,

@@ -120,7 +120,9 @@ TEST(tuner_sanity_check, Success)
     DeviceHandle handle(ctx);
     lpcsdr_device_handle *h = handle();
 
-    ASSERT_EQ(lpcsdr_tune_pll(h, 100000000), LPCSDR_SUCCESS);
+    tuner_pll_config_t p;
+    ASSERT_EQ(lpcsdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr__start_pll(h, &p), LPCSDR_SUCCESS);
     ASSERT_EQ(lpcsdr__has_pll_lock(h), 1);
 }
 

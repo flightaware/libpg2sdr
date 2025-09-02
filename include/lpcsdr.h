@@ -151,11 +151,13 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
 // Device configuration
 int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
-int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, uint32_t rate);
-int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, uint32_t *rate);
+int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate);
+int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, double *requested, double *actual);
 int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband);
 int lpcsdr_get_sideband(lpcsdr_device_handle *dev, bool *upper_sideband);
-int lpcsdr_tune_pll(lpcsdr_device_handle *dev, double requested_frequency);
+int lpcsdr_set_frequency(lpcsdr_device_handle *dev, double frequency);
+int lpcsdr_get_frequency(lpcsdr_device_handle *dev, double *requested, double *actual);
+int lpcsdr_apply_changes(lpcsdr_device_handle *dev);
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);

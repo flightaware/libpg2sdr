@@ -90,8 +90,15 @@ struct lpcsdr_device_handle {
     bool draining;  /* true when we are waiting to drain all active transfers */
 
     lpcsdr_conversion_mode conversion_mode;
-    uint32_t sample_rate;         /* user requested sample rate */
-    uint32_t adc_sample_rate;     /* target ADC sample rate (only valid while streaming) */
+
+    double requested_sample_rate;         /* user requested sample rate */
+    adc_pll_config_t adc_pll_config;      /* actually configured ADC clock settings */
+    bool changing_rate;                   /* do we have unapplied sample rate changes? */
+
+    bool upper_sideband;                  /* false: tune PLL above target frequency. true: tune below */
+    double requested_frequency;           /* user requested frequency */
+    tuner_pll_config_t tuner_pll_config;  /* actually configured tuner LO settings */
+    bool changing_freq;                   /* do we have unapplied frequency/sideband changes? */
 
     size_t buffer_size;           /* requested user buffer size, in bytes (todo: is this more obvious if it's in samples, not bytes?) */
 
@@ -110,10 +117,7 @@ struct lpcsdr_device_handle {
     /* completion flag, passed to libusb_handle_events_*, set to true to force wakeup */
     int completion_flag;
 
-    /* use upper sideband i.e. tune PLL below center frequency? */
-    bool upper_sideband;
-
-    // Tuner
+    /* Tuner reference crystal frequency, from firmware board status */
     uint32_t tuner_xtal;
 };
 
@@ -141,7 +145,7 @@ int fixed_point_m(adc_pll_config_t *divisors);
 int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
 int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode);
 int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle);
-int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency);
+int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config);
 int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
 int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
 int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
