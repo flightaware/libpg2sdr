@@ -284,6 +284,27 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(frac_divisors.actual_frequency, (float) target_frequency);
 }
 
+TEST(ADCTEST, Test_N_divisor) {
+    ASSERT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
+
+    const double target = 5.234e4;
+    adc_pll_config_t divisors;
+    ASSERT_EQ(calculate_adc_clock_divisors(target, &divisors, false, false, 0), LPCSDR_SUCCESS);
+
+    // Solution should produce a frequency within 1ppm of the requested frequency
+    EXPECT_LT(abs(divisors.actual_frequency / target - 1.0), 1e-6);
+
+    // actual_fcco and actual_frequency should be consistent with what the other settings imply
+    double expected_fcco = 2 * (12e6 / effective_n_divisor(divisors.n)) * divisors.m;
+    double expected_fadc = expected_fcco / effective_p_divisor(divisors.p) / effective_i_divisor(divisors.i);
+    EXPECT_FLOAT_EQ(divisors.actual_frequency, expected_fadc);
+    EXPECT_FLOAT_EQ(divisors.actual_fcco, expected_fcco);
+
+    // fcco should be in range
+    EXPECT_GE(expected_fcco, 275e6);
+    EXPECT_LE(expected_fcco, 550e6);
+}
+
 #if 0
 TEST(Test_unpack_raw_adc_data, Successful) {
     uint16_t buffer_length = 32;
