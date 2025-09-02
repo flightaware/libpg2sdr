@@ -47,12 +47,15 @@ typedef struct {
 } change_set;
 
 typedef struct {
+    bool valid;
+
     bool refdiv;
     int seldiv;
     int feedback_n;
     int feedback_sdm;
-    double vco;
-    double freq;
+
+    double actual_vco;
+    double actual_frequency;
 } tuner_pll_config_t;
 
 typedef enum { 

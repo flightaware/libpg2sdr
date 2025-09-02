@@ -597,12 +597,13 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
     double actual_vco = pll_ref * 2 * (pll_feedback_int + (double) sdm_numerator / (1<<18));
     double actual_out = actual_vco / seldiv;
 
+    out->valid = true;
     out->refdiv = refdiv;
     out->seldiv = seldiv;
     out->feedback_n = pll_feedback_int;
     out->feedback_sdm = sdm_numerator >> 2;
-    out->vco = actual_vco;
-    out->freq = actual_out;
+    out->actual_vco = actual_vco;
+    out->actual_frequency = actual_out;
 
     return LPCSDR_SUCCESS;
 }
@@ -646,8 +647,8 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t
              params->seldiv,
              params->refdiv ? 2 : 1,
              params->feedback_n,
-             params->vco / 1e6,
-             params->freq / 1e6);
+             params->actual_vco / 1e6,
+             params->actual_frequency / 1e6);
 
     uint16_t sdm_disable = ( params->feedback_sdm == 0 ) ? 1 : 0;
     uint8_t sdm_lsb = params->feedback_sdm & 0xff;
@@ -665,7 +666,7 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t
 
     uint8_t refdiv = (params->refdiv == true) ? 1: 0;
 
-    uint8_t vco_dac = round(params->vco * 0.0318e-6 - 49.0);
+    uint8_t vco_dac = round(params->actual_vco * 0.0318e-6 - 49.0);
     vco_dac = MAX(0, vco_dac);
     vco_dac = MIN(63, vco_dac);
 
