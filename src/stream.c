@@ -51,21 +51,20 @@ static void unpack_raw_adc_data(const uint32_t *in, uint32_t words, int16_t *out
 
     assert(words % 3 == 0);
 
-    uint16_t *uout = (uint16_t *)out;
-    for (unsigned i = 0; i < words; i += 3, in += 3, uout += 8) {
+    for (unsigned i = 0; i < words; i += 3, in += 3, out += 8) {
         uint32_t first = in[0];
         uint32_t second = in[1];
         uint32_t third = in[2];
 
         /* 12->16 bit scaling is baked into the bitshifts here */
-        uout[0] = (first  & 0x00000FFF) << 4;
-        uout[1] = (first  & 0x0FFF0000) >> 12;
-        uout[2] = (second & 0x00000FFF) << 4;
-        uout[3] = (second & 0x0FFF0000) >> 12;
-        uout[4] = (third  & 0x00000FFF) << 4;
-        uout[5] = (third  & 0x0FFF0000) >> 12;
-        uout[6] = ((first & 0x0000F000)) | ((second & 0x0000F000) >> 4) | ((third & 0x0000F000) >> 8);
-        uout[7] = ((first & 0xF0000000) >> 16) | ((second & 0xF0000000) >> 20)  | ((third & 0xF0000000) >> 24);
+        out[0] = (int16_t) ((first  & 0x00000FFF) << 4);
+        out[1] = (int16_t) ((first  & 0x0FFF0000) >> 12);
+        out[2] = (int16_t) ((second & 0x00000FFF) << 4);
+        out[3] = (int16_t) ((second & 0x0FFF0000) >> 12);
+        out[4] = (int16_t) ((third  & 0x00000FFF) << 4);
+        out[5] = (int16_t) ((third  & 0x0FFF0000) >> 12);
+        out[6] = (int16_t) (((first & 0x0000F000)) | ((second & 0x0000F000) >> 4) | ((third & 0x0000F000) >> 8));
+        out[7] = (int16_t) (((first & 0xF0000000) >> 16) | ((second & 0xF0000000) >> 20)  | ((third & 0xF0000000) >> 24));
     }
 }
 
