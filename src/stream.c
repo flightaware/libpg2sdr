@@ -174,8 +174,11 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         return LPCSDR_ERROR_BAD_STATE;
     }
 
-    int error = LPCSDR_SUCCESS;
-    int usb_error;
+    int error, usb_error;
+
+    /* ensure tuner/ADC configuration is up to date */
+    if ((error = lpcsdr_apply_changes(dev)) < 0)
+        goto done;
 
     if (!dev->adc_pll_config.valid) {
         /* sample rate not set */
