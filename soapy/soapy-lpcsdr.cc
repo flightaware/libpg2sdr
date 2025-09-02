@@ -292,16 +292,27 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     TRACECALLF("(%d,%zu,%f)", direction, channel, rate);
     CheckChannel(direction, channel);
 
-    if (rate < 0 || rate > std::numeric_limits<uint32_t>::max())
-        throw std::invalid_argument("sampling rate out of range");
+    {
+        // liblpcsdr can't change sample rate while actively streaming
+        // (it's complicated) but soapysdr clients want to do that,
+        // so deactivate/reactivate if we are actively streaming
 
-    // This changes only the _requested_ rate. It won't actually kick in until the next
-    // activation of the stream.
-    LIBCALL(lpcsdr_set_sample_rate, (uint32_t)rate);
+        std::unique_lock<std::mutex> lock(mutex_); /* protect active_stream_ */
 
-    // todo: use soapy bandwidth API
-    int nyquist = (int)round(rate/2.0);
-    LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate/2.0, /* max */ &nyquist);
+        if (active_stream_)
+            active_stream_->deactivate();
+
+        LIBCALL(lpcsdr_set_sample_rate, rate);
+
+        // todo: use soapy bandwidth API
+        int nyquist = (int)round(rate/2.0);
+        LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate/2.0, /* max */ &nyquist);
+
+        LIBCALL(lpcsdr_apply_changes);
+
+        if (active_stream_)
+            active_stream_->activate(); // will apply changes when streaming restarts
+    }
 }
 
 double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const
