@@ -42,13 +42,13 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
 }
 
 #define TRACECALL LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
-#define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__, __VA_ARGS__)
+#define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__ __VA_OPT__(,) __VA_ARGS__)
 
 #define LIBCALL_DIRECT(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), true)
 #define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), false)
 
-#define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_, __VA_ARGS__)
-#define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_, __VA_ARGS__)
+#define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
+#define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 
 static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
 {
