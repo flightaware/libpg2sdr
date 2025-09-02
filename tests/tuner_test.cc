@@ -109,7 +109,7 @@ TEST(Test_find_pll_parameters, Success) {
     ASSERT_EQ(p.feedback_sdm, 7281);
 
     // actual freq should be within 1ppm of requested freq
-    ASSERT_LT(abs(p.actual_frequency / 100e6 - 1.0), 1e6);
+    ASSERT_LT(abs(p.actual_frequency / 100e6 - 1.0), 1e-6);
     // actual vco should be consistent with output freq & seldiv
     ASSERT_LT(abs(p.actual_vco / p.seldiv - p.actual_frequency), 1.0);
 }
