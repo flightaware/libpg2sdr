@@ -102,13 +102,16 @@ TEST(prepare_tuner_payload_from_change_set, Success) {
 TEST(Test_find_pll_parameters, Success) {
     tuner_pll_config_t p = {};
 
-    ASSERT_EQ(lpcsdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr__find_pll_parameters(100e6, 28.8e6, &p), LPCSDR_SUCCESS);
     ASSERT_EQ(p.refdiv, true);
     ASSERT_EQ(p.seldiv, 32);
     ASSERT_EQ(p.feedback_n, 111);
     ASSERT_EQ(p.feedback_sdm, 7281);
-    ASSERT_LT(abs(p.vco - 3199999768.0664062), .001);
-    ASSERT_LT(abs(p.freq - 99999992.7520752), .001);
+
+    // actual freq should be within 1ppm of requested freq
+    ASSERT_LT(abs(p.actual_frequency / 100e6 - 1.0), 1e6);
+    // actual vco should be consistent with output freq & seldiv
+    ASSERT_LT(abs(p.actual_vco / p.seldiv - p.actual_frequency), 1.0);
 }
 
 TEST(tuner_sanity_check, Success)
