@@ -369,6 +369,9 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     if (dev->streaming)
         return LPCSDR_ERROR_BAD_STATE;
 
+    if (!dev->requested_sample_rate)
+        return LPCSDR_SUCCESS;         /* no frequency configured yet */
+
     double target = 0;
     switch (dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
@@ -399,6 +402,9 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
 
 static int apply_freq_change(lpcsdr_device_handle *dev)
 {
+    if (!dev->requested_frequency)
+        return LPCSDR_SUCCESS;         /* no frequency configured yet */
+
     double target = 0;
     switch (dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
