@@ -478,7 +478,7 @@ int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate)
 
     if (rate != dev->requested_sample_rate) {
         dev->requested_sample_rate = rate;
-        dev->changing_freq = true;
+        dev->changing_rate = true;
     }
 
     pthread_mutex_unlock(&dev->mutex);
