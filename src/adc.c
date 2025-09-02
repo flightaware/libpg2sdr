@@ -165,6 +165,7 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t *di
             double error = (abs(actual_frequency - target_frequency));
 
             adc_pll_config_t candidate = {
+                .valid = true,
                 .fractional = true,
                 .n = 0,
                 .m = fractional_m,
