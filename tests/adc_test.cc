@@ -11,8 +11,8 @@ extern "C" {
 
 struct candidate_is_better_test_case {
     string name;
-    pll_divisors *current_best;
-    pll_divisors *candidate;
+    adc_pll_config_t *current_best;
+    adc_pll_config_t *candidate;
     uint32_t min_fcco;
     uint32_t max_fcco;
     bool minimize_error;
@@ -25,7 +25,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
         {
             .name = "candidate actual_fcco below min",
             .current_best = NULL,
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .actual_fcco = 0,
             },
             .min_fcco = 1,
@@ -37,7 +37,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
         {
             .name = "candidate actual_fcco above max",
             .current_best = NULL,
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .actual_fcco = 7,
             },
             .min_fcco = 1,
@@ -49,7 +49,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
         {
             .name = "candidate not fractional, m < 1",
             .current_best = NULL,
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = false,
                 .m = -1,
                 .actual_fcco = 3,
@@ -63,7 +63,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
         {
             .name = "candidate fractional, m < fixed_point",
             .current_best = NULL,
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = true,
                 .m = .00000000000000001,
                 .actual_fcco = 3,
@@ -77,7 +77,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
         {
             .name = "error > error_threshold",
             .current_best = NULL,
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = false,
                 .m = 2,
                 .error = 5,
@@ -92,7 +92,7 @@ TEST(ADCTEST, Test_candidate_is_better) {
         {
             .name = "candidate is good, current is null",
             .current_best = NULL,
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = false,
                 .m = 2,
                 .error = 1,
@@ -106,10 +106,10 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "candidate error < current best error",
-            .current_best = new pll_divisors{
+            .current_best = new adc_pll_config_t{
                 .error = 5,
             },
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = false,
                 .m = 2,
                 .error = 1,
@@ -123,12 +123,12 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "same type, candidate m < current best m",
-            .current_best = new pll_divisors{
+            .current_best = new adc_pll_config_t{
                 .fractional = true,
                 .m = 10,
                 .error = 5,
             },
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = false,
                 .m = 2,
                 .error = 1,
@@ -142,12 +142,12 @@ TEST(ADCTEST, Test_candidate_is_better) {
         },
         {
             .name = "current_best fractional, candidate m <= current best m * 4",
-            .current_best = new pll_divisors{
+            .current_best = new adc_pll_config_t{
                 .fractional = true,
                 .m = 4,
                 .error = 5,
             },
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = false,
                 .m = 1,
                 .error = 1,
@@ -161,12 +161,12 @@ TEST(ADCTEST, Test_candidate_is_better) {
         }, 
         {
             .name = "candidate integer, not candidate m <= current best m * 4",
-            .current_best = new pll_divisors{
+            .current_best = new adc_pll_config_t{
                 .fractional = false,
                 .m = 4,
                 .error = 5,
             },
-            .candidate = new pll_divisors{
+            .candidate = new adc_pll_config_t{
                 .fractional = true,
                 .m = 1,
                 .error = 1,
@@ -249,7 +249,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
     uint32_t target_frequency = 5200000; //hz
 
-    pll_divisors *int_divisors;
+    adc_pll_config_t *int_divisors;
     ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, NULL), LPCSDR_SUCCESS);
     ASSERT_EQ(int_divisors->error, 0);
     ASSERT_EQ(int_divisors->i, 0);
@@ -258,7 +258,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(int_divisors->p, 30);
     ASSERT_EQ(int_divisors->actual_frequency, (float) target_frequency);
 
-    pll_divisors *frac_divisors;
+    adc_pll_config_t *frac_divisors;
     ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, NULL), LPCSDR_SUCCESS);
     ASSERT_EQ(frac_divisors->error, 0);
     ASSERT_EQ(frac_divisors->i, 0);
@@ -269,8 +269,8 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
 }
 
 TEST(Test_populate_new_current_best, Successful) {
-    pll_divisors *b = NULL;
-    pll_divisors c = {
+    adc_pll_config_t *b = NULL;
+    adc_pll_config_t c = {
         .fractional = true,
 
         .n = 5,

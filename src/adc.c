@@ -33,11 +33,11 @@ int effective_i_divisor(uint32_t i) {
     return (i > 0) ? i : 1;
 }
 
-int fixed_point_m(pll_divisors *divisors) {
+int fixed_point_m(adc_pll_config_t *divisors) {
     return (uint64_t)(round(divisors->m * 32768));
 }
 
-int candidate_is_better(pll_divisors *current_best, pll_divisors *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold) {
+int candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold) {
 
     if (candidate->actual_fcco < min_fcco || candidate->actual_fcco > max_fcco)
         return false;
@@ -122,11 +122,11 @@ int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **
     return LPCSDR_SUCCESS;
 }
 
-int populate_new_current_best(pll_divisors **current_best, pll_divisors *candidate) {
+int populate_new_current_best(adc_pll_config_t **current_best, adc_pll_config_t *candidate) {
     if (*current_best == NULL)
-        *current_best = calloc(1, sizeof(pll_divisors));
+        *current_best = calloc(1, sizeof(adc_pll_config_t));
 
-    pll_divisors *b = *current_best;
+    adc_pll_config_t *b = *current_best;
 
     b->error = candidate->error;
     b->actual_fcco = candidate->actual_fcco;
@@ -139,7 +139,7 @@ int populate_new_current_best(pll_divisors **current_best, pll_divisors *candida
     return LPCSDR_SUCCESS;
 }
 
-int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon) {
+int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon) {
     double epsilon;
     if (optional_epsilon != NULL)
         epsilon = *optional_epsilon;
@@ -154,7 +154,7 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
     uint32_t range_min = ceil(min_fcco / target_frequency);
     uint32_t range_max= floor(max_fcco/ target_frequency);
 
-    pll_divisors *current_best = NULL;
+    adc_pll_config_t *current_best = NULL;
     for (uint32_t s = range_min; s < range_max; s++) {
         if (p_i_divisors_map[s][0] == UINT32_MAX || s > p_i_divisors_map_length) {
             continue;
@@ -182,7 +182,7 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
             uint32_t actual_frequency = actual_fcco / s;
             double error = (abs(actual_frequency - target_frequency));
 
-            pll_divisors candidate = {
+            adc_pll_config_t candidate = {
                 .fractional = true,
                 .n = 0,
                 .m = fractional_m,
@@ -205,7 +205,7 @@ int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divis
             uint32_t actual_frequency = actual_fcco / s;
             double error = abs(actual_frequency - target_frequency);
 
-            pll_divisors candidate = {
+            adc_pll_config_t candidate = {
                 .fractional = false,
                 .n = n,
                 .m = integer_m,

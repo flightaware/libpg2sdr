@@ -47,7 +47,7 @@ static int control_out(libusb_device_handle *usb_handle,
 
 int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, uint32_t target_frequency)
 {
-    pll_divisors *divisors = NULL;
+    adc_pll_config_t *divisors = NULL;
     int error = LPCSDR_SUCCESS;
 
     if ((error = calculate_adc_clock_divisors(target_frequency, &divisors, false, false, NULL)) < 0) {

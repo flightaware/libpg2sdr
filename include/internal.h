@@ -61,6 +61,18 @@ typedef struct lpcsdr_transfer_state {
     struct lpcsdr_transfer_state *next; /* next transfer in the list */
 } lpcsdr_transfer_state;
 
+// ADC
+typedef struct {
+    bool fractional;
+    uint32_t n;
+    double m;
+    uint32_t p;
+    uint32_t i;
+
+    double error;
+    double actual_fcco;
+    double actual_frequency;
+} adc_pll_config_t;
 
 struct lpcsdr_device_handle {
     unsigned magic;
@@ -114,29 +126,15 @@ int lpcsdr__translate_libusb_error(int error);
 int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
 int lpcsdr__translate_errno(int error);
 
-// ADC
-typedef struct pll_divisors {
-    bool fractional;
-
-    uint32_t n;
-    float m;
-    uint32_t p;
-    uint32_t i;
-
-    float error;
-    float actual_fcco;
-    float actual_frequency;
-} pll_divisors;
-
 int init_global_adc_divisor_tables();
 int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisors_out, uint32_t *p_i_divisors_out_length);
-int calculate_adc_clock_divisors(uint32_t target_frequency, pll_divisors **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon);
-int candidate_is_better(pll_divisors *current_best, pll_divisors *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold);
-int populate_new_current_best(pll_divisors **current_best, pll_divisors *candidate);
+int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t **divisors, bool minimize_error, bool enable_fractional, double *optional_epsilon);
+int candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold);
+int populate_new_current_best(adc_pll_config_t **current_best, adc_pll_config_t *candidate);
 int effective_n_divisor(uint32_t n);
 int effective_p_divisor(uint32_t p);
 int effective_i_divisor(uint32_t i);
-int fixed_point_m(pll_divisors *divisors);
+int fixed_point_m(adc_pll_config_t *divisors);
 
 //control transfers
 int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
