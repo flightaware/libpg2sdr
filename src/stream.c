@@ -170,6 +170,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     pthread_mutex_lock(&dev->mutex);
     if (dev->streaming) {
+        LOGDEBUG(dev, "lpcsdr_stream_data: already streaming");
         pthread_mutex_unlock(&dev->mutex);
         return LPCSDR_ERROR_BAD_STATE;
     }
@@ -177,11 +178,14 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     int error, usb_error;
 
     /* ensure tuner/ADC configuration is up to date */
-    if ((error = lpcsdr_apply_changes(dev)) < 0)
+    if ((error = lpcsdr_apply_changes(dev)) < 0) {
+        LOGDEBUG(dev, "lpcsdr_stream_data: apply_changes failed");
         goto done;
+    }
 
     if (!dev->adc_pll_config.valid) {
         /* sample rate not set */
+        LOGDEBUG(dev, "lpcsdr_stream_data: sample rate not set");
         error = LPCSDR_ERROR_BAD_STATE;
         goto done;
     }
@@ -192,20 +196,42 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         timeout_ms = (unsigned) (fill_time_ms + 500);
     }
 
-    if ((error = allocate_transfers(dev)) < 0)
+    if ((error = allocate_transfers(dev)) < 0) {
+        LOGDEBUG(dev, "lpcsdr_stream_data: allocate_transfers failed");
         goto done;
+    }
 
     /* clear any endpoint halt first */
     if ((usb_error = libusb_clear_halt(dev->usb_handle, 0x81)) < 0) {
+        LOGDEBUG(dev, "lpcsdr_stream_data: libusb_clear_halt failed");
         error = lpcsdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
 
-    if ((error = lpcsdr__ctrl_start_transfer(dev, &dev->adc_pll_config)) < 0)
-        goto cleanup;
+    LOGDEBUG(dev,
+             "starting ADC transfers with:\n"
+             "  N: %u\n"
+             "  M: %.5f\n"
+             "  P: %u\n"
+             "  I: %u\n"
+             "  fCCO: %.2f MHz\n"
+             "  fADC: %.2f MHz\n",
+             dev->adc_pll_config.n,
+             dev->adc_pll_config.m,
+             dev->adc_pll_config.p,
+             dev->adc_pll_config.i,
+             dev->adc_pll_config.actual_fcco / 1e6,
+             dev->adc_pll_config.actual_frequency / 1e6);
 
-    if ((error = submit_transfers(dev)) < 0)
+    if ((error = lpcsdr__ctrl_start_transfer(dev, &dev->adc_pll_config)) < 0) {        
+        LOGDEBUG(dev, "lpcsdr_stream_data: start_transfer failed");
+        goto cleanup;
+    }
+
+    if ((error = submit_transfers(dev)) < 0) {
+        LOGDEBUG(dev, "lpcsdr_stream_data: submit_transfers failed");        
         goto drain;
+    }
 
     dev->streaming = true;
 
@@ -357,6 +383,8 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
         return LPCSDR_ERROR_CORRUPTION;
     }
 
+    LOGDEBUG(dev, "ADC sample rate changes to %f", target);
+
     /* work out the PLL config so we know it's possible & what the exact
      * ADC rate is. The actual PLL programming only happens when we start streaming data
      */
@@ -394,6 +422,8 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
     default:
         return LPCSDR_ERROR_CORRUPTION;
     }
+
+    LOGDEBUG(dev, "tuner LO frequency changes to %f", target);
 
     int error;
     tuner_pll_config_t new_config;
