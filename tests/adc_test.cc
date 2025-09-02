@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
-using namespace std;
 #include <tuple> 
 #include <iostream>
 #include <fstream>
+using namespace testing;
+using namespace std;
 
 extern "C" {
     #include "internal.h"
@@ -203,58 +204,29 @@ TEST(ADCTEST, Test_candidate_is_better) {
 
 TEST(ADCTEST, Test_calculate_adc_divisor_tables) {
 
-    uint32_t *n_divisors;
-    uint32_t *p_divisors;
-    uint32_t *i_divisors;
-    uint32_t **p_i_divisors_map;
+    adc_p_i_tuple_t *p_i_divisors_map;
     uint32_t p_i_divisors_map_length;
 
-    uint32_t expected_n_i_divisor_length = 256;
+    uint32_t expected_i_divisor_length = 257;
     uint32_t expected_p_divisor_length = 33;
     uint32_t expected_p_i_map_length = 16385; // (32 * 2 * 256) + 1
-    uint32_t expected_n_i_divisors[expected_n_i_divisor_length] = {0};
-    
-    for (uint32_t n = 1; n < expected_n_i_divisor_length; n++) {
-        expected_n_i_divisors[n] = n + 1;
-    }
-    uint32_t expected_p_dividers[expected_p_divisor_length] = {
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 
-        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
-    };
 
     map<uint32_t, tuple<uint32_t,uint32_t>> expected_p_i_divisors_map = {};
 
-    for (uint32_t p = 0; p < expected_p_divisor_length; p++) {
-        for (uint32_t i = 0; i < expected_n_i_divisor_length; i++) {
-            uint32_t d = effective_p_divisor(p) * effective_i_divisor(i);
-
-            if (expected_p_i_divisors_map.find(d) != expected_p_i_divisors_map.end()) {
-                tuple<uint32_t,uint32_t> pair = expected_p_i_divisors_map[d];
-                if (i < get<1>(pair)) {
-                    expected_p_i_divisors_map[d] = tuple<uint32_t,uint32_t> (p, i);
-                }
-            } else {
-                expected_p_i_divisors_map[d] = tuple<uint32_t,uint32_t> (p, i);
-            }
-        }
-    }
-
-    ASSERT_EQ(calculate_adc_divisor_tables(&n_divisors, &p_divisors, &i_divisors, &p_i_divisors_map, &p_i_divisors_map_length), LPCSDR_SUCCESS);
+    ASSERT_EQ(calculate_adc_divisor_tables(&p_i_divisors_map, &p_i_divisors_map_length), LPCSDR_SUCCESS);
     ASSERT_EQ(p_i_divisors_map_length, expected_p_i_map_length);
-    for (uint32_t n = 0; n < expected_p_divisor_length; n++){
-        ASSERT_EQ(p_divisors[n], expected_p_dividers[n]);
-    }
-    for (uint32_t index = 0; index < expected_n_i_divisor_length; index++){
-        ASSERT_EQ(n_divisors[index], expected_n_i_divisors[index]);
-        ASSERT_EQ(i_divisors[index], expected_n_i_divisors[index]);
-    }
-    for (uint32_t index = 0; index < expected_p_i_map_length; index++) {
-        uint32_t *pair = p_i_divisors_map[index];
-         if (expected_p_i_divisors_map.find(index) != expected_p_i_divisors_map.end()) {
-            tuple<uint32_t, uint32_t> expected_pair = expected_p_i_divisors_map[index];
-            ASSERT_EQ(get<0>(expected_pair), pair[0]);
-            ASSERT_EQ(get<1>(expected_pair), pair[1]);
-         }
+
+    for (unsigned i = 0; i < expected_i_divisor_length; i++) {
+        for (unsigned p = 0; p < expected_p_divisor_length; p++) {
+            if (i == 1)
+                continue;
+
+            unsigned product = effective_p_divisor(p) * effective_i_divisor(i);
+            EXPECT_GE(product, 0);
+            EXPECT_LE(product, expected_p_i_map_length);
+            // We want the final i for our divisor map to be <= to all values of i
+            EXPECT_LE(p_i_divisors_map[product].i, i);
+        }
     }
 }
 

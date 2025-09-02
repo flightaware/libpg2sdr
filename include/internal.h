@@ -76,6 +76,11 @@ typedef struct {
     double actual_frequency;
 } adc_pll_config_t;
 
+typedef struct {
+    uint32_t p;
+    uint32_t i;
+} adc_p_i_tuple_t;
+
 struct lpcsdr_device_handle {
     unsigned magic;
     pthread_mutex_t mutex;
@@ -133,7 +138,7 @@ int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
 int lpcsdr__translate_errno(int error);
 
 int init_global_adc_divisor_tables();
-int calculate_adc_divisor_tables(uint32_t **n_out, uint32_t **p_out, uint32_t **i_out, uint32_t ***p_i_divisors_out, uint32_t *p_i_divisors_out_length);
+int calculate_adc_divisor_tables(adc_p_i_tuple_t **p_i_divisors_out, uint32_t *p_i_divisors_out_length);
 int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
 int candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold);
 int effective_n_divisor(uint32_t n);
