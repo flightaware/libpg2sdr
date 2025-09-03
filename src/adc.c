@@ -109,16 +109,16 @@ int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
         if (enable_fractional) {
             uint32_t scaled_m = round(desired_fcco / adc_reference_frequency / 2 * (1 << 15));
 
-            uint32_t test_fcco = 2 * scaled_m / (1<<15) * adc_reference_frequency;
+            double test_fcco = 2 * scaled_m / (1<<15) * adc_reference_frequency;
             if (test_fcco < adc_min_fcco)
                 scaled_m += 1;
             else if (test_fcco > adc_max_fcco)
                 scaled_m -= 1;
 
-            uint32_t fractional_m =  scaled_m / (1<<15);
-            uint32_t actual_fcco = 2 * fractional_m * adc_reference_frequency;
-            uint32_t actual_frequency = actual_fcco / s;
-            double error = (abs(actual_frequency - target_frequency));
+            double fractional_m =  scaled_m / (1<<15);
+            double actual_fcco = 2 * fractional_m * adc_reference_frequency;
+            double actual_frequency = actual_fcco / s;
+            double error = fabs(actual_frequency - target_frequency);
 
             adc_pll_config_t candidate = {
                 .valid = true,
@@ -137,12 +137,12 @@ int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
         }
 
         for (uint32_t n = 0; n <= adc_n_max_divisor; n++) {
-            uint32_t n_reference = adc_reference_frequency / adc_effective_n_divisor(n);
+            double n_reference = adc_reference_frequency / adc_effective_n_divisor(n);
             uint32_t integer_m = round(desired_fcco / n_reference / 2);
 
-            uint32_t actual_fcco = 2 * integer_m * n_reference;
-            uint32_t actual_frequency = actual_fcco / s;
-            double error = abs(actual_frequency - target_frequency);
+            double actual_fcco = 2.0 * integer_m * n_reference;
+            double actual_frequency = actual_fcco / s;
+            double error = fabs(actual_frequency - target_frequency);
 
             adc_pll_config_t candidate = {
                 .valid = true,
