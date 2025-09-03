@@ -100,8 +100,8 @@ static int rank_devices(const void *l, const void *r)
     if (left->usb_bus != right->usb_bus)
         return (int)left->usb_bus - (int)right->usb_bus;
 
-    /* same mode, serial, USB bus; order by device address */
-    return (int)left->usb_address - (int)right->usb_address;
+    /* same mode, serial, USB bus; order by port path */
+    return memcmp(left->usb_ports, right->usb_ports, sizeof(left->usb_ports));
 }
 
 /* Fill in "serial" with the device serial number for "usb_dev". Returns a libusb error. */
@@ -192,6 +192,14 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
         lpc_devices_to_return[matched]->usb_bus = libusb_get_bus_number(usb_dev);
         lpc_devices_to_return[matched]->usb_address = libusb_get_device_address(usb_dev);
         lpc_devices_to_return[matched]->libusb_device = (void *)libusb_ref_device(usb_dev);
+        usb_error = libusb_get_port_numbers(usb_dev, lpc_devices_to_return[matched]->usb_ports, sizeof(lpc_devices_to_return[matched]->usb_ports) - 1);
+        if (usb_error < 0) {
+            lpcsdr__log(ctx, LPCSDR_LOG_ERROR, "error getting port path for USB bus %d device %d: %s",
+                        libusb_get_bus_number(usb_dev),
+                        libusb_get_port_number(usb_dev),
+                        libusb_strerror(usb_error));
+            lpc_devices_to_return[matched]->usb_ports[0] = 0;
+        }
 
         matched++;
     }

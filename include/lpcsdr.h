@@ -83,8 +83,9 @@ typedef struct lpc_device {
     char serial[17];               /* serial number string, ASCIIZ */
     unsigned index;
     /* USB connection details: */
-    uint8_t usb_bus;     /* bus number this device is connected to */
-    uint8_t usb_address; /* address within usb_bus */
+    uint8_t usb_bus;      /* bus number this device is connected to */
+    uint8_t usb_address;  /* address within usb_bus */
+    uint8_t usb_ports[8]; /* ports (from root) of this device, 0-terminated */
     void *libusb_device;
 } lpc_device;
 
