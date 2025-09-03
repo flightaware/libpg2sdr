@@ -11,6 +11,7 @@
 #include <cstring>
 #include <limits>
 #include <iostream>
+#include <sstream>
 #include <cstdarg>
 #include <cinttypes>
 
@@ -50,6 +51,17 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
 #define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 #define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 
+static std::string format_ports(uint8_t *ports)
+{
+    std::string s;
+    for (unsigned i = 0; ports[i]; ++i) {
+        if (i != 0)
+            s += ":";
+        s += std::to_string(ports[i]);
+    }
+    return s;
+}
+
 static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
 {
     SoapySDR::Kwargs entry;
@@ -59,17 +71,8 @@ static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
         entry["serial"] = device->serial;
     entry["bus"] = std::to_string(device->usb_bus);
     entry["address"] = std::to_string(device->usb_address);
-
-    std::string basename = std::string("LPCSDR@" + std::to_string(device->usb_bus) + ":" + std::to_string(device->usb_address));
-
-    switch (device->mode) {
-    case LPCSDR_DEVICE_MODE_NORMAL:
-        entry["label"] = basename + " S/N " + device->serial;
-        break;
-    case LPCSDR_DEVICE_MODE_DFU_BOOTLOADER:
-        entry["label"] = basename + " in bootloader mode";
-        break;
-    }
+    entry["ports"] = format_ports(device->usb_ports);
+    entry["label"] = "LPCSDR@" + entry["bus"] + ":" + entry["ports"] + " s/n " + device->serial;
     return entry;
 }
 
@@ -80,7 +83,7 @@ static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMat
     // extra per-device args, or extra args in the criteria we don't recognize, are ignored
     SoapySDR::Kwargs matchers;
     for (auto kwarg : kwargs) {
-        if (!kwarg.second.empty() && (kwarg.first == "driver" || kwarg.first == "index" || kwarg.first == "serial" || kwarg.first == "bus" || kwarg.first == "address"))
+        if (!kwarg.second.empty() && (kwarg.first == "driver" || kwarg.first == "index" || kwarg.first == "serial" || kwarg.first == "bus" || kwarg.first == "address" || kwarg.first == "ports"))
             matchers.insert(kwarg);
     }
 
@@ -98,7 +101,6 @@ static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMat
 
 SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
 {
-
     // Bail out early on requests that aren't for us
     auto driver = kwargs.find("driver");
     if (driver != kwargs.end() && driver->second != "lpcsdr")
@@ -112,7 +114,7 @@ SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
         return {};
     }
 
-    auto devices = DeviceList::Enumerate(ctx);
+    auto devices = DeviceList::Enumerate(ctx, false);
     auto matching = FindDevicesMatching(devices, kwargs);
     for (auto &match : matching.first) {
         SoapySDR::log(SOAPY_SDR_DEBUG, "candidate: " + SoapySDR::KwargsToString(match));
@@ -129,7 +131,7 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     if (!ctx)
         throw std::runtime_error("could not initialize liblpcsdr: " + ctx.Error());
 
-    auto devices = DeviceList::Enumerate(ctx); // this needs to live beyond the match loop
+    auto devices = DeviceList::Enumerate(ctx, false); // this needs to live beyond the match loop
     auto matching = FindDevicesMatching(devices, kwargs);
     if (matching.second.empty())
         throw std::runtime_error("No LPCSDR device found that matches '" + SoapySDR::KwargsToString(kwargs) + "'");

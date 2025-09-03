@@ -118,12 +118,12 @@ class DeviceList
     DeviceList(const Context &) = delete;
     DeviceList &operator=(const DeviceList &) = delete;
 
-    static DeviceList Enumerate(Context &ctx)
+    static DeviceList Enumerate(Context &ctx, bool allow_bootloader)
     {
         int error;
         lpc_device **newlist;
 
-        if ((error = lpcsdr_discover_devices(ctx, &newlist, true)) < 0) {
+        if ((error = lpcsdr_discover_devices(ctx, &newlist, allow_bootloader)) < 0) {
             SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: could not enumerate LPCSDR devices: " + lpcsdr_strerror_string(error));
             return DeviceList(nullptr);
         }
