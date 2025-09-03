@@ -3,23 +3,13 @@
 #include "internal.h"
 
 uint32_t n_max_divisor = 256;
-// uint32_t *n_divisors;
 
 uint32_t p_max_divisor = 32;
-// uint32_t *p_divisors;
 
 uint32_t i_max_divisor = 256;
-// uint32_t *i_divisors;
 
 adc_p_i_tuple_t *p_i_divisors_map;
 uint32_t p_i_divisors_map_length;
-
-// Scale factor to use 16 bits.
-const uint16_t LPCSDR_FIXED_POINT_SCALE_FACTOR = 32768;
-
-// ADC is outputting values that are 12 bit signed.
-const uint16_t ADC_OUTPUT_VALUE_BIT_LENGTH = 2048;
-const uint8_t SAMPLE_BIT_SIZE = 12;
 
 int effective_n_divisor(uint32_t n) {
     return (n > 0) ? n: 1;
