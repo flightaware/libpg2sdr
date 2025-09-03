@@ -250,6 +250,9 @@ cleanup:
 
 int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 {
+    if (!device || !device_handle)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
     int error, usb_error;
 
     lpcsdr_context *ctx = device->context;
