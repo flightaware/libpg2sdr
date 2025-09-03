@@ -264,6 +264,35 @@ TEST(ADCTEST, Test_N_divisor) {
     // actual_fcco and actual_frequency should be consistent with what the other settings imply
     double expected_fcco = 2 * (adc_reference_frequency / adc_effective_n_divisor(divisors.n)) * divisors.m;
     double expected_fadc = expected_fcco / adc_effective_p_divisor(divisors.p) / adc_effective_i_divisor(divisors.i);
+    EXPECT_FLOAT_EQ(divisors.actual_frequency, expected_fadc) << divisors.n << ' ' << divisors.m << ' ' << divisors.i << ' ' << divisors.p;
+    EXPECT_FLOAT_EQ(divisors.actual_fcco, expected_fcco) << divisors.n << ' ' << divisors.m << ' ' << divisors.i << ' ' << divisors.p;
+
+    // fcco should be in range
+    EXPECT_GE(expected_fcco, 275e6);
+    EXPECT_LE(expected_fcco, 550e6);
+}
+
+typedef std::tuple<double,bool,bool,double> ADCTestParam;
+class ADCParameterizedTest : public testing::TestWithParam<ADCTestParam> {};
+
+TEST_P(ADCParameterizedTest, CanTune)
+{
+    double target, epsilon;
+    bool minimize_error, allow_fractional;
+    std::tie(target, minimize_error, allow_fractional, epsilon) = GetParam();
+
+    adc_pll_config_t divisors;
+    ASSERT_EQ(lpcsdr__adc_find_divisors(target, &divisors, minimize_error, allow_fractional, epsilon), LPCSDR_SUCCESS);
+
+    // Solution should respect allow_fractional
+    EXPECT_TRUE(allow_fractional || !divisors.fractional);
+
+    // Solution should produce a frequency within epsilon of the requested frequency
+    EXPECT_NEAR(divisors.actual_frequency, target, target * epsilon);
+
+    // actual_fcco and actual_frequency should be consistent with what the other settings imply
+    double expected_fcco = 2 * (adc_reference_frequency / adc_effective_n_divisor(divisors.n)) * divisors.m;
+    double expected_fadc = expected_fcco / adc_effective_p_divisor(divisors.p) / adc_effective_i_divisor(divisors.i);
     EXPECT_FLOAT_EQ(divisors.actual_frequency, expected_fadc);
     EXPECT_FLOAT_EQ(divisors.actual_fcco, expected_fcco);
 
@@ -271,3 +300,8 @@ TEST(ADCTEST, Test_N_divisor) {
     EXPECT_GE(expected_fcco, 275e6);
     EXPECT_LE(expected_fcco, 550e6);
 }
+
+INSTANTIATE_TEST_SUITE_P(, ADCParameterizedTest, Combine( /* target */ Range(0.5e6, 25e6, (25e6-0.5e6)/97),
+                                                          /* minimize_error */ Bool(),
+                                                          /* allow_fractional */ Bool(),
+                                                          /* epsilon */ Values(1e-6) ) );
