@@ -29,6 +29,15 @@ $ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/soapy
 $ export SOAPY_SDR_LOG_LEVEL=DEBUG
 ```
 
+## Ensure that the LPCSDR has firmware loaded
+
+The SoapySDR driver won't automatically load firmware. If needed, run any of
+the python scripts once to load firmware:
+
+```
+$ python/status.py
+```
+
 ## Check that the lpcsdr driver works OK standalone:
 
 ```
