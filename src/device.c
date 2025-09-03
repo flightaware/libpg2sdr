@@ -23,9 +23,6 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
         goto cleanup_nomutex;
     }
 
-    if ((error = init_global_adc_divisor_tables()) < 0)
-        goto cleanup;
-    
     ep0_in_board_status_t status;
     if ((error = lpcsdr__ctrl_get_status(dev, &status)) < 0)
         goto cleanup;

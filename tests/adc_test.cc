@@ -28,10 +28,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
             .current_best = {},
             .candidate = {
                 .valid = true,
-                .actual_fcco = 0,
+                .actual_fcco = adc_min_fcco - 1e6,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 0,
             .expected = false
@@ -41,10 +39,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
             .current_best = {},
             .candidate = {
                 .valid = true,
-                .actual_fcco = 7,
+                .actual_fcco = adc_max_fcco + 1e6,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 0,
             .expected = false
@@ -56,10 +52,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .valid = true,
                 .fractional = false,
                 .m = -1,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 0,
             .expected = false
@@ -71,10 +65,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .valid = true,
                 .fractional = true,
                 .m = .00000000000000001,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 0,
             .expected = false
@@ -87,10 +79,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .fractional = false,
                 .m = 2,
                 .error = 5,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 1,
             .expected = false
@@ -103,10 +93,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .fractional = false,
                 .m = 2,
                 .error = 1,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 2,
             .expected = true
@@ -122,10 +110,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .fractional = false,
                 .m = 2,
                 .error = 1,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = true,
             .error_threshold = 2,
             .expected = true
@@ -143,10 +129,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .fractional = false,
                 .m = 2,
                 .error = 1,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 2,
             .expected = true
@@ -164,10 +148,8 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .fractional = false,
                 .m = 1,
                 .error = 1,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 2,
             .expected = true
@@ -185,58 +167,73 @@ TEST(ADCTEST, Test_candidate_is_better) {
                 .fractional = true,
                 .m = 1,
                 .error = 1,
-                .actual_fcco = 3,
+                .actual_fcco = adc_min_fcco,
             },
-            .min_fcco = 1,
-            .max_fcco = 5,
             .minimize_error = false,
             .error_threshold = 2,
             .expected = false
         }
     };
     
-    for (uint16_t cur = 0; cur < sizeof(test_cases)/sizeof(test_cases[0]); cur++) {
+    for (unsigned cur = 0; cur < sizeof(test_cases)/sizeof(test_cases[0]); cur++) {
         candidate_is_better_test_case t = test_cases[cur];
-        printf("Tests %s\n",t.name.c_str());
-        ASSERT_EQ(candidate_is_better(&t.current_best, &t.candidate, t.min_fcco, t.max_fcco, t.minimize_error, t.error_threshold), t.expected);
+        ASSERT_EQ(lpcsdr__adc_candidate_is_better(&t.current_best, &t.candidate, t.minimize_error, t.error_threshold), t.expected);
     }
 }
 
-TEST(ADCTEST, Test_calculate_adc_divisor_tables) {
+TEST(ADCTEST, Test_p_i_table_correct) {
 
-    adc_p_i_tuple_t *p_i_divisors_map;
-    uint32_t p_i_divisors_map_length;
+    adc_p_i_tuple_t *table = lpcsdr__adc_make_p_i_table();
+    ASSERT_NE(table, nullptr);
 
-    uint32_t expected_i_divisor_length = 257;
-    uint32_t expected_p_divisor_length = 33;
-    uint32_t expected_p_i_map_length = 16385; // (32 * 2 * 256) + 1
+    for (unsigned p_i = 0; p_i < adc_p_i_table_size; ++p_i) {
+        // For every table entry, either:
+        if (table[p_i].i == UINT32_MAX) {
+            // the entry is not filled
+            EXPECT_EQ(table[p_i].i, UINT32_MAX);
+            EXPECT_EQ(table[p_i].p, UINT32_MAX);
+        } else {
+            // the P/I values are consistent with the table index
+            EXPECT_EQ(adc_effective_p_divisor(table[p_i].p) * adc_effective_i_divisor(table[p_i].i), p_i);
+            // the P/I values are in range
+            EXPECT_LE(table[p_i].p, adc_p_max_divisor);
+            EXPECT_LE(table[p_i].i, adc_i_max_divisor);
+            EXPECT_NE(table[p_i].i, 1);
+        }
+    }
 
-    map<uint32_t, tuple<uint32_t,uint32_t>> expected_p_i_divisors_map = {};
-
-    ASSERT_EQ(calculate_adc_divisor_tables(&p_i_divisors_map, &p_i_divisors_map_length), LPCSDR_SUCCESS);
-    ASSERT_EQ(p_i_divisors_map_length, expected_p_i_map_length);
-
-    for (unsigned i = 0; i < expected_i_divisor_length; i++) {
-        for (unsigned p = 0; p < expected_p_divisor_length; p++) {
+    for (unsigned p = 0; p <= adc_p_max_divisor; ++p) {
+        for (unsigned i = 0; i <= adc_i_max_divisor; ++i) {
+            // I=1 is illegal
             if (i == 1)
                 continue;
 
-            unsigned product = effective_p_divisor(p) * effective_i_divisor(i);
-            EXPECT_GE(product, 0);
-            EXPECT_LE(product, expected_p_i_map_length);
-            // We want the final i for our divisor map to be <= to all values of i
-            EXPECT_LE(p_i_divisors_map[product].i, i);
+            // For every possible legal P/I combination:
+            unsigned p_i = adc_effective_p_divisor(p) * adc_effective_i_divisor(i);
+
+            // the corresponding entry index must be in range
+            ASSERT_LT(p_i, adc_p_i_table_size);
+
+            // either:
+            if (table[p_i].i == i) {
+                // this entry exactly matches this P/I
+                EXPECT_EQ(table[p_i].i, i);
+                EXPECT_EQ(table[p_i].p, p);
+            } else {
+                // or, the entry is "better" (smaller I / larger P)
+                EXPECT_LT(table[p_i].i, i);
+                EXPECT_GT(table[p_i].p, p);
+            }
         }
     }
 }
 
 TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     
-    ASSERT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
     uint32_t target_frequency = 5200000; //hz
 
     adc_pll_config_t int_divisors;
-    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &int_divisors, false, false, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr__adc_find_divisors(target_frequency, &int_divisors, false, false, 0), LPCSDR_SUCCESS);
     ASSERT_EQ(int_divisors.valid, true);
     ASSERT_EQ(int_divisors.error, 0);
     ASSERT_EQ(int_divisors.i, 0);
@@ -246,7 +243,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(int_divisors.actual_frequency, (float) target_frequency);
 
     adc_pll_config_t frac_divisors;
-    ASSERT_EQ(calculate_adc_clock_divisors(target_frequency, &frac_divisors, false, true, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr__adc_find_divisors(target_frequency, &frac_divisors, false, true, 0), LPCSDR_SUCCESS);
     ASSERT_EQ(frac_divisors.valid, true);
     ASSERT_EQ(frac_divisors.error, 0);
     ASSERT_EQ(frac_divisors.i, 0);
@@ -257,18 +254,16 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
 }
 
 TEST(ADCTEST, Test_N_divisor) {
-    ASSERT_EQ(init_global_adc_divisor_tables(), LPCSDR_SUCCESS);
-
     const double target = 5.234e4;
     adc_pll_config_t divisors;
-    ASSERT_EQ(calculate_adc_clock_divisors(target, &divisors, false, false, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr__adc_find_divisors(target, &divisors, false, false, 0), LPCSDR_SUCCESS);
 
     // Solution should produce a frequency within 1ppm of the requested frequency
     EXPECT_LT(abs(divisors.actual_frequency / target - 1.0), 1e-6);
 
     // actual_fcco and actual_frequency should be consistent with what the other settings imply
-    double expected_fcco = 2 * (12e6 / effective_n_divisor(divisors.n)) * divisors.m;
-    double expected_fadc = expected_fcco / effective_p_divisor(divisors.p) / effective_i_divisor(divisors.i);
+    double expected_fcco = 2 * (adc_reference_frequency / adc_effective_n_divisor(divisors.n)) * divisors.m;
+    double expected_fadc = expected_fcco / adc_effective_p_divisor(divisors.p) / adc_effective_i_divisor(divisors.i);
     EXPECT_FLOAT_EQ(divisors.actual_frequency, expected_fadc);
     EXPECT_FLOAT_EQ(divisors.actual_fcco, expected_fcco);
 
@@ -276,47 +271,3 @@ TEST(ADCTEST, Test_N_divisor) {
     EXPECT_GE(expected_fcco, 275e6);
     EXPECT_LE(expected_fcco, 550e6);
 }
-
-#if 0
-TEST(Test_unpack_raw_adc_data, Successful) {
-    uint16_t buffer_length = 32;
-    uint8_t buffer[buffer_length] = {
-        // header data in little endian
-        // Magic
-        239, 190, 173, 222, 
-        //block len
-        32, 0, 0, 0, 
-        // num samples per block
-        8, 0, 0, 0, 
-        // sequence
-        1, 0, 0, 0, 
-        // status
-        1, 0, 0, 0, 
-        // 8 12 bit samples spread over 12 bytes (1 word = 32 bits = 4 bytes)
-        2, 0, 2, 0,
-        4, 0, 5, 0,
-        3,96, 3,80
-    };
-
-    ep0_in_board_status_t s = {
-        .usb_samples_per_block = 8,
-        .usb_bytes_per_block = 32
-    };
-
-    lpcsdr_device_handle h = {
-        .last_status = &s
-    };
-
-    int16_t *out = (int16_t *) calloc(buffer_length, sizeof(uint16_t));
-    uint32_t out_length;
-
-    int return_status = unpack_raw_adc_data(&h, buffer, buffer_length, out, 0, NULL);
-    int16_t expected_unpacked_samples_length = 8;
-    int16_t expected_unpacked_samples[expected_unpacked_samples_length] = {32, 32, 64, 80, 48, 48, 96, 80, 48};
-    ASSERT_EQ(return_status, 8);
-
-    for (int i = 0; i < expected_unpacked_samples_length; i++) {
-        ASSERT_EQ(out[i], expected_unpacked_samples[i]);
-    }
-}
-#endif

@@ -393,7 +393,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
      */
     adc_pll_config_t new_config;
     int error;
-    if ((error = calculate_adc_clock_divisors(target, &new_config, true, true, 0)) < 0)
+    if ((error = lpcsdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true, /* epsilon= */ 0)) < 0)
         return error;
 
     dev->adc_pll_config = new_config;

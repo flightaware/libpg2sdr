@@ -5,6 +5,7 @@
 #include "lpcsdr_protocol.h"
 #include "dsp.h"
 #include "tuner.h"
+#include "adc.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
@@ -61,26 +62,6 @@ typedef struct lpcsdr_transfer_state {
     struct lpcsdr_transfer_state *next; /* next transfer in the list */
 } lpcsdr_transfer_state;
 
-// ADC
-typedef struct {
-    bool valid;
-
-    bool fractional;
-    uint32_t n;
-    double m;
-    uint32_t p;
-    uint32_t i;
-
-    double error;
-    double actual_fcco;
-    double actual_frequency;
-} adc_pll_config_t;
-
-typedef struct {
-    uint32_t p;
-    uint32_t i;
-} adc_p_i_tuple_t;
-
 struct lpcsdr_device_handle {
     unsigned magic;
     pthread_mutex_t mutex;
@@ -136,15 +117,6 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
 int lpcsdr__translate_libusb_error(int error);
 int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
 int lpcsdr__translate_errno(int error);
-
-int init_global_adc_divisor_tables();
-int calculate_adc_divisor_tables(adc_p_i_tuple_t **p_i_divisors_out, uint32_t *p_i_divisors_out_length);
-int calculate_adc_clock_divisors(uint32_t target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
-int candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, uint32_t min_fcco, uint32_t max_fcco, bool minimize_error, float error_threshold);
-int effective_n_divisor(uint32_t n);
-int effective_p_divisor(uint32_t p);
-int effective_i_divisor(uint32_t i);
-int fixed_point_m(adc_pll_config_t *divisors);
 
 //control transfers
 int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
