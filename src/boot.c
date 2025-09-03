@@ -84,6 +84,13 @@ static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
 
     int fd = open(ctx->firmware_path, O_RDONLY);
     if (fd < 0) {
+        char buf[1024];
+        lpcsdr__log(ctx,
+                    LPCSDR_LOG_ERROR,
+                    "Could not read firmware image at %s: %s",
+                    ctx->firmware_path,
+                    lpcsdr_strerror_r(lpcsdr__translate_errno(errno), buf, sizeof(buf)));
+
         if (errno == ENOENT)
             return LPCSDR_ERROR_FWIMAGE_MISSING;
         else
@@ -160,6 +167,12 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
     struct hotplug_callback_state cb_state = {0, NULL};
     libusb_hotplug_callback_handle cb_handle;
 
+    lpcsdr__log(ctx,
+                LPCSDR_LOG_INFO,
+                "Downloading firmware image to device at bus %u port %u",
+                libusb_get_bus_number(original_dev),
+                libusb_get_port_number(original_dev));
+
     /* register for hotplug events for the main firmware VID/PID */
     if ((usb_error = libusb_hotplug_register_callback(ctx->libusb_ctx,
                                                       /* events */ LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED,
@@ -235,6 +248,11 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
     }
 
     /* hotplug callback seen, we have the new device */
+    lpcsdr__log(ctx,
+                LPCSDR_LOG_INFO,
+                "New LPCSDR device discovered at bus %u port %u",
+                libusb_get_bus_number(cb_state.device),
+                libusb_get_port_number(cb_state.device));
     libusb_hotplug_deregister_callback(ctx->libusb_ctx, cb_handle);
     *reenumerated_dev = cb_state.device; /* caller should unref this when done */
     return LPCSDR_SUCCESS;
