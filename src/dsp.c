@@ -12,19 +12,22 @@ static uint32_t halfband_decimate_block(const unsigned int ntaps, const int16_t 
 {
     assert (in_length % 2 == 0);
 
+    const unsigned center_tap_offset = (ntaps-1)/2;
+    const int16_t center_tap = taps[center_tap_offset];
+
     uint32_t window_end = 0;
     uint32_t out_index = 0;
     for (; window_end < in_length; window_end += 2, out_index++) {
-        int32_t q_sum =  0;
-        int32_t i_sum =  0;
+        int32_t q_sum = center_tap * in[window_end + center_tap_offset].q;
+        int32_t i_sum = center_tap * in[window_end + center_tap_offset].i;
         uint32_t tap_pointer = 0;
         uint32_t current = window_end;
 
         while (tap_pointer < ntaps) {
             q_sum += (taps[tap_pointer] * in[current].q);
             i_sum += (taps[tap_pointer] * in[current].i); 
-            tap_pointer += 1;
-            current += 1;
+            tap_pointer += 2;
+            current += 2;
         }
 
         out[out_index].i = (int16_t) (i_sum >> 15);
