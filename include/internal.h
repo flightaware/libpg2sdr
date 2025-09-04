@@ -86,13 +86,15 @@ struct lpcsdr_device_handle {
     tuner_pll_config_t tuner_pll_config;  /* actually configured tuner LO settings */
     bool changing_freq;                   /* do we have unapplied frequency/sideband changes? */
 
-    size_t buffer_size;           /* requested user buffer size, in bytes (todo: is this more obvious if it's in samples, not bytes?) */
+    size_t buffer_size;                   /* requested user buffer size, in bytes (todo: is this more obvious if it's in samples, not bytes?) */
 
+    unsigned usb_transfer_size;           /* transfer size we decided on */
+    unsigned adc_samples_per_transfer;    /* ADC samples per USB transfer */
+    unsigned adc_samples_per_user_sample; /* scale factor from user sample rate to ADC sample rate */
 
     /* libusb transfers array */
     lpcsdr_transfer_state *transfers;
     unsigned int transfer_count;  /* size of dev->transfers array */
-    unsigned int transfer_size;   /* size of each transfer buffer, in bytes */
 
     /* linked list of active transfers */
     lpcsdr_transfer_state *active_transfers_head;
@@ -103,6 +105,12 @@ struct lpcsdr_device_handle {
 
     /* Tuner reference crystal frequency, from firmware board status */
     uint32_t tuner_xtal;
+
+    /* Downconverter (only while streaming in BASEBAND mode) */
+    dsp_downconvert_state_t *downconverter;
+
+    /* ADC block expansion buffer (only while streaming in BASEBAND mode) */
+    int16_t *adc_buffer;
 };
 
 /* context.c */

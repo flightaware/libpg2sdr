@@ -68,6 +68,30 @@ static void unpack_raw_adc_data(const uint32_t *in, uint32_t words, int16_t *out
     }
 }
 
+/* Like `unpack_raw_adc_data`, but also invert the spectrum */
+static void unpack_raw_adc_data_invert(const uint32_t *in, uint32_t words, int16_t *out)
+{
+    /* This function is a candidate for use of starch */
+
+    assert(words % 3 == 0);
+
+    for (unsigned i = 0; i < words; i += 3, in += 3, out += 8) {
+        uint32_t first = in[0];
+        uint32_t second = in[1];
+        uint32_t third = in[2];
+
+        /* 12->16 bit scaling is baked into the bitshifts here */
+        out[0] = (int16_t) ((first  & 0x00000FFF) << 4);
+        out[1] = (int16_t) -((first  & 0x0FFF0000) >> 12);
+        out[2] = (int16_t) ((second & 0x00000FFF) << 4);
+        out[3] = (int16_t) -((second & 0x0FFF0000) >> 12);
+        out[4] = (int16_t) ((third  & 0x00000FFF) << 4);
+        out[5] = (int16_t) -((third  & 0x0FFF0000) >> 12);
+        out[6] = (int16_t) (((first & 0x0000F000)) | ((second & 0x0000F000) >> 4) | ((third & 0x0000F000) >> 8));
+        out[7] = (int16_t) -(((first & 0xF0000000) >> 16) | ((second & 0xF0000000) >> 20)  | ((third & 0xF0000000) >> 24));
+    }
+}
+
 /* Get a fresh lpcsdr_sample_buffer that can be used to fill with data and pass to user code */
 static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev)
 {
@@ -97,7 +121,7 @@ void lpcsdr_release_buffer(lpcsdr_sample_buffer *buf)
  *   the provided data is an exact number of ADC blocks (i.e. length is a multiple of dev->usb_bytes_per_block)
  *   the total converted data length produced will fit into "out"
  *
- * Returns the total number of samples converted
+ * Returns the total number of output samples produced
  */
 static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data, size_t length, int16_t *out)
 {
@@ -114,6 +138,23 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
             for (unsigned i = 0; i < length; i += bpb, count += spb)
                 unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, out + count);
             return count;
+        }
+
+    case LPCSDR_MODE_BASEBAND:
+        {
+            /* unpack ADC data into adc_buffer */
+            unsigned count = 0;
+            if (dev->upper_sideband) {
+                for (unsigned i = 0; i < length; i += bpb, count += spb)
+                    unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, dev->adc_buffer + count);
+            } else {
+                /* low sideband tuning gives us inverted-spectrum ADC data; invert it again to reverse that, as we convert */
+                for (unsigned i = 0; i < length; i += bpb, count += spb)
+                    unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, dev->adc_buffer + count);
+            }
+
+            /* do downconversion/decimation from adc_buffer to user buffer */
+            return lpcsdr__dsp_downconvert_process(dev->downconverter, dev->adc_buffer, count, (cs16_t *)out);
         }
 
     default:
@@ -147,16 +188,8 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
     ep1_header_t h;
     unpack_header(data, &h);
 
-    switch(dev->conversion_mode) {
-    case LPCSDR_MODE_LOWIF_REAL:
-        buffer->timestamp = h.sequence * dev->usb_samples_per_block;
-        buffer->count = count;
-        break;
-
-    default:
-        /* not implemented */
-        break;
-    }
+    buffer->timestamp = h.sequence * dev->usb_samples_per_block / dev->adc_samples_per_user_sample;
+    buffer->count = count;
 
     bool result = callback(buffer, user_data);
     if (result) {
@@ -192,13 +225,30 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     if (!timeout_ms) {
         /* estimate time for one transfer to complete, add an arbitrary 500ms */
-        double fill_time_ms = 1000.0 * dev->transfer_size / dev->usb_bytes_per_block * dev->usb_samples_per_block / dev->adc_pll_config.actual_frequency;
+        double fill_time_ms = 1000.0 * dev->adc_samples_per_transfer / dev->adc_pll_config.actual_frequency;
         timeout_ms = (unsigned) (fill_time_ms + 500);
     }
 
     if ((error = allocate_transfers(dev)) < 0) {
         LOGDEBUG(dev, "lpcsdr_stream_data: allocate_transfers failed");
         goto done;
+    }
+
+    /* if we're downconverting, set up the DSP state & ADC buffer */
+    if (dev->conversion_mode == LPCSDR_MODE_BASEBAND) {
+        if ((error = lpcsdr__dsp_downconvert_create(/* ntaps */ lpcsdr__standard_filter_ntaps,
+                                                    /* taps */ lpcsdr__standard_filter_taps,
+                                                    /* max_in_length */ dev->adc_samples_per_transfer,
+                                                    &dev->downconverter)) < 0) {
+            LOGDEBUG(dev, "lpcsdr_stream_data: dsp_create_downconvert failed");
+            goto cleanup;
+        }
+
+        if (!(dev->adc_buffer = malloc(dev->adc_samples_per_transfer * sizeof(int16_t)))) {
+            LOGDEBUG(dev, "lpcsdr_stream_data: adc_buffer allocation failed");
+            error = LPCSDR_ERROR_NO_MEMORY;
+            goto cleanup;
+        }
     }
 
     /* clear any endpoint halt first */
@@ -298,6 +348,12 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     }
 
  cleanup:
+    lpcsdr__dsp_downconvert_free(dev->downconverter);
+    dev->downconverter = NULL;
+
+    free(dev->adc_buffer);
+    dev->adc_buffer = NULL;
+
     free_dev_transfers(dev);
 
  done:
@@ -414,20 +470,24 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     if (!dev->requested_sample_rate)
         return LPCSDR_SUCCESS;         /* no frequency configured yet */
 
-    double target = 0;
+    unsigned adc_samples_per_user_sample;
+    unsigned bytes_per_user_sample;
     switch (dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
-        target = dev->requested_sample_rate;
+        adc_samples_per_user_sample = 1;
+        bytes_per_user_sample = sizeof(int16_t);
         break;
 
     case LPCSDR_MODE_BASEBAND:
-        target = dev->requested_sample_rate * 2.0;
+        adc_samples_per_user_sample = 2;
+        bytes_per_user_sample = sizeof(cs16_t);
         break;
 
     default:
         return LPCSDR_ERROR_CORRUPTION;
     }
 
+    double target = dev->requested_sample_rate * adc_samples_per_user_sample;
     LOGDEBUG(dev, "ADC sample rate changes to %f", target);
 
     /* work out the PLL config so we know it's possible & what the exact
@@ -439,6 +499,15 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
         return error;
 
     dev->adc_pll_config = new_config;
+
+    /* recompute transfer sizes */
+    unsigned user_samples_per_buffer = dev->buffer_size / bytes_per_user_sample;             /* # of output samples that will fill the user buffer (rounded down) */
+    unsigned adc_samples_per_buffer = user_samples_per_buffer * adc_samples_per_user_sample; /* # of ADC samples that will fill the user buffer (rounded down) */
+    unsigned blocks_per_buffer = adc_samples_per_buffer / dev->usb_samples_per_block;        /* # of ADC blocks that will fill the user buffer (rounded down) */
+    dev->usb_transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;                   /* Exact transfer size for that many ADC blocks */
+    dev->adc_samples_per_transfer = blocks_per_buffer * dev->usb_samples_per_block;          /* # of ADC samples that we receive per USB transfer */
+    dev->adc_samples_per_user_sample = adc_samples_per_user_sample;                          /* # of ADC samples per user sample (i.e. ADC sampling rate / user sampling rate) */
+
     return LPCSDR_SUCCESS;
 }
 
@@ -668,13 +737,8 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
 
     int error;
 
-    /* fixme: need to eventually compute this based on decimation, output format, etc */
-    unsigned samples_per_buffer = dev->buffer_size / sizeof(int16_t);             /* # of ADC samples that will fill the user buffer (rounded down) */
-    unsigned blocks_per_buffer = samples_per_buffer / dev->usb_samples_per_block; /* # of ADC blocks that will fill the user buffer (rounded down) */
-    unsigned transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;        /* Exact transfer size for that many ADC blocks */
-
     /* allocate enough transfers for ~ 250ms, within reason */
-    unsigned transfer_count = dev->adc_pll_config.actual_frequency / 4 / samples_per_buffer;
+    unsigned transfer_count = dev->adc_pll_config.actual_frequency / 4 / dev->adc_samples_per_transfer;
     if (transfer_count < 4)
         transfer_count = 4;
     if (transfer_count > 32)
@@ -684,25 +748,19 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
      * set our transfer timeout conservatively, based on the expected time to fill all our transfers
      * at the current sample rate
      */
-    float fill_time_ms = 1000.0f * blocks_per_buffer * dev->usb_samples_per_block * transfer_count / dev->adc_pll_config.actual_frequency;
+    float fill_time_ms = 1000.0f * dev->adc_samples_per_transfer * transfer_count / dev->adc_pll_config.actual_frequency;
     unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + 500); /* half a second of slop */
 
     LOGDEBUG(dev,
              "allocate_transfers: \n"
-             "  buffer_size    %u\n"
-             "  samples/buffer %u\n"
-             "  samples/block  %u\n"
-             "  blocks/buffer  %u\n"
-             "  bytes/block    %u\n"
-             "  transfer_size  %u\n"
-             "  transfer_count %u\n"
-             "  transfer_timeout_ms %u\n",
-             (unsigned) dev->buffer_size,
-             samples_per_buffer,
-             dev->usb_samples_per_block,
-             blocks_per_buffer,
-             dev->usb_bytes_per_block,
-             transfer_size,
+             "  buffer_size              %zu\n"
+             "  usb_transfer_size        %u\n"
+             "  adc_samples_per_transfer %u\n"
+             "  transfer_count           %u\n"
+             "  transfer_timeout_ms      %u\n",
+             dev->buffer_size,
+             dev->usb_transfer_size,
+             dev->adc_samples_per_transfer,
              transfer_count,
              transfer_timeout_ms);
 
@@ -721,7 +779,7 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
          *  - even with working kernels, the cache characteristics of the buffer mean that it can be slow to access
          *    (cf. how dump1090 has to use bounce buffers to get reasonable performance)
          */
-        if (!(transfers[i].buffer = malloc(transfer_size))) {
+        if (!(transfers[i].buffer = malloc(dev->usb_transfer_size))) {
             error = LPCSDR_ERROR_NO_MEMORY;
             goto failed;
         }
@@ -734,14 +792,14 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
             goto failed;
         }
 
-        libusb_fill_bulk_transfer(transfers[i].transfer, /* transfer to populate */
-                                  dev->usb_handle,       /* usb device */
-                                  0x81,                  /* endpoint number, EP 1 IN */
-                                  transfers[i].buffer,   /* buffer to fill */
-                                  transfer_size,         /* max bytes to receive */
-                                  transfer_callback,     /* callback on completion */
-                                  (void *)&transfers[i], /* callback user data */
-                                  transfer_timeout_ms);  /* timeout */
+        libusb_fill_bulk_transfer(transfers[i].transfer,  /* transfer to populate */
+                                  dev->usb_handle,        /* usb device */
+                                  0x81,                   /* endpoint number, EP 1 IN */
+                                  transfers[i].buffer,    /* buffer to fill */
+                                  dev->usb_transfer_size, /* max bytes to receive */
+                                  transfer_callback,      /* callback on completion */
+                                  (void *)&transfers[i],  /* callback user data */
+                                  transfer_timeout_ms);   /* timeout */
         transfers[i].transfer->flags = LIBUSB_TRANSFER_SHORT_NOT_OK;
 
         /* rest of the metadata */
@@ -752,7 +810,6 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
 
     dev->transfers = transfers;
     dev->transfer_count = transfer_count;
-    dev->transfer_size = transfer_size;
 
     return LPCSDR_SUCCESS;
 
@@ -785,7 +842,6 @@ static void free_dev_transfers(lpcsdr_device_handle *dev)
 
     dev->transfers = NULL;
     dev->transfer_count = 0;
-    dev->transfer_size = 0;
 }
 
 /* dispatch one completed USB transfer to user code */
