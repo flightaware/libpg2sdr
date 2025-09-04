@@ -1,30 +1,26 @@
 #include "util.h"
+using namespace testing;
 
 TEST(lpf_settings_for, Success) {
-    int max = 3900e3;
-    lpf_settings lpf = lpcsdr__lpf_settings_for(3000e3, &max);
+    lpf_settings lpf = lpcsdr__lpf_settings_for(3000e3, 3900e3);
     ASSERT_EQ(lpf.cutoff, (float) 3177e3);
 
-    max = 3000e3;
-    lpf = lpcsdr__lpf_settings_for(2026e3, &max);
+    lpf = lpcsdr__lpf_settings_for(2026e3, 3000e3);
     ASSERT_EQ(lpf.cutoff, (float) 2027e3);
 
-    lpf = lpcsdr__lpf_settings_for(2600e3, NULL);
+    lpf = lpcsdr__lpf_settings_for(2600e3, 11196e3);
     ASSERT_EQ(lpf.cutoff, (float) 2601e3);
 
-    lpf = lpcsdr__lpf_settings_for(11196e3, NULL);
+    lpf = lpcsdr__lpf_settings_for(11196e3, 11196e3);
     ASSERT_EQ(lpf.cutoff, (float) 11196e3);
 
-    max = 6000e3;
-    lpf = lpcsdr__lpf_settings_for(6555e3, &max);
+    lpf = lpcsdr__lpf_settings_for(6555e3, 6000e3);
     ASSERT_EQ(lpf.cutoff, (float) 5920e3);
 
-    max = 4000e3;
-    lpf = lpcsdr__lpf_settings_for(3100e3, &max);
+    lpf = lpcsdr__lpf_settings_for(3100e3, 4000e3);
     ASSERT_EQ(lpf.cutoff, (float) 3177e3);
 
-    max = 11196e3;
-    lpf = lpcsdr__lpf_settings_for(11190e3, &max);
+    lpf = lpcsdr__lpf_settings_for(11190e3, 11196e3);
     ASSERT_EQ(lpf.cutoff, (float) 11196e3);
 }
 
@@ -152,7 +148,7 @@ TEST(filter_sanity_check, Success) {
     DeviceHandle handle(ctx);
 
     lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_center_frequency_bandwidth(h, 659e3, 3177e3, NULL), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr_set_center_frequency_bandwidth(h, 659e3, 3177e3), LPCSDR_SUCCESS);
 
     uint8_t buffer[2] = {0};
     ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
@@ -167,12 +163,12 @@ TEST(filter_sanity_check, Success) {
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 0);
 }
 
-TEST(lpcsdr_set_bandwidth_highend_cutoff, Success) {
+TEST(lpcsdr_set_bandwidth_highend_cutoff, real_mode_cutoff_is_set_properly_even_when_sample_rate_is_0) {
     Context ctx;
     DeviceHandle handle(ctx);
 
     lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2027e3, NULL), LPCSDR_SUCCESS);
+    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2027e3), LPCSDR_SUCCESS);
 
     uint8_t buffer[2] = {0};
     ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
@@ -184,11 +180,41 @@ TEST(lpcsdr_set_bandwidth_highend_cutoff, Success) {
     ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 3);
 }
 
-TEST(lpcsdr_set_bandwidth_highend_cutoff, Bad_argument) {
+TEST(lpcsdr_set_bandwidth_highend_cutoff, baseband_mode_cutoff_is_set_properly) {
     Context ctx;
     DeviceHandle handle(ctx);
-    lpcsdr_device_handle *h = handle();
 
-    int max = 1000e3;
-    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2027e3, &max), LPCSDR_TUNER_LPF_INVALID_ARG);
+    lpcsdr_device_handle *h = handle();
+    h->requested_sample_rate = 3177e3;
+    h->conversion_mode = LPCSDR_MODE_BASEBAND;
+
+    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2891e3), LPCSDR_SUCCESS);
+
+    uint8_t buffer[2] = {0};
+    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
+
+    // Check TunerR11 Low-Pass
+    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), 0);
+    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), 12);
+    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), 1);
+    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 0);
 }
+
+typedef double PLLRangeTestParam;
+class Test_find_pll_parameters_for_range : public testing::TestWithParam<PLLRangeTestParam> {};
+
+TEST_P(Test_find_pll_parameters_for_range, FindParameters) {
+
+    double target = GetParam();
+    tuner_pll_config_t p = {};
+    ASSERT_EQ(lpcsdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
+
+    ASSERT_EQ(p.refdiv, true);
+    ASSERT_LT(abs(p.actual_frequency / target - 1.0), 2e-6);
+    ASSERT_LT(p.seldiv, 64);
+    ASSERT_GE(p.actual_vco, 1750e6);
+    ASSERT_LE(p.actual_vco, 3700e6);
+    ASSERT_EQ(p.actual_vco / p.seldiv, p.actual_frequency);
+}
+
+INSTANTIATE_TEST_SUITE_P(, Test_find_pll_parameters_for_range, Range(55e6, 1850e6, 10e6));

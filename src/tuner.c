@@ -218,13 +218,23 @@ int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain)
     set_tuner_reg(&cs, VGA_GAIN, gain);
     return update_tuner_regs(dev, &cs);
 }
-
-int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff, int *not_above)
+/*
+    Set the low pass filter values.
+    Derive the absolute maximum from the requested sampling rate.
+*/
+int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff)
 {
     CHECK_DEV(dev);
 
-    if (not_above && (*not_above < cutoff))
-        return LPCSDR_TUNER_LPF_INVALID_ARG;
+    unsigned not_above = 0;
+    switch(dev->conversion_mode) {
+        case LPCSDR_MODE_BASEBAND:
+            not_above = dev->requested_sample_rate;
+            break;
+        case LPCSDR_MODE_LOWIF_REAL:
+            not_above = dev->requested_sample_rate / 2;
+            break;
+    }
 
     lpf_settings s = lpcsdr__lpf_settings_for(cutoff, not_above);
     change_set cs = {0};
@@ -251,7 +261,7 @@ int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff)
     return update_tuner_regs(dev, &cs);
 }
 
-int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high, int *max)
+int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high)
 {
     CHECK_DEV(dev);
 
@@ -259,7 +269,7 @@ int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, in
 
     if ((error = lpcsdr_set_bandwidth_lowend_cutoff(dev, MIN(low, high))) < 0)
         return error;
-    if ((error = lpcsdr_set_bandwidth_highend_cutoff(dev, MAX(low, high), max)) < 0)
+    if ((error = lpcsdr_set_bandwidth_highend_cutoff(dev, MAX(low, high))) < 0)
         return error;
 
     return error;
@@ -267,13 +277,14 @@ int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, in
 
 /* 
     Find the lowest setting with cutoff >= target, but never above max.
-    Assumes max >= target.
+    Max should be >= target.
+    If max isn't 0, max should be >= lpf_calibration[0].cutoff.
 */
-lpf_settings lpcsdr__lpf_settings_for(int target, int *max) {
+lpf_settings lpcsdr__lpf_settings_for(int target, unsigned max) {
     int limit = sizeof(lpf_calibration)/sizeof(lpf_calibration[0]);
-    if (max != NULL) {
+    if (max) {
         for (int i = 0; i < sizeof(lpf_calibration)/sizeof(lpf_calibration[0]); i++) {
-            if (lpf_calibration[i].cutoff > *max) {
+            if (lpf_calibration[i].cutoff > max) {
                 limit = i;
                 break;
             }
