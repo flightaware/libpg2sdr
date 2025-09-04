@@ -1,17 +1,20 @@
 #include "internal.h"
 
-float lpcsdr_standard_filter_taps[] = {
-    0, -0.00105091, 0, 0.00250767, 0, -0.0048923, 0, 0.00855213, 0, -0.0139827, 0, 0.0220117,  0, -0.0343224, 0, 0.0552597,  0, -0.100878,   0, 0.316537, 0.5, 0.316537,
-    0, -0.100878,   0, 0.0552597,  0, -0.0343224, 0, 0.0220117,  0, -0.0139827, 0, 0.00855213, 0, -0.0048923, 0, 0.00250767, 0, -0.00105091, 0,
+float lpcsdr__standard_filter_taps[] = {
+    0, -0.00105091, 0, 0.00250767, 0, -0.0048923, 0, 0.00855213, 0, -0.0139827, 0, 0.0220117,  0, -0.0343224, 0, 0.0552597,  0, -0.100878,   0, 0.316537,
+    0.5,
+    0.316537, 0, -0.100878,   0, 0.0552597,  0, -0.0343224, 0, 0.0220117,  0, -0.0139827, 0, 0.00855213, 0, -0.0048923, 0, 0.00250767, 0, -0.00105091, 0,
 };
 
-unsigned lpcsdr_standard_filter_ntaps = sizeof(lpcsdr_standard_filter_taps) / sizeof(lpcsdr_standard_filter_taps[0]);
+unsigned lpcsdr__standard_filter_ntaps = sizeof(lpcsdr__standard_filter_taps) / sizeof(lpcsdr__standard_filter_taps[0]);
 
-int decimate_cs16(const unsigned int ntaps, const int16_t *taps, cs16_t *in, cs16_t *out, uint32_t count) {
+static uint32_t decimate_cs16_block(const unsigned int ntaps, const int16_t *taps, const cs16_t *in, uint32_t in_length, cs16_t *out)
+{
+    assert (in_length % 2 == 0);
+
     uint32_t window_end = 0;
     uint32_t out_index = 0;
-    for (; window_end < count; window_end += 2, out_index++) {
-
+    for (; window_end < in_length; window_end += 2, out_index++) {
         int32_t q_sum =  0;
         int32_t i_sum =  0;
         uint32_t tap_pointer = 0;
@@ -31,27 +34,38 @@ int decimate_cs16(const unsigned int ntaps, const int16_t *taps, cs16_t *in, cs1
     return out_index;
 }
 
-int process_cs16(lpcsdr_decimate *decimate, cs16_t *in, cs16_t *out, uint32_t count) {
-    const unsigned ntaps = decimate->ntaps;
-    const int16_t *taps = decimate->taps;
-    cs16_t *history = decimate->history;
-    const unsigned history_len = decimate->history_len;
-    const unsigned history_max = decimate->history_max;
+static uint32_t decimate_cs16(dsp_downconvert_state_t *state, const cs16_t *in, uint32_t in_length, cs16_t *out)
+{
+    const unsigned ntaps = state->ntaps;
+    const int16_t *taps = state->taps;
+    cs16_t *history = state->history;
+    const unsigned history_len = state->history_len;
+    const unsigned history_max = state->history_max;
 
     unsigned history_fill = history_max - history_len; /* elements required to completely fill the history buffer */
-    if (history_fill > count)                          /* .. but we can't fill with more elements than we have available */
-        history_fill = count;
+    if (history_fill > in_length)                      /* .. but we can't fill with more elements than we have available */
+        history_fill = in_length;
     memcpy_elements(history + history_len, in, history_fill); /* fill the history buffer */
 
     const unsigned history_available = history_len + history_fill;             /* elements in the history buffer, including what we just copied */
-    const unsigned history_processed = (history_available - (ntaps - 1)) & ~1; /* number of windows we can process from the history buffer, multiple of 2 */
-    if (history_available < (ntaps - 1) || history_processed == 0) {
+    if (history_available < ntaps) {
         /* not enough history to do any useful processing, just retain what we have */
-        decimate->history_len = history_available;
+        state->history_len = history_available;
         return 0;
     }
 
-    decimate_cs16(ntaps, taps, history, out, history_processed);
+    /* if history_available == ntaps, we can process 1 window
+     * if history_available == ntaps + 1, we can process 2 windows
+     * etc
+     */
+    const unsigned history_processed = (history_available - ntaps + 1) & ~1; /* number of windows we can process from the history buffer, multiple of 2 */
+    if (!history_processed) {
+        /* not enough history to do any useful processing, just retain what we have */
+        state->history_len = history_available;
+        return 0;
+    }
+
+    uint32_t out_produced = decimate_cs16_block(ntaps, taps, history, history_processed, out);
 
     /* First unprocessed window in history starts at history[history_processed].
      * We copied in[0] to history[history_len].
@@ -60,87 +74,49 @@ int process_cs16(lpcsdr_decimate *decimate, cs16_t *in, cs16_t *out, uint32_t co
     if (history_processed < history_len) {
         /* no further data to process in the input, just shift history down */
         memmove_elements(history, history + history_processed, history_available - history_processed);
-        decimate->history_len = history_available - history_processed;
-        return history_processed / 2;
+        state->history_len = history_available - history_processed;
+        return out_produced;
     }
 
-    const unsigned offset = history_processed - history_len;               /* offset in input of first unprocessed window */
-    const unsigned main_processed = ((count - offset) - (ntaps - 1)) & ~1; /* number of windows we can process from the input buffer, multiple of 2 */
+    const unsigned offset = history_processed - history_len;                  /* offset in input of first unprocessed window */
+    const unsigned main_processed = ((in_length - offset) - ntaps + 1) & ~1;  /* number of windows we can process from the input buffer, multiple of 2 */
 
     /* process the main block */
-    decimate_cs16(ntaps, taps, in + offset, out + history_processed / 2, main_processed);
+    out_produced += decimate_cs16_block(ntaps, taps, in + offset, main_processed, out + out_produced);
 
     /* preserve history starting from the first unprocessed window in input data */
     const unsigned input_consumed = offset + main_processed;
-    memcpy_elements(history, in + input_consumed, count - input_consumed);
-    decimate->history_len = count - input_consumed;
+    memcpy_elements(history, in + input_consumed, in_length - input_consumed);
+    state->history_len = in_length - input_consumed;
 
-    return (history_processed + main_processed) / 2;
+    return out_produced;
 }
 
-int downmix_samples(uint32_t samples_per_block, int16_t *in, cs16_t *out, uint32_t in_length) {
-    double complex c_signal[samples_per_block];
-    double complex *mixed_intermediate = calloc(in_length, sizeof(complex double));
-
-    for (uint32_t i = 0; i < samples_per_block; i+=4) {
-        c_signal[i] =       1 + 0 * I;
-        c_signal[i + 1] =   0 + 1 * I;
-        c_signal[i + 2] =  -1 + 0 * I;
-        c_signal[i + 3] =   0 - 1 * I;
-    }
-
-    uint32_t mixed_offset = 0, c_signal_index = 0;
-    while (mixed_offset < in_length) {
-        mixed_intermediate[mixed_offset] = in[mixed_offset] * c_signal[c_signal_index % samples_per_block];
-
-        mixed_offset++;
-        c_signal_index++;
-    }
-
-    for (uint32_t cur = 0; cur < mixed_offset; cur++) {
-        out[cur].i = (int16_t) creal(mixed_intermediate[cur]);
-        out[cur].q = (int16_t) cimag(mixed_intermediate[cur]);
-    }
-    free(mixed_intermediate);
-    
-    return LPCSDR_SUCCESS;
-}
-
-int lpcsdr_decimate_complex_baseband(lpcsdr_decimate *decimate, uint32_t samples_per_block, int16_t *in, uint32_t in_length, cs16_t **out, uint32_t required_samples, const char *output_file_path) {
-    int error = LPCSDR_SUCCESS;
-
-    uint32_t mixed_length =  required_samples * 2 + samples_per_block;
-    cs16_t *mixed = calloc(in_length, sizeof(cs16_t));
-
-    printf("mixed %u in %u\n", mixed_length, in_length);
-
-    downmix_samples(samples_per_block, in, mixed, in_length);
-
-    const unsigned ntaps = decimate->ntaps;
-    uint32_t complex_baseband_length = in_length - ntaps + 1;
-    cs16_t *values = calloc(complex_baseband_length, sizeof(cs16_t));
-    uint32_t num_processed = process_cs16(decimate, mixed, values, in_length);
-    
-    // Maybe make all of these function pointers
-    if (output_file_path) {
-        FILE *file = fopen(output_file_path, "w");
-        if (file == NULL) {
-            printf("Could not output to file %s\n", output_file_path);
-        } else {
-            for (int i = 0; i < num_processed; i++)
-                fprintf(file, "%d,%d\n", (values[i].i), (values[i].q));
-        }
-
-        fclose(file);
-    }
-
-    *out = values;
-    return error;
-}
-
-int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, lpcsdr_decimate **out)
+static uint32_t fs4_mix(const int16_t *in, uint32_t in_length, cs16_t *out)
 {
+    assert (in_length % 4 == 0);
+    for (uint32_t i = 0; i < in_length; i += 4, in += 4, out += 4) {
+        out[0].i = in[0];
+        out[1].q = -in[1];
+        out[2].i = -in[2];
+        out[3].q = in[3];
+    }
+    return in_length;
+}
 
+uint32_t lpcsdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const int16_t *in, uint32_t in_length, cs16_t *out)
+{
+    assert (in_length % 4 == 0);
+    assert (in_length <= state->max_in_length);
+
+    uint32_t mixed_length = fs4_mix(in, in_length, state->buffer);
+    uint32_t decimated_length = decimate_cs16(state, state->buffer, mixed_length, out);
+
+    return decimated_length;
+}
+
+int lpcsdr__dsp_downconvert_create(unsigned halfband_ntaps, const float *halfband_taps, uint32_t max_in_length, dsp_downconvert_state_t **result)
+{
     if (halfband_ntaps % 2 != 1)
         return LPCSDR_ERROR_BAD_ARGUMENT; /* must have an odd number of taps */
 
@@ -162,45 +138,53 @@ int lpcsdr_dsp_decimate_create(unsigned halfband_ntaps, const float *halfband_ta
 
     sum_taps += center_tap;
 
-    struct lpcsdr_decimate *decimate;
-    if (!(decimate = calloc(1, sizeof(*decimate))))
+    int error = LPCSDR_SUCCESS;
+    dsp_downconvert_state_t *state = calloc(1, sizeof(*state));
+    if (!state)
         return LPCSDR_ERROR_NO_MEMORY;
 
-    decimate->ntaps = halfband_ntaps;
-    decimate->history_max = decimate->ntaps * 2 + 2;
+    state->ntaps = halfband_ntaps;
+    state->history_max = state->ntaps * 2 + 2;
+    state->max_in_length = max_in_length;
 
-    if (!(decimate->taps = malloc(decimate->ntaps * sizeof(int16_t))) || !(decimate->history = malloc(decimate->history_max * sizeof(cs16_t)))) {
-        free(decimate);
-        return LPCSDR_ERROR_NO_MEMORY;
+    if (!(state->taps = malloc(state->ntaps * sizeof(int16_t))) ||
+        !(state->history = malloc(state->history_max * sizeof(cs16_t))) ||
+        !(state->buffer = malloc(state->max_in_length * sizeof(cs16_t)))) {
+        error = LPCSDR_ERROR_NO_MEMORY;
+        goto fail;
     }
 
     /* scale taps so that the output cannot ever overflow a Q15 representation */
     float scale = 32767 / sum_taps;
-    for (unsigned i = 0; i < decimate->ntaps; ++i) {
-        decimate->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
+    for (unsigned i = 0; i < state->ntaps; ++i) {
+        state->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
     }
 
-    lpcsdr_dsp_decimate_reset(decimate);
-    *out = decimate;
+    lpcsdr__dsp_downconvert_reset(state);
+    *result = state;
     return LPCSDR_SUCCESS;
+
+ fail:
+    lpcsdr__dsp_downconvert_free(state);
+    return error;
 }
 
-
-void lpcsdr_dsp_decimate_free(lpcsdr_decimate *decimate)
+void lpcsdr__dsp_downconvert_free(dsp_downconvert_state_t *state)
 {
-    if (!decimate)
+    if (!state)
         return;
 
-    free(decimate->taps);
-    free(decimate->history);
-    free(decimate);
+    free(state->buffer);
+    free(state->taps);
+    free(state->history);
+    free(state);
 }
 
-void lpcsdr_dsp_decimate_reset(lpcsdr_decimate *decimate)
+void lpcsdr__dsp_downconvert_reset(dsp_downconvert_state_t *state)
 {
-    if (!decimate)
+    if (!state)
         return;
 
-    memset_elements(decimate->history, 0, decimate->history_max);
-    decimate->history_len = 0;
+    memset_elements(state->history, 0, state->history_max);
+    state->history_len = state->history_max / 2;
 }

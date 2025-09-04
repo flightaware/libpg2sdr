@@ -88,8 +88,6 @@ struct lpcsdr_device_handle {
 
     size_t buffer_size;           /* requested user buffer size, in bytes (todo: is this more obvious if it's in samples, not bytes?) */
 
-    /* decimation filters */
-    struct lpcsdr_decimate *decimation_filter;
 
     /* libusb transfers array */
     lpcsdr_transfer_state *transfers;

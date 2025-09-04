@@ -8,9 +8,4 @@ typedef struct {
     int16_t q;
 } __attribute__((packed)) cs16_t;
 
-typedef struct {
-    float i;
-    float q;
-} __attribute__((packed)) cf32_t;
-
 #endif /* LPCSDR_DSP_TYPES_H */

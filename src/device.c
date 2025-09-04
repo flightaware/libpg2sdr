@@ -43,9 +43,6 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     dev->tuner_xtal = status.tuner_xtal;
     dev->buffer_size = 1048576; /* default 1MB */
 
-    if ((error = lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &dev->decimation_filter)) < 0)
-        goto cleanup;
-
     if ((error = lpcsdr__init_tuner(dev)) < 0)
         goto cleanup;
 
@@ -53,9 +50,6 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     return LPCSDR_SUCCESS;
 
 cleanup:
-    if (dev->decimation_filter)
-        lpcsdr_dsp_decimate_free(dev->decimation_filter);
-
     pthread_mutex_destroy(&dev->mutex);
 
 cleanup_nomutex:
@@ -428,7 +422,6 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         /* continue anyway */
     }
 
-    lpcsdr_dsp_decimate_free(dev->decimation_filter);
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;
     pthread_mutex_unlock(&dev->mutex);
