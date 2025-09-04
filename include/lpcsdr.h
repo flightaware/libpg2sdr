@@ -20,7 +20,7 @@ typedef enum { LPCSDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_
 typedef void (*lpcsdr_log_callback)(lpcsdr_context *context, lpcsdr_log_level level, const char *message);
 typedef struct lpcsdr_device_handle lpcsdr_device_handle;
 
-typedef enum { LPCSDR_MODE_LOWIF_REAL, LPCSDR_MODE_BASEBAND } lpcsdr_conversion_mode;
+typedef enum { LPCSDR_MODE_LOWIF_REAL, LPCSDR_MODE_BASEBAND } lpcsdr_conversion_mode_t;
 
 enum lpcsdr_error {
     LPCSDR_SUCCESS = 0, /* no error */
@@ -119,7 +119,6 @@ typedef struct {
      * This counter may not initially start at zero.
      */
     uint64_t timestamp;
-
 } lpcsdr_sample_buffer;
 
 typedef bool (*lpcsdr_stream_callback)(lpcsdr_sample_buffer *buffer, void *user_data);
@@ -150,6 +149,8 @@ int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_hand
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
 // Device configuration
+int lpcsdr_set_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t mode);
+int lpcsdr_get_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t *mode);
 int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
 int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate);

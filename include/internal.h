@@ -75,7 +75,7 @@ struct lpcsdr_device_handle {
     bool streaming; /* true when lpcsdr_stream_data is active */
     bool draining;  /* true when we are waiting to drain all active transfers */
 
-    lpcsdr_conversion_mode conversion_mode;
+    lpcsdr_conversion_mode_t conversion_mode;
 
     double requested_sample_rate;         /* user requested sample rate */
     adc_pll_config_t adc_pll_config;      /* actually configured ADC clock settings */

@@ -329,6 +329,48 @@ int lpcsdr_stop_streaming(lpcsdr_device_handle *dev)
     return LPCSDR_SUCCESS;
 }
 
+int lpcsdr_set_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t mode)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    int error = LPCSDR_SUCCESS;
+
+    if (dev->streaming) {
+        error = LPCSDR_ERROR_BAD_STATE;
+        goto done;
+    }
+
+    switch (mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+    case LPCSDR_MODE_BASEBAND:
+        /* okay */
+        break;
+
+    default:
+        error = LPCSDR_ERROR_BAD_ARGUMENT;
+        goto done;
+    }
+
+    dev->conversion_mode = mode;
+    dev->changing_rate = true;
+    dev->changing_freq = true;
+
+ done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
+}
+
+int lpcsdr_get_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t *mode)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    *mode = dev->conversion_mode;
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size)
 {
     CHECK_DEV(dev);
