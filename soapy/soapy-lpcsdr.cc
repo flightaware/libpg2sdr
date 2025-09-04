@@ -183,8 +183,7 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(s
     LIBCALL(lpcsdr_set_vga_gain, 7);
 
     LIBCALL(lpcsdr_set_sideband, true);
-
-    // LIBCALL(pxsdr_set_sampling_mode, PXSDR_SAMPLING_MODE_COMPLEX_BASEBAND, PXSDR_SAMPLE_FORMAT_INT16);
+    LIBCALL(lpcsdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
 
     // unsigned quantum;
     // LIBCALL(pxsdr_get_buffer_quantum, &quantum);
@@ -307,8 +306,9 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
         LIBCALL(lpcsdr_set_sample_rate, rate);
 
         // todo: use soapy bandwidth API
-        int nyquist = (int)round(rate/2.0);
-        LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate/2.0, /* max */ &nyquist);
+
+        int nyquist = (int)rate;
+        LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate, /* max */ &nyquist);
 
         LIBCALL(lpcsdr_apply_changes);
 
@@ -333,8 +333,8 @@ std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const siz
     CheckChannel(direction, channel);
 
     std::vector<double> result;
-    for (auto i = 1; i <= 20; ++i)
-        result.push_back(i * 1e6);
+    for (auto i = 4; i <= 30; ++i)
+        result.push_back(i * 0.5e6);
     return result;
 }
 
@@ -344,7 +344,7 @@ SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const 
     CheckChannel(direction, channel);
 
     SoapySDR::RangeList ranges;
-    ranges.push_back(SoapySDR::Range(1.0, 20.0));
+    ranges.push_back(SoapySDR::Range(2.0, 15.0));
     return ranges;
 }
 
@@ -387,7 +387,7 @@ std::vector<std::string> LPCSDRDevice::getStreamFormats(const int direction, con
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
-    return {SOAPY_SDR_CS16, SOAPY_SDR_CF32, SOAPY_SDR_S16, SOAPY_SDR_F32};
+    return {SOAPY_SDR_CS16, SOAPY_SDR_CF32};
 }
 
 std::string LPCSDRDevice::getNativeStreamFormat(const int direction, const size_t channel, double &fullScale) const
@@ -507,55 +507,30 @@ int LPCSDRDevice::readStream(SoapySDR::Stream *stream, void *const *buffs, const
 // LPCSDRStream
 //
 
-static void copy_s16_to_s16(void *out, const void *in, std::size_t samples)
+static void copy_cs16_to_cs16(void *out, const void *in, std::size_t samples)
 {
-    memcpy(out, in, samples * sizeof(int16_t));
+    memcpy(out, in, samples * sizeof(int16_t) * 2);
 }
 
-static void copy_s16_to_f32(void *out, const void *in, std::size_t samples)
-{
-    float *out_f32 = (float *)out;
-    const std::int16_t *in_s16 = (const std::int16_t *)in;
-
-    while (samples-- > 0) {
-        *out_f32++ = *in_s16++ / 32768.0;
-    }
-}
-
-static void copy_s16_to_cs16(void *out, const void *in, std::size_t samples)
-{
-    std::int16_t *out_s16 = (std::int16_t *)out;
-    const std::int16_t *in_s16 = (const std::int16_t *)in;
-
-    while (samples-- > 0) {
-        *out_s16++ = *in_s16++;  // real
-        *out_s16++ = 0.0;        // imag
-    }
-}        
-
-static void copy_s16_to_cf32(void *out, const void *in, std::size_t samples)
+static void copy_cs16_to_cf32(void *out, const void *in, std::size_t samples)
 {
     float *out_f32 = (float *)out;
     const std::int16_t *in_s16 = (const std::int16_t *)in;
 
     while (samples-- > 0) {
         *out_f32++ = *in_s16++ / 32768.0; // real
-        *out_f32++ = 0.0;                 // imag
+        *out_f32++ = *in_s16++ / 32768.0; // imag
     }
-}        
+}
+
 
 LPCSDRStream::LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::size_t queue_limit)
     : dev_(dev), sample_rate_(0), queue_limit_(queue_limit), queue_size_(0), expected_timestamp_(0)
 {
-    // todo: use soapysdr-provided converters?
-    if (format == SOAPY_SDR_S16) {
-        convert_ = &copy_s16_to_s16;
-    } else if (format == SOAPY_SDR_F32) {
-        convert_ = &copy_s16_to_f32;
-    } else if (format == SOAPY_SDR_CS16) {
-        convert_ = &copy_s16_to_cs16;
+    if (format == SOAPY_SDR_CS16) {
+        convert_ = &copy_cs16_to_cs16;
     } else if (format == SOAPY_SDR_CF32) {
-        convert_ = &copy_s16_to_cf32;
+        convert_ = &copy_cs16_to_cf32;
     } else {
         throw new std::invalid_argument("unsupported format " + format);
     }
@@ -686,9 +661,9 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
         // copy some samples to user buffer, advance everything
 
         std::size_t to_copy = std::min<std::size_t>(pending_->buffer->count - pending_->offset, remaining);
-        const int16_t *samples = pending_->buffer->samples;
+        const std::int16_t *samples = pending_->buffer->samples;
 
-        convert_(out, samples + pending_->offset, to_copy);
+        convert_(out, samples + pending_->offset * 2, to_copy);
 
         out += to_copy * bytes_per_sample_;
         received += to_copy;
