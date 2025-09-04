@@ -143,7 +143,9 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     lpcsdr_device_handle *handle;
     LIBCALL_DIRECT(ctx, lpcsdr_open_device, matching.second[0], &handle);
 
-    return new LPCSDRDevice(std::move(ctx), handle);
+    auto dev = new LPCSDRDevice(std::move(ctx), handle);
+    Logf(SOAPY_SDR_DEBUG, "LPCSDR: constructed %p with liblpcsdr handle %p", dev, handle);
+    return dev;
 }
 
 static SoapySDR::Registry registerLPCSDRDevice("lpcsdr", &LPCSDRDevice::FindDevices, &LPCSDRDevice::MakeDevice, SOAPY_SDR_ABI_VERSION);
@@ -160,6 +162,7 @@ static SoapySDR::Registry registerLPCSDRDevice("lpcsdr", &LPCSDRDevice::FindDevi
 
 LPCSDRDevice::~LPCSDRDevice()
 {
+    Logf(SOAPY_SDR_DEBUG, "LPCSDR: dtor called for %p", this);
     if (handle_) {
         if (LIBCALL_DIRECT_NOTHROW(ctx_, lpcsdr_close_device, handle_) < 0) {
             // this can happen if e.g. the underlying device is still busy in another thread
