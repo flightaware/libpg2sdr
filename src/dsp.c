@@ -119,7 +119,18 @@ int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *h
     if (!state)
         return LPCSDR_ERROR_NO_MEMORY;
 
-    state->ntaps = halfband_ntaps;
+    unsigned first_nonzero;
+    if (halfband_ntaps % 4 == 1) {
+        /* First nonzero tap is at index 1 */
+        assert(halfband_taps[0] == 0.0);
+        first_nonzero = 1;
+        state->ntaps = halfband_ntaps - 2;
+    } else {
+        /* First nonzero tap must be at index 0 */
+        assert(halfband_taps[0] != 0.0);
+        first_nonzero = 0;
+        state->ntaps = halfband_ntaps;
+    }
     state->history_max = state->ntaps * 2 + 2;
 
     if (!(state->taps = malloc(state->ntaps * sizeof(int16_t))) ||
@@ -131,7 +142,7 @@ int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *h
     /* scale taps so that the output cannot ever overflow a Q15 representation */
     float scale = 32767 / sum_taps;
     for (unsigned i = 0; i < state->ntaps; ++i) {
-        state->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
+        state->taps[i] = (int16_t)(halfband_taps[first_nonzero + i] * scale + 0.5);
     }
 
     lpcsdr__dsp_halfband_decimate_reset(state);
