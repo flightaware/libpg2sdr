@@ -42,57 +42,73 @@ $ python/status.py
 
 ```
 $ SoapySDRUtil --find
-[...]
-[DEBUG] candidate: address=10, bus=1, driver=lpcsdr, index=0, label=LPCSDR@1:10 S/N 38265463986061DC, serial=38265463986061DC
-[...]
-Found device 2
-  address = 10
+######################################################
+##     Soapy SDR -- the SDR abstraction library     ##
+######################################################
+
+[DEBUG] LPCSDR: FindDevices("")
+[DEBUG] candidate: address=3, bus=1, driver=lpcsdr, index=0, label=LPCSDR@1:1 s/n 38265463986061DC, ports=1, serial=38265463986061DC
+Found device 0
+  address = 3
   bus = 1
   driver = lpcsdr
   index = 0
-  label = LPCSDR@1:10 S/N 38265463986061DC
+  label = LPCSDR@1:1 s/n 38265463986061DC
+  ports = 1
   serial = 38265463986061DC
+
 ```
 
 ```
-$ SoapySDRUtil --args="driver=lpcsdr" --rate=20000000 --direction=RX --channels=0
+$ SoapySDRUtil --args="driver=lpcsdr" --rate=10000000 --direction=RX --channels=0
 ######################################################
 ##     Soapy SDR -- the SDR abstraction library     ##
 ######################################################
 
 [DEBUG] LPCSDR: FindDevices("driver=lpcsdr")
-[DEBUG] candidate: address=10, bus=1, driver=lpcsdr, index=0, label=LPCSDR@1:10 S/N 38265463986061DC, serial=38265463986061DC
-[DEBUG] LPCSDR: MakeDevice("address=10, bus=1, driver=lpcsdr, index=0, label=LPCSDR@1:10 S/N 38265463986061DC, serial=38265463986061DC")
-[DEBUG] LPCSDR: setSampleRate(1,0,20000000.000000)
+[DEBUG] candidate: address=3, bus=1, driver=lpcsdr, index=0, label=LPCSDR@1:1 s/n 38265463986061DC, ports=1, serial=38265463986061DC
+[DEBUG] LPCSDR: MakeDevice("address=3, bus=1, driver=lpcsdr, index=0, label=LPCSDR@1:1 s/n 38265463986061DC, ports=1, serial=38265463986061DC")
+[DEBUG] LPCSDR: setSampleRate(1,0,10000000.000000)
+[DEBUG] liblpcsdr: set HPF cutoff = 0.527MHz
+[DEBUG] liblpcsdr: set LPF cutoff = 9.955MHz
+[DEBUG] liblpcsdr: ADC sample rate changes to 20000000.000000
 [DEBUG] LPCSDR: getNativeStreamFormat(1,0)
 [DEBUG] LPCSDR: setupStream(1,CS16,[1 items],"")
-[DEBUG]  = 0xaaaabdb11170
+[DEBUG]  = 0xaaaad34d4ea0
 Stream format: CS16
 Num channels: 1
 Element size: 4 bytes
-Begin RX rate test at 20 Msps
-[DEBUG] LPCSDR: getStreamMTU(0xaaaabdb11170)
+Begin RX rate test at 10 Msps
+[DEBUG] LPCSDR: getStreamMTU(0xaaaad34d4ea0)
 Starting stream loop, press Ctrl+C to exit...
-[DEBUG] LPCSDR: activateStream(0xaaaabdb11170,0,0,0)
+[DEBUG] LPCSDR: activateStream(0xaaaad34d4ea0,0,0,0)
 [DEBUG] LPCSDR: streaming thread started
 [DEBUG] liblpcsdr: allocate_transfers: 
-  buffer_size    131072
-  samples/buffer 65536
-  samples/block  6808
-  blocks/buffer  9
-  bytes/block    10240
-  transfer_size  92160
-  transfer_count 4
-  transfer_timeout_ms 512
+  buffer_size              131072
+  usb_transfer_size        92160
+  adc_samples_per_transfer 61272
+  transfer_count           32
+  transfer_timeout_ms      598
 
-19.834 Msps	79.3361 MBps
-19.9135 Msps	79.6539 MBps
-19.9428 Msps	79.7713 MBps
-\^C[DEBUG] LPCSDR: deactivateStream(0xaaaabdb11170,0,0)
+[DEBUG] liblpcsdr: starting ADC transfers with:
+  N: 0
+  M: 15.00000
+  P: 9
+  I: 0
+  fCCO: 360.00 MHz
+  fADC: 20.00 MHz
+
+[DEBUG] liblpcsdr: ADC overrun
+[DEBUG] liblpcsdr: USB overrun
+9.91835 Msps	39.6734 MBps
+9.96034 Msps	39.8414 MBps
+9.97378 Msps	39.8951 MBps
+9.97941 Msps	39.9176 MBps
+\^C[DEBUG] LPCSDR: deactivateStream(0xaaaad34d4ea0,0,0)
 [DEBUG] liblpcsdr: lpcsdr_stream_data: something set the draining flag, stopping
 [DEBUG] LPCSDR: streaming thread terminated
-[DEBUG] LPCSDR: closeStream(0xaaaabdb11170)
-[DEBUG] LPCSDR: deactivateStream(0xaaaabdb11170,0,0)
+[DEBUG] LPCSDR: closeStream(0xaaaad34d4ea0)
+[DEBUG] LPCSDR: deactivateStream(0xaaaad34d4ea0,0,0)
 ```
 
 ## Start cubicsdr
@@ -111,13 +127,14 @@ You should now have a waterfall display running.
 
 ## Tuning
 
-The "center frequency" (top right corner) in CubicSDR controls the tuned PLL frequency.
-Frequencies immediately above the PLL will be captured (e.g., to see the broadcast FM
-spectrum, try tuning to 90MHz and you will capture 90-95MHz)
-
-Unlike earlier iterations of this code, we are capturing the upper sideband, so the PLL
-should be tuned below the frequency you want to look at, and the resulting ADC spectrum
-is _not_ inverted.
+The complex baseband stuff is working now, so the tuned center frequency (top right
+corner of CubicSDR) controls the center of the tuned band, i.e. the "zero" frequency
+in the baseband data. The LPCSDR will capture a chunk of the spectrum surrounding that
+center frequency, with a total width = the configured sample rate. Internally, the
+tuner PLL will actually be tuned to one edge of that band. e.g. if you tune to a
+center frequency of 95MHz, with a (complex) sampling rate of 10MHz, then the tuner PLL
+will be tuned to 90MHz and the ADC will run at 20MHz, capturing frequencies between
+90MHz - 100MHz.
 
 ## Gain
 
@@ -133,20 +150,8 @@ $ python/tuner.py --lna-gain 7 --mix-gain 7 --vga-gain 7
 
 ## Interpreting the waterfall
 
-The current implementation is a bit of a hack, in that it does not actually shift the signal
-to baseband. What you're seeing is directly the spectrum of the real-valued signal coming from
-the ADC.
-
-You will see a mirrored signal, mirrored around a center frequency which is the PLL / center
-frequency you set. The right-hand side of the spectrum is exactly what the ADC is seeing, with
-the center frequency corresponding to a 0Hz (DC) signal from the ADC. Frequency marks on the
-right-hand side will correctly reflect the RF frequency. For example, if you tune the PLL to
-90MHz, then a signal showing at 92MHz corresponds to a RF signal at 92MHz, and an ADC signal
-at 2MHz.
-
-The left-hand side is a mirror-image of the right-hand side (because we are doing a discrete
-Fourier transform on a real-valued signal, and that produces negative frequency components that
-mirror the positive frequency components). There are no new signals in there.
+Now that we're using complex baseband, there's nothing special here, it's a direct interpretation
+of a chunk of the spectrum with no mirroring.
 
 It should look something like this:
 
@@ -154,6 +159,7 @@ It should look something like this:
 
 ## Listen to some FM radio!
 
-Hook up an antenna and poke around the FM spectrum. left-clicking on the waterfall will center
-a FM demodulator on that frequency and you should get some audio output, all going well ...
-
+Hook up an antenna and poke around the FM spectrum. You can change the center frequency by
+clicking the top/bottom parts of each frequency digit, or using the mousewheel there.
+Clicking on the waterfall will center a FM demodulator on that frequency and you should
+get some audio output, all going well ...
