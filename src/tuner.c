@@ -539,15 +539,15 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
 
     sdm_numerator = (sdm_numerator & ~3) | 1;
 
-    if (sdm_numerator < 32)
+    if (sdm_numerator < 8)
         sdm_numerator = 0;
-    else if (sdm_numerator > ((1<<18) - 32)) {
+    else if (sdm_numerator > ((1<<18) - 8)) {
         sdm_numerator = 0;
         pll_feedback_int += 1;
-    } else if (sdm_numerator > ((1<<17) - 32) && sdm_numerator <= (1<<17)) {
-        sdm_numerator = (1<<17) - 32;
-    } else if (sdm_numerator > (1<<17) && sdm_numerator < ((1<<17) + 32)) {
-        sdm_numerator = (1<<17) + 32;
+    } else if (sdm_numerator > ((1<<17) - 8) && sdm_numerator <= (1<<17)) {
+        sdm_numerator = (1<<17) - 8;
+    } else if (sdm_numerator > (1<<17) && sdm_numerator < ((1<<17) + 8)) {
+        sdm_numerator = (1<<17) + 8;
     }
 
     double actual_vco = pll_ref * 2 * (pll_feedback_int + (double) sdm_numerator / (1<<18));
