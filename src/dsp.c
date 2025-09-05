@@ -37,7 +37,7 @@ static uint32_t halfband_decimate_block(const unsigned int ntaps, const int16_t 
     return out_index;
 }
 
-static uint32_t lpcsdr__dsp_halfband_decimate(dsp_halfband_decimate_state_t *state, const cs16_t *in, uint32_t in_length, cs16_t *out)
+uint32_t lpcsdr__dsp_halfband_decimate_process(dsp_halfband_decimate_state_t *state, const cs16_t *in, uint32_t in_length, cs16_t *out)
 {
     const unsigned ntaps = state->ntaps;
     const int16_t *taps = state->taps;
@@ -198,7 +198,7 @@ uint32_t lpcsdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const i
     assert (in_length <= state->max_in_length);
 
     uint32_t mixed_length = fs4_mix(in, in_length, state->buffer);
-    uint32_t decimated_length = lpcsdr__dsp_halfband_decimate(state->decimate, state->buffer, mixed_length, out);
+    uint32_t decimated_length = lpcsdr__dsp_halfband_decimate_process(state->decimate, state->buffer, mixed_length, out);
 
     return decimated_length;
 }
