@@ -98,16 +98,18 @@ TEST(prepare_tuner_payload_from_change_set, Success) {
 TEST(Test_find_pll_parameters, Success) {
     tuner_pll_config_t p = {};
 
-    ASSERT_EQ(lpcsdr__find_pll_parameters(100e6, 28.8e6, &p), LPCSDR_SUCCESS);
+    const double target = 100e6;
+
+    ASSERT_EQ(lpcsdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
     ASSERT_EQ(p.refdiv, true);
     ASSERT_EQ(p.seldiv, 32);
     ASSERT_EQ(p.feedback_n, 111);
     ASSERT_EQ(p.feedback_sdm, 7281);
 
     // actual freq should be within 1ppm of requested freq
-    ASSERT_LT(abs(p.actual_frequency / 100e6 - 1.0), 1e-6);
+    ASSERT_NEAR(p.actual_frequency, target, target * 1e-6);
     // actual vco should be consistent with output freq & seldiv
-    ASSERT_LT(abs(p.actual_vco / p.seldiv - p.actual_frequency), 1.0);
+    ASSERT_FLOAT_EQ(p.actual_vco / p.seldiv, p.actual_frequency);
 }
 
 TEST(tuner_sanity_check, Success)
@@ -210,11 +212,11 @@ TEST_P(Test_find_pll_parameters_for_range, FindParameters) {
     ASSERT_EQ(lpcsdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
 
     ASSERT_EQ(p.refdiv, true);
-    ASSERT_LT(abs(p.actual_frequency / target - 1.0), 2e-6);
+    ASSERT_NEAR(p.actual_frequency, target, target * 1e-6);
     ASSERT_LT(p.seldiv, 64);
     ASSERT_GE(p.actual_vco, 1750e6);
     ASSERT_LE(p.actual_vco, 3700e6);
-    ASSERT_EQ(p.actual_vco / p.seldiv, p.actual_frequency);
+    ASSERT_FLOAT_EQ(p.actual_vco / p.seldiv, p.actual_frequency);
 }
 
 INSTANTIATE_TEST_SUITE_P(, Test_find_pll_parameters_for_range, Range(55e6, 1850e6, 10e6));
