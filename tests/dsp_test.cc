@@ -1,311 +1,209 @@
-#include "dsp_test.h"
+#include <gtest/gtest.h>
+using namespace testing;
 
-string print_cs16_t(cs16_t v) {
-    std::stringstream ss;
-    ss << "real: " << v.i << ",imag: " << v.q;
-    return ss.str();
-}
+#include "lpcsdr.h"
+#include "dsp.h"
 
-AssertionResult Succeeded(cs16_t value, cs16_t expected) {
-    if (value.i == expected.i && value.q == expected.q)
-        return testing::AssertionSuccess();
-    else {
-        return testing::AssertionFailure() << "Got cs16_t " << print_cs16_t(value) << ". Expected " << print_cs16_t(expected);
+TEST(DSPDecimateTests, ImpulseResponse)
+{
+    // Feed an impulse to the decimator and check that the impulse response
+    // matches the configured taps. Since there are two possible options for
+    // which output sample gets discarded during decimation, put an impulse
+    // in the I and Q parts of the input at a 1-sample offset.
+
+    size_t in_len = lpcsdr__standard_filter_ntaps;
+    cs16_t *in = new cs16_t[in_len];
+    for (auto i = 0; i < in_len; ++i) {
+        in[i].i = 0;
+        in[i].q = 0;
     }
+
+    in[0].i = 32767;
+    in[1].q = 32767;
+
+    size_t out_len = in_len / 2 + 2;
+    cs16_t *out = new cs16_t[out_len];
+
+    dsp_halfband_decimate_state_t *state;
+    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+    
+    auto produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
+    ASSERT_LE(produced, out_len);
+
+    auto center_tap_offset = state->ntaps/2;
+    auto center_tap_value = state->taps[center_tap_offset];
+
+    EXPECT_NEAR(out[center_tap_offset/2 + 1].q, ((int32_t)in[1].q * center_tap_value) >> 15, 1);
+    
+    for (unsigned i = 0; i < state->ntaps/2; ++i) {
+        int16_t tap_value = state->taps[state->ntaps - i*2 - 1];
+        EXPECT_NEAR(out[i].i, ((int32_t)in[0].i * tap_value) >> 15, 1);
+    }
+
+    lpcsdr__dsp_halfband_decimate_free(state);
+    delete[] out;
+    delete[] in;
 }
 
-TEST(DSPTEST_for_dev, Test_process_cs16) {
-    cout << "ji \n\n";
-    ifstream ifs("../../test_files/inputs/default-test-case-input.tsv");
-    string line;
-
-    uint32_t num_lines = 1926664;
-    int16_t *buffer = (int16_t *) calloc(num_lines, sizeof(int16_t));
-    cs16_t *out;
-    uint32_t index = 0;
-    while (getline(ifs, line)) {
-        std::stringstream ss(line);
-        // cout << line << "\n\n";
-		std::string tmp;
-        getline(ss, tmp, '\t');
-        getline(ss, tmp, '\t');
-        buffer[index++] = stoi(tmp);
-	}
-
-    lpcsdr_decimate *default_filter;
-
-    uint32_t usb_samples_per_block = 13616/2;
-    uint32_t required_samples = 960000;
+static cs16_t * make_random_input(uint32_t len)    
+{
+    // return random input with input components between -16384..+16383
+    // (i.e. we can add two of them without overflowing an int16_t)
     
-    assert(lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &default_filter) == LPCSDR_SUCCESS);
-    
-    lpcsdr_decimate_complex_baseband(default_filter, usb_samples_per_block, buffer, num_lines, &out, required_samples, "../../test_files/outputs/default-test-case-output.tsv");
+    cs16_t *out = new cs16_t[len];
+    for (auto i = 0; i < len; ++i) {
+        out[i].i = (int16_t) (rand() % 32768) - 16384;
+        out[i].q = (int16_t) (rand() % 32768) - 16384;
+    }
+    return out;
 }
 
-TEST(DSPTEST_for_dev_scaled, Test_process_cs16) {
-    cout << "ji \n\n";
-    ifstream ifs("../../test_files/inputs/scaled.tsv");
-    string line;
-
-    uint32_t num_lines = 1926664;
-    int16_t *buffer = (int16_t *) calloc(num_lines, sizeof(int16_t));
-    cs16_t *out;
-    uint32_t index = 0;
-    while (getline(ifs, line)) {
-        std::stringstream ss(line);
-        // cout << line << "\n\n";
-		std::string tmp;
-        getline(ss, tmp, '\t');
-        getline(ss, tmp, '\t');
-        buffer[index++] = stoi(tmp);
-	}
-
-    lpcsdr_decimate *default_filter;
-
-    uint32_t usb_samples_per_block = 13616/2;
-    uint32_t required_samples = 960000;
+static std::pair<cs16_t *,uint32_t> decimate(dsp_halfband_decimate_state_t *state, cs16_t *in, uint32_t in_len)
+{
+    uint32_t out_len = in_len/2;
+    cs16_t *out = new cs16_t[out_len];
+    lpcsdr__dsp_halfband_decimate_reset(state);
+    uint32_t produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
+    assert(produced <= out_len);
+    return {out,produced};
+}
     
-    assert(lpcsdr_dsp_decimate_create(lpcsdr_standard_filter_ntaps, lpcsdr_standard_filter_taps, &default_filter) == LPCSDR_SUCCESS);
+
+TEST(DSPDecimateTests, LinearResponse)
+{
+    // Generate two random inputs, and compute the decimator output for each.
+    // i.e.
+    //
+    //    out_1 = decimate(random_in_1)
+    //    out_2 = decimate(random_in_2)
+    //
+    // Then verify that
+    //
+    //    out_1 + out_2 = decimate(random_in_1 + random_in_2)
+    //
+    // which is what we expect for a linear time-invariant system
+
+    srand(1);
     
-    lpcsdr_decimate_complex_baseband(default_filter, usb_samples_per_block, buffer, num_lines, &out, required_samples, "../../test_files/outputs/default-test-case-scaled.tsv");
+    size_t in_len = 1024;
+    cs16_t *in_1 = make_random_input(in_len);
+    cs16_t *in_2 = make_random_input(in_len);
+
+    cs16_t *in_sum = new cs16_t[in_len];
+    for (auto i = 0; i < in_len; ++i) {
+        in_sum[i].i = in_1[i].i + in_2[i].i;
+        in_sum[i].q = in_1[i].q + in_2[i].q;
+    }
+
+    dsp_halfband_decimate_state_t *state;
+    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+    
+    auto out_1 = decimate(state, in_1, in_len);
+    auto out_2 = decimate(state, in_2, in_len);
+    auto out_sum = decimate(state, in_sum, in_len);
+
+    // all outputs should have the same length
+    ASSERT_EQ(out_1.second, out_2.second);
+    ASSERT_EQ(out_1.second, out_sum.second);
+
+    for (auto i = 0; i < out_1.second; ++i) {
+        EXPECT_NEAR(out_sum.first[i].i, out_1.first[i].i + out_2.first[i].i, 1) << "at index " << i;
+        EXPECT_NEAR(out_sum.first[i].q, out_1.first[i].q + out_2.first[i].q, 1) << "at index " << i;
+    }
+
+    lpcsdr__dsp_halfband_decimate_free(state);
+    delete[] in_1;
+    delete[] in_2;
+    delete[] in_sum;
+    delete[] out_1.first;
+    delete[] out_2.first;
+    delete[] out_sum.first;
 }
 
-TEST(Test_process_cs16, history_available_less_than_ntaps) {
-    cs16_t history[20] = {
-        {
-            .i = 1,
-            .q = 1,
+TEST(DSPDecimateTests, AvoidOverflow)
+{
+    // Build an input vector that, when multiplied by the decimator taps, produces the largest possible output.
+    // Verify that the output doesn't overflow an int16.
+
+    dsp_halfband_decimate_state_t *state;
+    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+
+    uint32_t in_len = state->ntaps + 1;
+    cs16_t *in = new cs16_t[in_len];
+    for (auto i = 0; i < in_len; ++i) {
+        if (i < state->ntaps && state->taps[i] < 0) {
+            in[i].i = -32768;
+            in[i].q = -32768;
+        } else {
+            in[i].i = 32767;
+            in[i].q = 32767;
         }
-    };
-    unsigned int history_len = 1;
-    int16_t taps[10] = {1,2,3,4,5,6,7,8,9,10};
-    lpcsdr_decimate d = {
-        .ntaps = 10,
-        .taps = taps,
-        .history = history,
-        .history_max = 20,
-        .history_len = history_len,
-    };
-
-    cs16_t in[5] = {{.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}, {.i = 1, .q = 1}};
-    cs16_t out[5] = {};
-    int count = sizeof(in)/sizeof(in[0]);
-    int return_count = process_cs16(&d, in, out, count);
-    ASSERT_EQ(return_count, 0);
-    ASSERT_EQ(d.history_len, history_len + count);
-}
-
-TEST(Test_process_cs16, history_processed_less_than_history_len) {
-    cs16_t history[20] = {
-        {
-            .i = 3276,
-            .q = 3276,
-        },
-        {
-            .i = 6553,
-            .q = 6553,
-        },
-        {
-            .i = 9830,
-            .q = 9830,
-        },
-        {
-            .i = 13107,
-            .q = 13107,
-        },
-        {
-            .i = 16384,
-            .q = 16384,
-        },
-    };
-    unsigned int history_len = 5;
-    int16_t taps[3] = {10,11,12};
-    lpcsdr_decimate d = {
-        .ntaps = 3,
-        .taps = taps,
-        .history = history,
-        .history_max = 20,
-        .history_len = history_len,
-    };
-
-    cs16_t in[1] = {{
-        .i = 19660,
-        .q = 19660,
-    }};
-    cs16_t out[5] = {};
-    int count = sizeof(in)/sizeof(in[0]);
-
-    float expected_values[3] = {6, 13};
-    int expected_return_count = 2;
-    int expected_history_length = 2;
-    int return_count = process_cs16(&d, in, out, count);
-    ASSERT_EQ(return_count, expected_return_count);
-    ASSERT_EQ(d.history_len, expected_history_length);
-
-
-    for (int index = 0; expected_return_count < 2; index++) {
-        ASSERT_EQ(out[index].i, expected_values[index]);
-        ASSERT_EQ(out[index].q, expected_values[index]);
-    }
-}
-
-TEST(Test_process_cs16, process_main_block) {
-    cs16_t history[20] = {
-        {
-            .i = 3276,
-            .q = 3276,
-        },
-        {
-            .i = 6553,
-            .q = 6553,
-        },
-    };
-    unsigned int history_len = 2;
-    unsigned int ntaps = 2;
-    int16_t taps[ntaps] = {10,11};
-    lpcsdr_decimate d = {
-        .ntaps = ntaps,
-        .taps = taps,
-        .history = history,
-        .history_max = 4,
-        .history_len = history_len,
-    };
-
-    int count = 6;
-    cs16_t in[count] = {
-        {
-            .i = 9830,
-            .q = 9830,
-        },
-        {
-            .i = 13107,
-            .q = 13107,
-        },
-        {
-            .i = 16384,
-            .q = 16384,
-        },
-        {
-            .i = 19660,
-            .q = 19660,
-        },
-        {
-            .i = 22932,
-            .q = 22932,
-        },
-        {
-            .i = 26208,
-            .q = 26208,
-        },
-    };
-    cs16_t out[5] = {};
-
-    int expected_return_count = 3;
-    int expected_history_length = 2;
-    float expected_values[expected_return_count] = {3, 7, 11};
-
-    int return_count = process_cs16(&d, in, out, count);
-    ASSERT_EQ(return_count, expected_return_count);
-    ASSERT_EQ(d.history_len, expected_history_length);
-
-
-    for (int index = 0; index < expected_return_count; index++) {
-        ASSERT_EQ(out[index].i, expected_values[index]);
-        ASSERT_EQ(out[index].q, expected_values[index]);
     }
 
-    EXPECT_TRUE(Succeeded(in[4], d.history[0]));
-    EXPECT_TRUE(Succeeded(in[5], d.history[1]));
+    uint32_t out_len = in_len / 2;
+    cs16_t *out = new cs16_t[out_len];
 
-}
+    uint32_t produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
+    ASSERT_LE(produced, out_len);
 
-
-TEST(DSP_decimate_cs16, successful) {
-    const unsigned int ntaps = 2;
-    const int16_t taps[2] = {10,11};
-    cs16_t in[6] = {
-        {
-            .i = 3276,
-            .q = 3276,
-        },
-        {
-            .i = 6553,
-            .q = 6553,
-        },
-        {
-            .i = 9830,
-            .q = 9830,
-        },
-        {
-            .i = 13107,
-            .q = 13107,
-        },
-        {
-            .i = 16384,
-            .q = 16384,
-        },
-        {
-            .i = 19660,
-            .q = 19660,
-        }
-    };
-
-    uint16_t expected_return_length = 3;
-    cs16_t out[3];
-
-    uint16_t return_index = decimate_cs16(ntaps, taps, in, out, sizeof(in)/sizeof(in[0]));
-    ASSERT_EQ(return_index, expected_return_length);
+    // Look at the final produced output, which should correspond to when our input
+    // is exactly lined up with the full set of taps.
     
-    float expected_values[3] = {3, 7, 11};
-
-    for (int index = 0; index < expected_return_length; index++) {
-        ASSERT_EQ(out[index].i, expected_values[index]);
-        ASSERT_EQ(out[index].q, expected_values[index]);
-    }
+    // We expect the result to be near the max possible value without overflowing.
+    // On overflow, the sign will flip.
+    EXPECT_NEAR(out[out_len-1].i, 32767, 100);
+    EXPECT_NEAR(out[out_len-1].q, 32767, 100);
+    
+    delete[] out;
+    delete[] in;
+    lpcsdr__dsp_halfband_decimate_free(state);
 }
 
-TEST(Test_downmix_samples, Successful) {
-    int16_t in[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    cs16_t out[8];
+static std::pair<cs16_t *,uint32_t> decimate_in_chunks(dsp_halfband_decimate_state_t *state, cs16_t *in, uint32_t in_len, uint32_t chunk_len)
+{
+    uint32_t out_len = in_len/2;
+    cs16_t *out = new cs16_t[out_len];
+    lpcsdr__dsp_halfband_decimate_reset(state);
 
-    ASSERT_EQ(downmix_samples(4, in, out, 8), LPCSDR_SUCCESS);
-
-    cs16_t expected_out[8] = {
-        {
-            .i = 1,
-            .q = 0
-        },
-        {
-            .i = 0,
-            .q = 2
-        },
-        {
-            .i = -3,
-            .q = 0
-        },
-        {
-            .i = 0,
-            .q = -4
-        },
-        {
-            .i = 5,
-            .q = 0
-        },
-        {
-            .i = 0,
-            .q = 6
-        },
-        {
-            .i = -7,
-            .q = 0
-        },
-        {
-            .i = 0,
-            .q = -8
-        }
-    };
-
-    for (int o = 0; o < 8; o++) {
-        EXPECT_TRUE(Succeeded(out[o], expected_out[o]));
+    uint32_t produced = 0;
+    for (uint32_t i = 0; i < in_len; i += chunk_len) {
+        produced += lpcsdr__dsp_halfband_decimate_process(state, in + i, std::min(in_len - i, chunk_len), out + produced);
+        assert(produced <= out_len);
     }
+
+    return {out,produced};
+}
+
+TEST(DSPDecimateTests, ChunkProcessing)
+{
+    // Build large random input, and process it through the decimator in a single call.
+    // Then try the same input, but process it in many smaller calls.
+    // Verify that the outputs are the same.
+
+    srand(1);
+
+    uint32_t in_len = 65536;    
+    cs16_t *in = make_random_input(in_len);
+
+    dsp_halfband_decimate_state_t *state;
+    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+
+    auto out_1 = decimate(state, in, in_len);
+    auto out_2 = decimate_in_chunks(state, in, in_len, 20);
+    auto out_3 = decimate_in_chunks(state, in, in_len, 200);
+
+    ASSERT_EQ(out_1.second, out_2.second);
+    ASSERT_EQ(out_1.second, out_3.second);
+
+    for (auto i = 0; i < out_1.second; ++i) {
+        EXPECT_EQ(out_1.first[i].i, out_2.first[i].i) << "at index " << i;
+        EXPECT_EQ(out_1.first[i].q, out_2.first[i].q) << "at index " << i;
+        EXPECT_EQ(out_1.first[i].i, out_3.first[i].i) << "at index " << i;
+        EXPECT_EQ(out_1.first[i].q, out_3.first[i].q) << "at index " << i;
+    }
+
+    delete[] in;
+    delete[] out_1.first;
+    delete[] out_2.first;
+    delete[] out_3.first;
 }
