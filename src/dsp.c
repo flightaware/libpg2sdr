@@ -172,7 +172,7 @@ void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
     if (!state)
         return;
 
-    state->history_len = state->history_max / 2;
+    state->history_len = state->ntaps - 1;
     memset_elements(state->history, 0, state->history_len);
 }
 
