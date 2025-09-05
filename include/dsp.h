@@ -1,6 +1,13 @@
+#ifndef LPCSDR_DSP_H
+#define LPCSDR_DSP_H
+
 #include "dsp-types.h"
 #include <complex.h>
 #include <math.h>
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct {
     unsigned int ntaps;
@@ -30,3 +37,9 @@ void lpcsdr__dsp_downconvert_reset(dsp_downconvert_state_t *state);
 
 extern unsigned lpcsdr__standard_filter_ntaps;
 extern float lpcsdr__standard_filter_taps[];
+
+#if defined(__cplusplus)
+}
+#endif
+
+#endif /* LPCSDR_DSP_H */
