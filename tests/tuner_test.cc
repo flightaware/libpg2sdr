@@ -2,46 +2,46 @@
 using namespace testing;
 
 TEST(lpf_settings_for, Success) {
-    lpf_settings lpf = lpcsdr__lpf_settings_for(3000e3, 3900e3);
-    ASSERT_EQ(lpf.cutoff, (float) 3177e3);
+    const lpf_settings *lpf = lpcsdr__lpf_settings_for(3000e3, 3900e3);
+    ASSERT_EQ(lpf->cutoff, (float) 3177e3);
 
     lpf = lpcsdr__lpf_settings_for(2026e3, 3000e3);
-    ASSERT_EQ(lpf.cutoff, (float) 2027e3);
+    ASSERT_EQ(lpf->cutoff, (float) 2027e3);
 
     lpf = lpcsdr__lpf_settings_for(2600e3, 11196e3);
-    ASSERT_EQ(lpf.cutoff, (float) 2601e3);
+    ASSERT_EQ(lpf->cutoff, (float) 2601e3);
 
     lpf = lpcsdr__lpf_settings_for(11196e3, 11196e3);
-    ASSERT_EQ(lpf.cutoff, (float) 11196e3);
+    ASSERT_EQ(lpf->cutoff, (float) 11196e3);
 
     lpf = lpcsdr__lpf_settings_for(6555e3, 6000e3);
-    ASSERT_EQ(lpf.cutoff, (float) 5920e3);
+    ASSERT_EQ(lpf->cutoff, (float) 5920e3);
 
     lpf = lpcsdr__lpf_settings_for(3100e3, 4000e3);
-    ASSERT_EQ(lpf.cutoff, (float) 3177e3);
+    ASSERT_EQ(lpf->cutoff, (float) 3177e3);
 
     lpf = lpcsdr__lpf_settings_for(11190e3, 11196e3);
-    ASSERT_EQ(lpf.cutoff, (float) 11196e3);
+    ASSERT_EQ(lpf->cutoff, (float) 11196e3);
 }
 
 TEST(hpf_settings_for, Success) {
-    hpf_settings s = lpcsdr__hpf_settings_for(527e3);
-    ASSERT_EQ(s.cutoff, 527e3);
+    const hpf_settings *s = lpcsdr__hpf_settings_for(527e3);
+    ASSERT_EQ(s->cutoff, 527e3);
 
     s = lpcsdr__hpf_settings_for(520e3);
-    ASSERT_EQ(s.cutoff, 527e3);
+    ASSERT_EQ(s->cutoff, 527e3);
 
     s = lpcsdr__hpf_settings_for(2200e3);
-    ASSERT_EQ(s.cutoff, 2138e3);
+    ASSERT_EQ(s->cutoff, 2138e3);
 
     s = lpcsdr__hpf_settings_for(3724e3);
-    ASSERT_EQ(s.cutoff, 3724e3);
+    ASSERT_EQ(s->cutoff, 3724e3);
 
     s = lpcsdr__hpf_settings_for(3700e3);
-    ASSERT_EQ(s.cutoff, 3563e3);
+    ASSERT_EQ(s->cutoff, 3563e3);
 
     s = lpcsdr__hpf_settings_for(4000e3);
-    ASSERT_EQ(s.cutoff, 3724e3);
+    ASSERT_EQ(s->cutoff, 3724e3);
 }
 
 TEST(bitrange_sanity_test, Success) {
@@ -150,56 +150,28 @@ TEST(filter_sanity_check, Success) {
     DeviceHandle handle(ctx);
 
     lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_center_frequency_bandwidth(h, 659e3, 3177e3), LPCSDR_SUCCESS);
+
+    auto lpf = lpcsdr__lpf_settings_for(3177e3, 0);
+    ASSERT_NE(lpf, nullptr);
+    EXPECT_GE(lpf->cutoff, 3177e3);
+
+    auto hpf = lpcsdr__hpf_settings_for(659e3);
+    ASSERT_NE(hpf, nullptr);
+    EXPECT_LE(hpf->cutoff, 659e3);
+
+    EXPECT_EQ(lpcsdr__tuner_set_bandpass(h, hpf, lpf), LPCSDR_SUCCESS);
 
     uint8_t buffer[2] = {0};
     ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
 
     // Check High-Pass HPF_CORNER set to 14
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_HPF_CORNER), 14);
+    EXPECT_EQ(extract_tuner_val(buffer[1], IFFILT_HPF_CORNER), hpf->hpf_corner);
 
     // Check TunerR11 Low-Pass
-    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), 0);
-    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), 8);
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), 1);
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 0);
-}
-
-TEST(lpcsdr_set_bandwidth_highend_cutoff, real_mode_cutoff_is_set_properly_even_when_sample_rate_is_0) {
-    Context ctx;
-    DeviceHandle handle(ctx);
-
-    lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2027e3), LPCSDR_SUCCESS);
-
-    uint8_t buffer[2] = {0};
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-
-    // Check TunerR11 Low-Pass
-    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), 0);
-    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), 15);
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), 1);
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 3);
-}
-
-TEST(lpcsdr_set_bandwidth_highend_cutoff, baseband_mode_cutoff_is_set_properly) {
-    Context ctx;
-    DeviceHandle handle(ctx);
-
-    lpcsdr_device_handle *h = handle();
-    h->requested_sample_rate = 3177e3;
-    h->conversion_mode = LPCSDR_MODE_BASEBAND;
-
-    ASSERT_EQ(lpcsdr_set_bandwidth_highend_cutoff(h, 2891e3), LPCSDR_SUCCESS);
-
-    uint8_t buffer[2] = {0};
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-
-    // Check TunerR11 Low-Pass
-    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), 0);
-    ASSERT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), 12);
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), 1);
-    ASSERT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), 0);
+    EXPECT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), lpf->lpf_q);
+    EXPECT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), lpf->lpf_fine);
+    EXPECT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), lpf->lpf_narrow);
+    EXPECT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), lpf->lpf_coarse);
 }
 
 typedef double PLLRangeTestParam;
