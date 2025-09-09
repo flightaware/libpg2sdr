@@ -426,6 +426,34 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 
     args.push_back(buffer_size);
 
+    SoapySDR::ArgInfo decimation;
+    decimation.key = "decimation";
+    decimation.value = "auto";
+    decimation.name = "Decimation mode";
+    decimation.description =
+        "Control internal decimation stages, which improve fidelity but require higher ADC rates.";
+    decimation.type = SoapySDR::ArgInfo::Type::STRING;
+    decimation.options = std::vector<std::string> {
+        "auto",
+        "max",
+        "0",
+        "1", "2", "3", "4", "5", "6", "7", "8"
+    };
+    decimation.optionNames = std::vector<std::string> {
+        "decimate as needed to avoid bandwidth loss at low IF frequencies",
+        "add decimation stages until ADC limits are reached",
+        "no extra decimation",
+        "extra decimate-by-2",
+        "extra decimate-by-4",
+        "extra decimate-by-8",
+        "extra decimate-by-16",
+        "extra decimate-by-32",
+        "extra decimate-by-64",
+        "extra decimate-by-128",
+        "extra decimate-by-256"
+    };
+
+    args.push_back(decimation);
     return args;
 }
 
@@ -437,6 +465,20 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
         LIBCALL(lpcsdr_set_buffer_size, size);
         return;
     }
+
+    if (key == "decimation") {
+        int mode;
+        if (value == "auto")
+            mode = LPCSDR_DECIMATION_AUTO;
+        else if (value == "max")
+            mode = LPCSDR_DECIMATION_AUTO_MAX;
+        else
+            mode = std::stoi(value);
+
+        LIBCALL(lpcsdr_set_decimation_mode, mode);
+        return;
+    }
+
     throw std::invalid_argument("unrecognized setting " + key);
 }
 
@@ -447,6 +489,20 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
         LIBCALL(lpcsdr_get_buffer_size, &size);
         return std::to_string(size);
     }
+
+    if (key == "decimation") {
+        int mode;
+        LIBCALL(lpcsdr_get_decimation_mode, &mode);
+        if (mode >= 0)
+            return std::to_string(mode);
+        else if (mode == LPCSDR_DECIMATION_AUTO)
+            return "auto";
+        else if (mode == LPCSDR_DECIMATION_AUTO_MAX)
+            return "max";
+        else
+            return "unknown";
+    }
+
     throw std::invalid_argument("unrecognized setting " + key);
 }
 
