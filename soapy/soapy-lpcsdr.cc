@@ -619,7 +619,7 @@ size_t LPCSDRStream::getMTU() const
 {
     size_t size;    
     LIBCALL_DIRECT(dev_.context(), lpcsdr_get_buffer_size, dev_.handle(), &size);
-    return size / sizeof(std::int16_t);
+    return size;
 }
 
 int LPCSDRStream::activate()
