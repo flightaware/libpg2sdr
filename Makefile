@@ -6,9 +6,8 @@ clean:
 	rm -rf build
 
 build:
-	make clean
 	cmake -B ./build -S ./
-	cd build && make
+	make -C build
 
 debug:
 	cmake -DCMAKE_BUILD_TYPE=Debug -B ./build -S ./
