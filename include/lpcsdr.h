@@ -155,9 +155,6 @@ int lpcsdr_apply_changes(lpcsdr_device_handle *dev);
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);
-int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff);
-int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff);
-int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high);
 
 // Streaming
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);

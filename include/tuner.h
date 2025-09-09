@@ -97,6 +97,7 @@ typedef enum {
 
 const lpf_settings *lpcsdr__lpf_settings_for(double target, double max);
 const hpf_settings *lpcsdr__hpf_settings_for(double target);
+int lpcsdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const hpf_settings *hpf, const lpf_settings *lpf);
 
 int lpcsdr__init_tuner(lpcsdr_device_handle *dev);
 int lpcsdr__set_initial_values(lpcsdr_device_handle *dev);

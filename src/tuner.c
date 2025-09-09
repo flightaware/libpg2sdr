@@ -254,57 +254,18 @@ int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain)
     Set the low pass filter values.
     Derive the absolute maximum from the requested sampling rate.
 */
-int lpcsdr_set_bandwidth_highend_cutoff(lpcsdr_device_handle *dev, int cutoff)
+int lpcsdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const hpf_settings *hpf, const lpf_settings *lpf)
 {
-    CHECK_DEV(dev);
+    assert(hpf && hpf->valid);
+    assert(lpf && lpf->valid);
 
-    unsigned not_above = 0;
-    switch(dev->conversion_mode) {
-        case LPCSDR_MODE_BASEBAND:
-            not_above = dev->requested_sample_rate;
-            break;
-        case LPCSDR_MODE_LOWIF_REAL:
-            not_above = dev->requested_sample_rate / 2;
-            break;
-    }
-
-    lpf_settings s = lpcsdr__lpf_settings_for(cutoff, not_above);
     change_set cs = {0};
-
-    LOGDEBUG(dev, "set LPF cutoff = %.3fMHz", s.cutoff/1e6);
-
-    set_tuner_reg(&cs, IFFILT_Q, s.lpf_q);
-    set_tuner_reg(&cs, IFFILT_NARROW, s.lpf_narrow);
-    set_tuner_reg(&cs, IFFILT_FINE_LPF, s.lpf_fine);
-    set_tuner_reg(&cs, IFFILT_COARSE_LPF, s.lpf_coarse);
+    set_tuner_reg(&cs, IFFILT_HPF_CORNER, hpf->hpf_corner);
+    set_tuner_reg(&cs, IFFILT_Q, lpf->lpf_q);
+    set_tuner_reg(&cs, IFFILT_NARROW, lpf->lpf_narrow);
+    set_tuner_reg(&cs, IFFILT_FINE_LPF, lpf->lpf_fine);
+    set_tuner_reg(&cs, IFFILT_COARSE_LPF, lpf->lpf_coarse);
     return update_tuner_regs(dev, &cs);
-}
-
-int lpcsdr_set_bandwidth_lowend_cutoff(lpcsdr_device_handle *dev, int cutoff)
-{
-    CHECK_DEV(dev);
-
-    hpf_settings s = lpcsdr__hpf_settings_for(cutoff);
-    change_set cs = {0};
-
-    LOGDEBUG(dev, "set HPF cutoff = %.3fMHz", s.cutoff/1e6);
-
-    set_tuner_reg(&cs, IFFILT_HPF_CORNER, s.hpf_corner);
-    return update_tuner_regs(dev, &cs);
-}
-
-int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, int high)
-{
-    CHECK_DEV(dev);
-
-    int error = LPCSDR_SUCCESS;
-
-    if ((error = lpcsdr_set_bandwidth_lowend_cutoff(dev, MIN(low, high))) < 0)
-        return error;
-    if ((error = lpcsdr_set_bandwidth_highend_cutoff(dev, MAX(low, high))) < 0)
-        return error;
-
-    return error;
 }
 
 /* 
