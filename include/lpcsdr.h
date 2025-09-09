@@ -141,17 +141,30 @@ int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_hand
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
 // Device configuration
+
+/*
+ * Conversion mode, sample rate, center frequency, sideband, bandwidth, decimation mode.
+ * Changes made to these parameters can interact, and need a call to lpcsdr_apply_changes to take effect
+ */
 int lpcsdr_set_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t mode);
 int lpcsdr_get_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t *mode);
 int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
 int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate);
 int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, double *requested, double *actual);
+#define LPCSDR_DECIMATION_AUTO (-1)
+#define LPCSDR_DECIMATION_AUTO_MAX (-2)
+int lpcsdr_set_decimation_mode(lpcsdr_device_handle *dev, int decimation_mode);
+int lpcsdr_get_decimation_mode(lpcsdr_device_handle *dev, int *decimation_mode);
 int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband);
 int lpcsdr_get_sideband(lpcsdr_device_handle *dev, bool *upper_sideband);
 int lpcsdr_set_frequency(lpcsdr_device_handle *dev, double frequency);
 int lpcsdr_get_frequency(lpcsdr_device_handle *dev, double *requested, double *actual);
+int lpcsdr_set_bandpass(lpcsdr_device_handle *dev, double low, double high);
+int lpcsdr_get_bandpass(lpcsdr_device_handle *dev, double *req_low, double *req_high, double *actual_low, double *actual_high);
 int lpcsdr_apply_changes(lpcsdr_device_handle *dev);
+
+// Gain
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);

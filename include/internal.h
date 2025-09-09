@@ -86,11 +86,20 @@ struct lpcsdr_device_handle {
     tuner_pll_config_t tuner_pll_config;  /* actually configured tuner LO settings */
     bool changing_freq;                   /* do we have unapplied frequency/sideband changes? */
 
-    size_t buffer_size;                   /* requested user buffer size, in bytes (todo: is this more obvious if it's in samples, not bytes?) */
+    double requested_bandpass_low;        /* bandpass low cutoff, relative to center frequency */
+    double requested_bandpass_high;       /* bandpass high cutoff, relative to center frequency */
+    hpf_settings tuner_hpf_config;        /* actual tuner HPF config */
+    lpf_settings tuner_lpf_config;        /* actual tuner LPF config */
+    bool changing_bandpass;               /* do we have unapplied bandpass changes? */
+
+    size_t buffer_size;                   /* requested user buffer size, counted in user samples */
+
+    int decimation_mode;                  /* decimation mode: LPCSDR_DECIMATION_AUTO, or >=0 for manual */
 
     unsigned usb_transfer_size;           /* transfer size we decided on */
     unsigned adc_samples_per_transfer;    /* ADC samples per USB transfer */
     unsigned adc_samples_per_user_sample; /* scale factor from user sample rate to ADC sample rate */
+    unsigned post_decimation;             /* number of post-downconversion decimation stages */
 
     /* libusb transfers array */
     lpcsdr_transfer_state *transfers;
@@ -106,11 +115,11 @@ struct lpcsdr_device_handle {
     /* Tuner reference crystal frequency, from firmware board status */
     uint32_t tuner_xtal;
 
-    /* Downconverter (only while streaming in BASEBAND mode) */
-    dsp_downconvert_state_t *downconverter;
-
-    /* ADC block expansion buffer (only while streaming in BASEBAND mode) */
-    int16_t *adc_buffer;
+    /* State for BASEBAND-mode streaming */
+    dsp_downconvert_state_t *downconverter;  /* Fs/4 downconvertor+decimator */
+#define MAX_POST_DECIMATORS 8
+    dsp_halfband_decimate_state_t *post_decimators[MAX_POST_DECIMATORS]; /* Chain of decimators for extra decimation following downconversion */
+    int16_t *work_buffer[2];                 /* ping-pong work buffers */
 };
 
 /* context.c */

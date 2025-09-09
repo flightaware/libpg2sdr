@@ -23,6 +23,11 @@ static int submit_transfers(lpcsdr_device_handle *dev);
 static void transfer_callback(struct libusb_transfer *xfer);
 static bool check_any_transfer_busy(lpcsdr_device_handle *dev);
 
+static size_t user_sample_size(lpcsdr_device_handle *dev)
+{
+    return (dev->conversion_mode == LPCSDR_MODE_BASEBAND ? sizeof(cs16_t) : sizeof(int16_t));
+}
+
 /* Unpack (and byteswap if needed) a block header at "in"
  * and store the result in "out"
  */
@@ -98,7 +103,7 @@ static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev)
     /* For now, we just allocate on demand and let libc's malloc implementation deal with it.
      * Later, may be worth revisiting to do our own free-list if malloc doesn't perform well.
      */
-    lpcsdr_sample_buffer *buf = malloc(sizeof(lpcsdr_sample_buffer) + dev->buffer_size);
+    lpcsdr_sample_buffer *buf = malloc(sizeof(lpcsdr_sample_buffer) + dev->buffer_size * user_sample_size(dev));
 
     buf->dev = dev;
     buf->samples = (int16_t*) (buf + 1); /* sample data immediately follows the header */
@@ -134,6 +139,7 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
     switch(dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
         {
+            /* unpack ADC data into out directly */
             unsigned count = 0;
             for (unsigned i = 0; i < length; i += bpb, count += spb)
                 unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, out + count);
@@ -142,19 +148,45 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
 
     case LPCSDR_MODE_BASEBAND:
         {
-            /* unpack ADC data into adc_buffer */
+            /* unpack ADC data into work_buffer[0] */
             unsigned count = 0;
             if (dev->upper_sideband) {
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
-                    unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, dev->adc_buffer + count);
+                    unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             } else {
                 /* low sideband tuning gives us inverted-spectrum ADC data; invert it again to reverse that, as we convert */
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
-                    unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, dev->adc_buffer + count);
+                    unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             }
 
-            /* do downconversion/decimation from adc_buffer to user buffer */
-            return lpcsdr__dsp_downconvert_process(dev->downconverter, dev->adc_buffer, count, (cs16_t *)out);
+            /* work_buffer[0] now contains uninverted-spectrum ADC data, with the signal we want centered at Fs/4 */
+
+            if (dev->post_decimation) {
+                /* do downconversion from work_buffer[0] -> work_buffer[1] */
+                count = lpcsdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)dev->work_buffer[1]);
+
+                /* work_buffer[1] now contains complex baseband data, with the signal we want centered at 0Hz,
+                 * but at a higher sampling rate than the user requested. Decimate to bring the sampling rate
+                 * down to what was requested.
+                 */
+
+                /* do all but the final decimate-by-2 step, alternating work buffers */
+                unsigned work_in = 1;
+                for (unsigned i = 0; i < (dev->post_decimation - 1); ++i) {
+                    unsigned work_out = !work_in;
+                    count = lpcsdr__dsp_halfband_decimate_process(dev->post_decimators[i], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)dev->work_buffer[work_out]);
+                    work_in = work_out;
+                }
+
+                /* do final decimate-by-2 step directly to out */
+                count = lpcsdr__dsp_halfband_decimate_process(dev->post_decimators[dev->post_decimation - 1], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)out);
+            } else {
+                /* No extra decimation, do downconversion from work_buffer[0] -> out */
+                count = lpcsdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)out);
+            }
+
+            /* out now contains complex baseband data, with the signal we want centered at 0Hz, at the user's requested sample rate */
+            return count;
         }
 
     default:
@@ -176,8 +208,9 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
     assert (length % dev->usb_bytes_per_block == 0);
 
     /* todo: this is only true for LPCSDR_MODE_LOWIF_REAL with int16, update once we support other versions */
-    const unsigned expected_samples = length / dev->usb_bytes_per_block * dev->usb_samples_per_block;
-    assert (expected_samples * sizeof(int16_t) <= dev->buffer_size);
+    const unsigned adc_samples = length / dev->usb_bytes_per_block * dev->usb_samples_per_block;
+    const unsigned user_samples = adc_samples / dev->adc_samples_per_user_sample;
+    assert (user_samples <= dev->buffer_size);
 
     lpcsdr_sample_buffer *buffer = get_buffer(dev);
     if (!buffer)
@@ -234,7 +267,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         goto done;
     }
 
-    /* if we're downconverting, set up the DSP state & ADC buffer */
+    /* if we're downconverting, set up the DSP state & work buffers */
     if (dev->conversion_mode == LPCSDR_MODE_BASEBAND) {
         if ((error = lpcsdr__dsp_downconvert_create(/* ntaps */ lpcsdr__standard_filter_ntaps,
                                                     /* taps */ lpcsdr__standard_filter_taps,
@@ -244,10 +277,21 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             goto cleanup;
         }
 
-        if (!(dev->adc_buffer = malloc(dev->adc_samples_per_transfer * sizeof(int16_t)))) {
-            LOGDEBUG(dev, "lpcsdr_stream_data: adc_buffer allocation failed");
-            error = LPCSDR_ERROR_NO_MEMORY;
-            goto cleanup;
+        for (unsigned i = 0; i < 2; ++i) {
+            if (!(dev->work_buffer[i] = malloc(dev->adc_samples_per_transfer * sizeof(int16_t)))) {
+                LOGDEBUG(dev, "lpcsdr_stream_data: work buffer allocation failed");
+                error = LPCSDR_ERROR_NO_MEMORY;
+                goto cleanup;
+            }
+        }
+
+        for (unsigned i = 0; i < dev->post_decimation; ++i) {
+            if ((error = lpcsdr__dsp_halfband_decimate_create(/* ntaps */ lpcsdr__standard_filter_ntaps,
+                                                              /* taps */ lpcsdr__standard_filter_taps,
+                                                              &dev->post_decimators[i])) < 0) {
+                LOGDEBUG(dev, "lpcsdr_stream_data: dsp_halfband_decimate_create failed");
+                goto cleanup;
+            }
         }
     }
 
@@ -348,11 +392,18 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     }
 
  cleanup:
+    for (unsigned i = 0; i < MAX_POST_DECIMATORS; ++i) {
+        lpcsdr__dsp_halfband_decimate_free(dev->post_decimators[i]);
+        dev->post_decimators[i] = NULL;
+    }
+
     lpcsdr__dsp_downconvert_free(dev->downconverter);
     dev->downconverter = NULL;
 
-    free(dev->adc_buffer);
-    dev->adc_buffer = NULL;
+    for (unsigned i = 0; i < 2; ++i) {
+        free(dev->work_buffer[i]);
+        dev->work_buffer[i] = NULL;
+    }
 
     free_dev_transfers(dev);
 
@@ -449,7 +500,7 @@ int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size)
         goto done;
     }
 
-    if (buffer_size < sizeof(int16_t)) {
+    if (buffer_size < 1) {
         error = LPCSDR_ERROR_BAD_ARGUMENT;
         goto done;
     }
@@ -471,16 +522,42 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
         return LPCSDR_SUCCESS;         /* no frequency configured yet */
 
     unsigned adc_samples_per_user_sample;
-    unsigned bytes_per_user_sample;
+    unsigned post_decimation;
     switch (dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
         adc_samples_per_user_sample = 1;
-        bytes_per_user_sample = sizeof(int16_t);
+        post_decimation = 0;
         break;
 
     case LPCSDR_MODE_BASEBAND:
-        adc_samples_per_user_sample = 2;
-        bytes_per_user_sample = sizeof(cs16_t);
+        if (dev->decimation_mode >= 0 && dev->decimation_mode <= MAX_POST_DECIMATORS) {
+            /* Explicit decimation setting */
+            post_decimation = dev->decimation_mode;
+        } else if (dev->decimation_mode == LPCSDR_DECIMATION_AUTO) {
+            /* Scale up sample rate until it avoids the low end of the IF
+             * range where the tuner IF filter will eat the bandwidth we
+             * want to receive
+             */
+            double scaled = dev->requested_sample_rate;
+            post_decimation = 0;
+            while (scaled <= 5e6 && post_decimation < MAX_POST_DECIMATORS && (scaled - dev->requested_sample_rate) < 0.5e6) {
+                ++post_decimation;
+                scaled *= 2;
+            }
+        } else if (dev->decimation_mode == LPCSDR_DECIMATION_AUTO_MAX) {
+            /* Scale up sample rate as far as possible (given fADC <= 20MHz) */
+            double scaled = dev->requested_sample_rate;
+            post_decimation = 0;
+            while (scaled <= 5e6 && post_decimation < MAX_POST_DECIMATORS) {
+                ++post_decimation;
+                scaled *= 2;
+            }
+        } else {
+            /* bad decimation mode */
+            return LPCSDR_ERROR_CORRUPTION;
+        }
+
+        adc_samples_per_user_sample = 2 * (1 << post_decimation);
         break;
 
     default:
@@ -488,7 +565,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     }
 
     double target = dev->requested_sample_rate * adc_samples_per_user_sample;
-    LOGDEBUG(dev, "ADC sample rate changes to %f", target);
+    LOGDEBUG(dev, "ADC sample rate changes to %.3f with %u post-decimation steps (divide-by-%u)", target/1e6, post_decimation, 1<<post_decimation);
 
     /* work out the PLL config so we know it's possible & what the exact
      * ADC rate is. The actual PLL programming only happens when we start streaming data
@@ -501,14 +578,42 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     dev->adc_pll_config = new_config;
 
     /* recompute transfer sizes */
-    unsigned user_samples_per_buffer = dev->buffer_size / bytes_per_user_sample;             /* # of output samples that will fill the user buffer (rounded down) */
-    unsigned adc_samples_per_buffer = user_samples_per_buffer * adc_samples_per_user_sample; /* # of ADC samples that will fill the user buffer (rounded down) */
+    unsigned adc_samples_per_buffer = dev->buffer_size * adc_samples_per_user_sample;        /* # of ADC samples that will fill the user buffer (rounded down) */
     unsigned blocks_per_buffer = adc_samples_per_buffer / dev->usb_samples_per_block;        /* # of ADC blocks that will fill the user buffer (rounded down) */
     dev->usb_transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;                   /* Exact transfer size for that many ADC blocks */
     dev->adc_samples_per_transfer = blocks_per_buffer * dev->usb_samples_per_block;          /* # of ADC samples that we receive per USB transfer */
     dev->adc_samples_per_user_sample = adc_samples_per_user_sample;                          /* # of ADC samples per user sample (i.e. ADC sampling rate / user sampling rate) */
+    dev->post_decimation = post_decimation;                                                  /* Extra decimation steps after downconversion */
 
     return LPCSDR_SUCCESS;
+}
+
+static double lo_offset(lpcsdr_device_handle *dev)
+{
+    switch (dev->conversion_mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+        return 0;
+
+    case LPCSDR_MODE_BASEBAND:
+        /* lower sideband case: LO = freq + Fs/4
+         * upper sideband case: LO = freq - Fs/4
+         */
+        return (dev->adc_pll_config.actual_frequency / 4.0) * (dev->upper_sideband ? -1.0 : 1.0);
+
+    default:
+        return 0;
+    }
+}
+
+static bool tuner_pll_config_equal(const tuner_pll_config_t *left, const tuner_pll_config_t *right)
+{
+    return
+        left->valid &&
+        right->valid &&
+        left->refdiv == right->refdiv &&
+        left->seldiv == right->seldiv &&
+        left->feedback_n == right->feedback_n &&
+        left->feedback_sdm == right->feedback_sdm;
 }
 
 static int apply_freq_change(lpcsdr_device_handle *dev)
@@ -516,37 +621,27 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
     if (!dev->requested_frequency)
         return LPCSDR_SUCCESS;         /* no frequency configured yet */
 
-    double target = 0;
-    switch (dev->conversion_mode) {
-    case LPCSDR_MODE_LOWIF_REAL:
-        target = dev->requested_frequency;
-        break;
-
-    case LPCSDR_MODE_BASEBAND:
-        /* lower sideband case: LO = freq + Fs/4
-         * upper sideband case: LO = freq - Fs/4
+    if (!dev->adc_pll_config.valid) {
+        /* no sampling rate configured yet, so no work to do right now. Later, when
+         * the sample rate is eventually set (and lpcsdr_apply_changes is called
+         * again), we'll configure both the sampling rate & tuner LO
          */
-        if (!dev->adc_pll_config.valid) {
-            /* no sampling rate configured, so no work to do right now. Later, when the
-             * sample rate is eventually set (and lpcsdr_apply_changes is called
-             * again), we'll configure both the sampling rate & tuner LO
-             */
-            return LPCSDR_SUCCESS;
-        }
-        target = dev->requested_frequency + (dev->adc_pll_config.actual_frequency / 4.0) * (dev->upper_sideband ? -1.0 : 1.0);
-        break;
-
-    default:
-        return LPCSDR_ERROR_CORRUPTION;
+        return LPCSDR_SUCCESS;
     }
 
-    LOGDEBUG(dev, "tuner LO frequency changes to %f", target);
+    double target = dev->requested_frequency + lo_offset(dev);
+    LOGDEBUG(dev, "tuner LO frequency changes to %.3f", target/1e6);
 
     int error;
     tuner_pll_config_t new_config;
     if ((error = lpcsdr__find_pll_parameters(target, dev->tuner_xtal, &new_config)) < 0) {
         /* new value is out of range */
         return error;
+    }
+
+    if (tuner_pll_config_equal(&new_config, &dev->tuner_pll_config)) {
+        /* no work to do */
+        return LPCSDR_SUCCESS;
     }
 
     if ((error = lpcsdr__start_pll(dev, &new_config)) < 0) {
@@ -559,6 +654,129 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
     }
 
     dev->tuner_pll_config = new_config;
+
+    return LPCSDR_SUCCESS;
+}
+
+static double center_if_frequency(lpcsdr_device_handle *dev)
+{
+    switch (dev->conversion_mode) {
+    case LPCSDR_MODE_LOWIF_REAL:
+        return 0;
+
+    case LPCSDR_MODE_BASEBAND:
+        return fabs(lo_offset(dev));
+
+    default:
+        return 0;
+    }
+}
+
+static bool tuner_hpf_equal(const hpf_settings *left, const hpf_settings *right)
+{
+    return
+        left->valid &&
+        right->valid &&
+        left->hpf_corner == right->hpf_corner;
+}
+
+static bool tuner_lpf_equal(const lpf_settings *left, const lpf_settings *right)
+{
+    return
+        left->valid &&
+        right->valid &&
+        left->lpf_coarse == right->lpf_coarse &&
+        left->lpf_fine == right->lpf_fine &&
+        left->lpf_q == right->lpf_q &&
+        left->lpf_narrow == right->lpf_narrow;
+}
+
+static int apply_bandpass_change(lpcsdr_device_handle *dev)
+{
+    if (!dev->adc_pll_config.valid || dev->changing_rate)
+        return LPCSDR_SUCCESS; /* will apply when rate change is applied */
+
+    /* Clients specify low and high bandpass cutoffs relative to the zero
+     * frequency in the samples they receive (i.e. relative to the RF
+     * frequency they tuned to)
+     *
+     * e.g. if a client asks for complex baseband with:
+     *
+     *    sample rate:   10Msps complex
+     *    frequency:     1090MHz
+     *    low bandpass:  -1MHz
+     *    high bandpass: 2MHz
+     *
+     * then it is interested in the spectrum between 1090-1 = 1089MHz
+     * and 1090+2 = 1092MHz, expecting that to to appear as -1Mhz .. +2MHz
+     * in the complex baseband output, and we should try to set our
+     * tuner filters to match that.
+     *
+     * This requires that we map those requested frequencies to the
+     * equivalent IF frequencies, since the tuner bandpass filter is
+     * operating on the mixer output / IF signal. The details of this
+     * depend on sample rate and choice of sideband.
+     *
+     * With high-sideband tuning, we will configure something like:
+     *   ADC sample rate Fs = 20MHz
+     *   Tuner LO = 1090MHz - Fs/4 = 1085MHz
+     *   RF input @ 1090MHz -> IF signal at 5MHz -> baseband at 0MHz
+     *   RF input @ 1089MHz -> IF signal at 4MHz -> baseband at -1MHz
+     *   RF input @ 1092MHz -> IF signal at 7MHz -> baseband at +2Mhz
+     *   tuner bandpass = 4MHz .. 7MHz
+     *
+     * With low-sideband tuning, we will configure something like:
+     *   ADC sample rate Fs = 20MHz
+     *   Tuner LO = 1090MHz + Fs/4 = 1095MHz
+     *   RF input @ 1090MHz -> IF signal at 5MHz -> baseband at 0MHz
+     *   RF input @ 1089MHz -> IF signal at 6MHz -> baseband at -1MHz
+     *   RF input @ 1092MHz -> IF signal at 3MHz -> baseband at +2MHz
+     *   tuner bandpass = 3MHz .. 6MHz
+     *
+     * (low-IF case is similar, but we tune the LO directly
+     *  to the requested frequency)
+     */
+    const double nyquist = dev->adc_pll_config.actual_frequency / 2.0; /* LPF cutoff should not exceed this, to avoid aliasing in the ADC itself */
+    const double center = center_if_frequency(dev);   /* IF frequency where the tuned RF frequency appears; this will end up at 0Hz in user samples */
+
+    double l, h;
+    if (dev->upper_sideband) {
+        l = center + dev->requested_bandpass_low;
+        h = center + dev->requested_bandpass_high;
+    } else {
+        l = center - dev->requested_bandpass_high;
+        h = center - dev->requested_bandpass_low;
+    }
+
+    if (l < 0)
+        l = 0;
+    if (h > nyquist)
+        h = nyquist;
+
+    LOGDEBUG(dev, "IF bandpass filter constraints: (%.3f .. %.3f), <%.3f MHz",
+             l/1e6, h/1e6, nyquist/1e6);
+
+    const lpf_settings *lpf = lpcsdr__lpf_settings_for(h, nyquist);
+    const hpf_settings *hpf = lpcsdr__hpf_settings_for(l < lpf->cutoff ? l : lpf->cutoff);
+
+    if (tuner_hpf_equal(hpf, &dev->tuner_hpf_config) &&
+        tuner_lpf_equal(lpf, &dev->tuner_lpf_config)) {
+        /* no work to do */
+        return LPCSDR_SUCCESS;
+    }
+
+    LOGDEBUG(dev, "set IF bandpass = %.3fMHz .. %.3fMHz", hpf->cutoff/1e6, lpf->cutoff/1e6);
+
+    int error;
+    if ((error = lpcsdr__tuner_set_bandpass(dev, hpf, lpf)) < 0) {
+        /* tuner state is indeterminate now */
+        dev->tuner_hpf_config.valid = false;
+        dev->tuner_lpf_config.valid = false;
+        return error;
+    }
+
+    dev->tuner_hpf_config = *hpf;
+    dev->tuner_lpf_config = *lpf;
     return LPCSDR_SUCCESS;
 }
 
@@ -572,14 +790,21 @@ int lpcsdr_apply_changes(lpcsdr_device_handle *dev)
     if (dev->changing_rate) {
         if ((error = apply_rate_change(dev)) < 0)
             goto done;
-        dev->changing_rate = false;   /* we are done reconfiguring the ADC .. */
-        dev->changing_freq = true;    /* but we may need to reconfigure the tuner LO too */
+        dev->changing_rate = false;    /* we are done reconfiguring the ADC .. */
+        dev->changing_freq = true;     /* but we may need to reconfigure the tuner LO too (because the LO offset may have changed) */
+        dev->changing_bandpass = true; /* .. and the bandpass filter too (because the IF center frequency & Nyquist frequency may have changed) */
     }
 
     if (dev->changing_freq) {
         if ((error = apply_freq_change(dev)) < 0)
             goto done;
-        dev->changing_freq = false;   /* we are done reconfiguring the tuner LO */
+        dev->changing_freq = false;    /* we are done reconfiguring the tuner LO */
+    }
+
+    if (dev->changing_bandpass) {
+        if ((error = apply_bandpass_change(dev)) < 0)
+            goto done;
+        dev->changing_bandpass = false;    /* we are done reconfiguring the bandpass filter */
     }
 
  done:
@@ -604,17 +829,10 @@ int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate)
 
 static double actual_sample_rate(lpcsdr_device_handle *dev)
 {
-    if (!dev->adc_pll_config.valid || dev->changing_rate)
+    if (!dev->adc_pll_config.valid || dev->changing_rate || !dev->adc_samples_per_user_sample)
         return 0;
 
-    switch (dev->conversion_mode) {
-    case LPCSDR_MODE_LOWIF_REAL:
-        return dev->adc_pll_config.actual_frequency;
-    case LPCSDR_MODE_BASEBAND:
-        return dev->adc_pll_config.actual_frequency / 2.0;
-    default:
-        return 0;
-    }
+    return dev->adc_pll_config.actual_frequency / dev->adc_samples_per_user_sample;
 }
 
 int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, double *requested, double *actual)
@@ -632,31 +850,40 @@ int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, double *requested, double 
     return LPCSDR_SUCCESS;
 }
 
+int lpcsdr_set_decimation_mode(lpcsdr_device_handle *dev, int decimation_mode)
+{
+    CHECK_DEV(dev);
+
+    if (decimation_mode > MAX_POST_DECIMATORS || (decimation_mode < 0 && decimation_mode != LPCSDR_DECIMATION_AUTO && decimation_mode != LPCSDR_DECIMATION_AUTO_MAX))
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+    if (dev->decimation_mode != decimation_mode) {
+        dev->decimation_mode = decimation_mode;
+        dev->changing_rate = true;
+    }
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_get_decimation_mode(lpcsdr_device_handle *dev, int *decimation_mode)
+{
+    CHECK_DEV(dev);
+    pthread_mutex_lock(&dev->mutex);
+    if (decimation_mode)
+        *decimation_mode = dev->decimation_mode;
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
 static double actual_frequency(lpcsdr_device_handle *dev)
 {
-    if (!dev->tuner_pll_config.valid || dev->changing_freq) {
+    if (!dev->tuner_pll_config.valid || !dev->adc_pll_config.valid || dev->changing_rate || dev->changing_freq) {
         return 0;
     }
 
-    switch (dev->conversion_mode) {
-    case LPCSDR_MODE_LOWIF_REAL:
-        return dev->tuner_pll_config.actual_frequency;
-        break;
-
-    case LPCSDR_MODE_BASEBAND:
-        /* lower sideband case: LO = freq + Fs/4  -> freq = LO - Fs/4
-         * upper sideband case: LO = freq - Fs/4 - > freq = LO + Fs/4
-         */
-        if (!dev->adc_pll_config.valid) {
-            return 0;
-        }
-
-        return dev->tuner_pll_config.actual_frequency +
-            (dev->adc_pll_config.actual_frequency / 4.0) * (dev->upper_sideband ? 1.0 : -1.0);
-
-    default:
-        return 0;
-    }
+    return dev->tuner_pll_config.actual_frequency - lo_offset(dev);
 }
 
 int lpcsdr_get_frequency(lpcsdr_device_handle *dev, double *requested, double *actual)
@@ -707,13 +934,75 @@ int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband)
     if (upper_sideband != dev->upper_sideband) {
         dev->upper_sideband = upper_sideband;
         dev->changing_freq = true;
+        dev->changing_bandpass = true;
     }
 
     pthread_mutex_unlock(&dev->mutex);
     return LPCSDR_SUCCESS;
 }
 
+int lpcsdr_set_bandpass(lpcsdr_device_handle *dev, double low, double high)
+{
+    CHECK_DEV(dev);
+    pthread_mutex_lock(&dev->mutex);
 
+    if (low > high) {
+        double t = low;
+        low = high;
+        high = t;
+    }
+
+    if (low != dev->requested_bandpass_low || high != dev->requested_bandpass_high) {
+        dev->requested_bandpass_low = low;
+        dev->requested_bandpass_high = high;
+        dev->changing_bandpass = true;
+    }
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+static double actual_bandpass_low(lpcsdr_device_handle *dev)
+{
+    if (!dev->adc_pll_config.valid || !dev->tuner_lpf_config.valid || !dev->tuner_hpf_config.valid || dev->changing_rate || dev->changing_bandpass)
+        return 0;
+
+    const double center = center_if_frequency(dev);
+    if (dev->upper_sideband)
+        return (dev->tuner_hpf_config.cutoff - center);
+    else
+        return (center - dev->tuner_lpf_config.cutoff);
+}
+
+static double actual_bandpass_high(lpcsdr_device_handle *dev)
+{
+    if (!dev->adc_pll_config.valid || !dev->tuner_lpf_config.valid || !dev->tuner_hpf_config.valid || dev->changing_rate || dev->changing_bandpass)
+        return 0;
+
+    const double center = center_if_frequency(dev);
+    if (dev->upper_sideband)
+        return (dev->tuner_lpf_config.cutoff - center);
+    else
+        return (center - dev->tuner_hpf_config.cutoff);
+}
+
+int lpcsdr_get_bandpass(lpcsdr_device_handle *dev, double *low, double *high, double *actual_low, double *actual_high)
+{
+    CHECK_DEV(dev);
+    pthread_mutex_lock(&dev->mutex);
+
+    if (low)
+        *low = dev->requested_bandpass_low;
+    if (high)
+        *high = dev->requested_bandpass_high;
+    if (actual_low)
+        *actual_low = actual_bandpass_low(dev);
+    if (actual_high)
+        *actual_high = actual_bandpass_high(dev);
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
 
 //Transfers
 

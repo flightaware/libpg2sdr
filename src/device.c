@@ -38,10 +38,18 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     dev->tuner_pll_config.valid = false;
     dev->changing_freq = false;
 
+    dev->requested_bandpass_low = -100e6;
+    dev->requested_bandpass_high = 100e6;
+    dev->tuner_hpf_config.valid = false;
+    dev->tuner_lpf_config.valid = false;
+    dev->changing_bandpass = false;
+
+    dev->decimation_mode = LPCSDR_DECIMATION_AUTO;
+
     dev->usb_bytes_per_block = status.usb_bytes_per_block;
     dev->usb_samples_per_block = status.usb_samples_per_block;
     dev->tuner_xtal = status.tuner_xtal;
-    dev->buffer_size = 1048576; /* default 1MB */
+    dev->buffer_size = 262144; /* default 1MB (complex) */
 
     if ((error = lpcsdr__init_tuner(dev)) < 0)
         goto cleanup;
