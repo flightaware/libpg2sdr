@@ -204,8 +204,7 @@ class LPCSDRDevice : public SoapySDR::Device
     // void setGain(const int direction, const size_t channel, const std::string &name, const double value) override;
     // double getGain(const int direction, const size_t channel) const override;
     // double getGain(const int direction, const size_t channel, const std::string &name) const override;
-    // // SoapySDR::Range getGainRange(const int direction, const size_t channel)
-    // // const override;
+    // SoapySDR::Range getGainRange(const int direction, const size_t channel) const override;
     // SoapySDR::Range getGainRange(const int direction, const size_t channel, const std::string &name) const override;
 
     /* frequency */
@@ -217,37 +216,31 @@ class LPCSDRDevice : public SoapySDR::Device
     SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel) const override;
     SoapySDR::RangeList getFrequencyRange(const int direction, const size_t channel, const std::string &name) const override;
 
-    // /* sample rate */
+    /* sample rate */
     void setSampleRate(const int direction, const size_t channel, const double rate) override;
     double getSampleRate(const int direction, const size_t channel) const override;
     std::vector<double> listSampleRates(const int direction, const size_t channel) const override;
     SoapySDR::RangeList getSampleRateRange(const int direction, const size_t channel) const override;
 
-    // /* bandwidth */
-    // void setBandwidth(const int direction, const size_t channel, const double bw) override;
-    // double getBandwidth(const int direction, const size_t channel) const override;
-    // std::vector<double> listBandwidths(const int direction, const size_t channel) const override;
-    // RangeList getBandwidthRange(const int direction, const size_t channel) const override;
+    /* bandwidth */
+    void setBandwidth(const int direction, const size_t channel, const double bw) override;
+    double getBandwidth(const int direction, const size_t channel) const override;
+    std::vector<double> listBandwidths(const int direction, const size_t channel) const override;
+    SoapySDR::RangeList getBandwidthRange(const int direction, const size_t channel) const override;
 
     Context &context() { return ctx_; }
     lpcsdr_device_handle *handle() { return handle_; }
-    // double wanted_bandwidth() const { return wanted_bandwidth_; }
 
   private:
     LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle);
+
+    bool tryApplyChanges() const;
 
     std::mutex mutex_;                      // protects active_stream_
     LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
 
     mutable Context ctx_;
     mutable lpcsdr_device_handle *handle_;
-
-    //uint32_t sample_frequency;
-    //double wanted_bandwidth_ = 0.0; // last bandwidth value set, 0 = never set
-
-    //SoapySDR::Range frequencies_;                  // device frequency range
-    //SoapySDR::Range bandwidths_;                   // device bandwidth range
-    //std::map<std::string, SoapySDR::Range> gains_; // device gain range per stage
 };
 
 /* The implementation hiding behind our opaque Stream* handle */

@@ -185,7 +185,6 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(s
     LIBCALL(lpcsdr_set_mix_gain, 7);
     LIBCALL(lpcsdr_set_vga_gain, 7);
 
-    LIBCALL(lpcsdr_set_sideband, true);
     LIBCALL(lpcsdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
 
     // unsigned quantum;
@@ -228,6 +227,33 @@ static inline void CheckChannel(const int direction, const size_t channel)
         throw std::invalid_argument("channel out of range");
 }
 
+bool LPCSDRDevice::tryApplyChanges() const
+{
+    // It's possible that changes will fail to apply for a couple of reasons:
+    //
+    //  1) we're actively streaming, and settings will take effect when streaming next restarts;
+    //  2) the current combination of frequency/rate/sideband/etc puts some values out of range,
+    //     but we might be halfway through a series of API calls reconfiguring the device to a
+    //     state that _is_ acceptable
+    //
+    // In those cases, log about the errors, but continue without throwing an exception; if they
+    // are real errors, we'll try to re-apply them when streaming is next started, and those will
+    // throw an error.
+
+    int error = LIBCALL_NOTHROW(lpcsdr_apply_changes);
+    if (!error)
+        return true;
+    if (error == LPCSDR_ERROR_BAD_STATE  /* todo: also ignore rate/freq range errors once they are recognizable */) {
+        Logf(SOAPY_SDR_DEBUG,
+             "Ignoring %s error from lpcsdr_apply_changes (changes will be applied when streaming is next restarted)",
+             lpcsdr_strerror_string(error).c_str());
+        return false;
+    }
+
+    std::string message = "Unable to apply pending changes: " + lpcsdr_strerror_string(error);
+    throw std::runtime_error(message);
+}
+
 void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
 {
     setFrequency(direction, channel, "RF", frequency, args);
@@ -241,14 +267,12 @@ void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const
         throw std::invalid_argument("unrecognized tunable element " + name);
 
     // don't enforce frequency ranges, some out-of-range values might actually work
-    LIBCALL(lpcsdr_set_frequency, frequency);
 
-    // If we have an active stream, we want to retune immediately
-    {
-        std::unique_lock<std::mutex> lock(mutex_);
-        if (active_stream_)
-            LIBCALL(lpcsdr_apply_changes);
-    }
+    // extend the tuning range a little by using low-sideband for low frequencies, high-sideband
+    // for high frequencies. (todo: should we have hysteresis here, rather than just a single boundary?)
+    LIBCALL(lpcsdr_set_sideband, frequency > 1e9 ? true : false);
+    LIBCALL(lpcsdr_set_frequency, frequency);
+    tryApplyChanges();
 }
 
 double LPCSDRDevice::getFrequency(const int direction, const size_t channel) const
@@ -263,8 +287,12 @@ double LPCSDRDevice::getFrequency(const int direction, const size_t channel, con
     if (name != "" && name != "RF")
         throw std::invalid_argument("unrecognized tuneable element " + name);
 
-    double freq;
-    LIBCALL(lpcsdr_get_frequency, &freq, NULL);
+    double req, actual;
+    tryApplyChanges(); // ensure actual frequency is up to date before querying
+    LIBCALL(lpcsdr_get_frequency, &req, &actual);
+
+    double freq = actual ? actual : req;
+    Logf(SOAPY_SDR_DEBUG, " = %.3fMHz", freq/1e6);
     return freq;
 }
 
@@ -296,28 +324,8 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     TRACECALLF("(%d,%zu,%f)", direction, channel, rate);
     CheckChannel(direction, channel);
 
-    {
-        // liblpcsdr can't change sample rate while actively streaming
-        // (it's complicated) but soapysdr clients want to do that,
-        // so deactivate/reactivate if we are actively streaming
-
-        std::unique_lock<std::mutex> lock(mutex_); /* protect active_stream_ */
-
-        if (active_stream_)
-            active_stream_->deactivate();
-
-        LIBCALL(lpcsdr_set_sample_rate, rate);
-
-        // todo: use soapy bandwidth API
-
-        int nyquist = (int)rate;
-        LIBCALL(lpcsdr_set_center_frequency_bandwidth, /* low */ 0, /* high */ rate, /* max */ &nyquist);
-
-        LIBCALL(lpcsdr_apply_changes);
-
-        if (active_stream_)
-            active_stream_->activate(); // will apply changes when streaming restarts
-    }
+    LIBCALL(lpcsdr_set_sample_rate, rate);
+    tryApplyChanges();
 }
 
 double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const
@@ -325,9 +333,13 @@ double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) co
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
 
-    double freq;
-    LIBCALL(lpcsdr_get_sample_rate, &freq, NULL);
-    return freq;
+    double req, actual;
+    tryApplyChanges(); // ensure actual rate is up to date before querying
+    LIBCALL(lpcsdr_get_sample_rate, &req, &actual);
+
+    double rate = actual ? actual : req;
+    Logf(SOAPY_SDR_DEBUG, " = %.3fMHz", rate/1e6);
+    return rate;
 }
 
 std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const size_t channel) const
@@ -348,6 +360,54 @@ SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const 
 
     SoapySDR::RangeList ranges;
     ranges.push_back(SoapySDR::Range(2.0, 15.0));
+    return ranges;
+}
+
+void LPCSDRDevice::setBandwidth(const int direction, const size_t channel, const double bw)
+{
+    TRACECALLF("(%d,%zu,%.3fMHz)", direction, channel, bw/1e6);
+    CheckChannel(direction, channel);
+
+    LIBCALL(lpcsdr_set_bandpass, -bw/2.0, bw/2.0);
+    tryApplyChanges();
+}
+
+double LPCSDRDevice::getBandwidth(const int direction, const size_t channel) const
+{
+    TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+
+    double low, high, actual_low, actual_high;
+    tryApplyChanges();
+    LIBCALL(lpcsdr_get_bandpass, &low, &high, &actual_low, &actual_high);
+    if (actual_low)
+        low = actual_low;
+    if (actual_high)
+        high = actual_high;
+
+    double bw = high - low;
+    Logf(SOAPY_SDR_DEBUG, " = %.3fMHz", bw/1e6);
+    return bw;
+}
+
+std::vector<double> LPCSDRDevice::listBandwidths(const int direction, const size_t channel) const
+{
+    TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+
+    std::vector<double> result;
+    for (auto i = 1; i <= 10; i++)
+        result.push_back(i * 1e6);
+    return result;
+}
+
+SoapySDR::RangeList LPCSDRDevice::getBandwidthRange(const int direction, const size_t channel) const
+{
+    TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+
+    SoapySDR::RangeList ranges;
+    ranges.push_back(SoapySDR::Range(1e6, 10e6));
     return ranges;
 }
 
