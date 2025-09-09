@@ -4,10 +4,12 @@ all: build
 
 clean:
 	rm -rf build
+	make -C soapy clean
 
 build:
 	cmake -B ./build -S ./
 	make -C build
+	make -C soapy
 
 debug:
 	cmake -DCMAKE_BUILD_TYPE=Debug -B ./build -S ./
