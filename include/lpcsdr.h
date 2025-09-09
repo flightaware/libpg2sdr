@@ -94,14 +94,6 @@ struct hotplug_callback_state {
     libusb_device *device;
 };
 
-struct lpcsdr_ifir {
-    unsigned ntaps;
-    int16_t *taps;
-    int16_t qtap;
-    int16_t *history_i;
-    int16_t *history_q;
-};
-
 typedef struct {
     /* Handle for the device producing this sample block. */
     lpcsdr_device_handle *dev;
