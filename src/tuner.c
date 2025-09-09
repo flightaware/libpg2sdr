@@ -5,6 +5,7 @@
 
 static const lpf_settings lpf_calibration[] = {
     {
+        .valid = true,
         .cutoff = 2027e3,
         .lpf_coarse = 3,
         .lpf_fine = 15,
@@ -12,6 +13,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 2093e3,
         .lpf_coarse = 3,
         .lpf_fine = 13,
@@ -19,6 +21,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 2320e3,
         .lpf_coarse = 1,
         .lpf_fine = 15,
@@ -26,6 +29,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 2601e3,
         .lpf_coarse = 1,
         .lpf_fine = 9,
@@ -33,6 +37,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 2891e3,
         .lpf_coarse = 0,
         .lpf_fine = 12,
@@ -40,6 +45,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 3177e3,
         .lpf_coarse = 0,
         .lpf_fine = 8,
@@ -47,6 +53,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 3525e3,
         .lpf_coarse = 0,
         .lpf_fine = 4,
@@ -54,6 +61,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 3960e3,
         .lpf_coarse = 0,
         .lpf_fine = 0,
@@ -61,6 +69,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 1,
     },
     {
+        .valid = true,
         .cutoff = 5733e3,
         .lpf_coarse = 3,
         .lpf_fine = 15,
@@ -68,6 +77,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 5920e3,
         .lpf_coarse = 3,
         .lpf_fine = 13,
@@ -75,6 +85,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 6555e3,
         .lpf_coarse = 1,
         .lpf_fine = 15,
@@ -82,6 +93,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 7345e3,
         .lpf_coarse = 1,
         .lpf_fine = 9,
@@ -89,6 +101,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 8168e3,
         .lpf_coarse = 0,
         .lpf_fine = 12,
@@ -96,6 +109,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 8975e3,
         .lpf_coarse = 0,
         .lpf_fine = 8,
@@ -103,6 +117,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 9955e3,
         .lpf_coarse = 0,
         .lpf_fine = 4,
@@ -110,6 +125,7 @@ static const lpf_settings lpf_calibration[] = {
         .lpf_narrow = 0,
     },
     {
+        .valid = true,
         .cutoff = 11196e3,
         .lpf_coarse = 0,
         .lpf_fine = 0,
@@ -120,66 +136,82 @@ static const lpf_settings lpf_calibration[] = {
 
 static const hpf_settings hpf_calibration[] = {
     {
+        .valid = true,
         .cutoff = 527e3,
         .hpf_corner = 15,
     },
     {
+        .valid = true,
         .cutoff = 659e3,
         .hpf_corner = 14,
     },
     {
+        .valid = true,
         .cutoff = 774e3,
         .hpf_corner = 13,
     },
     {
+        .valid = true,
         .cutoff = 863e3,
         .hpf_corner = 12,
     },
     {
+        .valid = true,
         .cutoff = 1096e3,
         .hpf_corner = 11,
     },
     {
+        .valid = true,
         .cutoff = 1374e3,
         .hpf_corner = 10,
     },
     {
+        .valid = true,
         .cutoff = 1522e3,
         .hpf_corner = 9,
     },
     {
+        .valid = true,
         .cutoff = 1665e3,
         .hpf_corner = 8,
     },
     {
+        .valid = true,
         .cutoff = 1914e3,
         .hpf_corner = 7,
     },
     {
+        .valid = true,
         .cutoff = 2138e3,
         .hpf_corner = 6,
     },
     {
+        .valid = true,
         .cutoff = 2342e3,
         .hpf_corner = 5,
     },
     {
+        .valid = true,
         .cutoff = 2458e3,
         .hpf_corner = 4,
     },
     {
+        .valid = true,
         .cutoff = 2733e3,
         .hpf_corner = 3,
     },
     {
+        .valid = true,
         .cutoff = 3005e3,
         .hpf_corner = 2,
     },
     {
+        .valid = true,
         .cutoff = 3563e3,
         .hpf_corner = 1,
     },
     {
+        .valid = true,
         .cutoff = 3724e3,
         .hpf_corner = 0,
     },

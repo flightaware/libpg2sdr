@@ -25,6 +25,7 @@
 #define extract_tuner_val(buffer, name) extract_tuner_val_helper(buffer, name ## _MASK, name ## _OFFSET)
 
 typedef struct {
+    bool valid;
     float cutoff;
     int lpf_coarse;
     int lpf_fine;
@@ -33,6 +34,7 @@ typedef struct {
 } lpf_settings;
 
 typedef struct {
+    bool valid;
     float cutoff;
     int hpf_corner;
 } hpf_settings;
