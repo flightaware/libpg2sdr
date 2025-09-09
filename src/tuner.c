@@ -312,10 +312,11 @@ int lpcsdr_set_center_frequency_bandwidth(lpcsdr_device_handle *dev, int low, in
     Max should be >= target.
     If max isn't 0, max should be >= lpf_calibration[0].cutoff.
 */
-lpf_settings lpcsdr__lpf_settings_for(int target, unsigned max) {
-    int limit = sizeof(lpf_calibration)/sizeof(lpf_calibration[0]);
-    if (max) {
-        for (int i = 0; i < sizeof(lpf_calibration)/sizeof(lpf_calibration[0]); i++) {
+const lpf_settings *lpcsdr__lpf_settings_for(double target, double max)
+{
+    size_t limit = sizeof(lpf_calibration)/sizeof(lpf_calibration[0]);
+    if (max > 0) {
+        for (size_t i = 0; i < limit; ++i) {
             if (lpf_calibration[i].cutoff > max) {
                 limit = i;
                 break;
@@ -330,18 +331,20 @@ lpf_settings lpcsdr__lpf_settings_for(int target, unsigned max) {
         r++;
     }
 
-    return lpf_calibration[MAX(0, MIN(r, limit - 1))];
+    return &lpf_calibration[MAX(0, MIN(r, limit - 1))];
 }
 
 /* Find largest setting with cutoff <= target */
-hpf_settings lpcsdr__hpf_settings_for(int target) {
+const hpf_settings *lpcsdr__hpf_settings_for(double target)
+{
+    const size_t limit = sizeof(hpf_calibration)/sizeof(hpf_calibration[0]);
     int p = 0;
-    while (p < sizeof(hpf_calibration)/sizeof(hpf_calibration[0])) {
+    while (p < limit) {
         if (hpf_calibration[p].cutoff > target)
             break;
         p++;
     }
-    return hpf_calibration[MAX(0, p - 1)];
+    return &hpf_calibration[MAX(0, p - 1)];
 }
 
 int lpcsdr__init_tuner(lpcsdr_device_handle *dev) {
