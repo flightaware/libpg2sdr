@@ -3,7 +3,7 @@
 #include "internal.h"
 #include "math.h"
 
-static lpf_settings lpf_calibration[16] = {
+static const lpf_settings lpf_calibration[] = {
     {
         .cutoff = 2027e3,
         .lpf_coarse = 3,
@@ -118,7 +118,7 @@ static lpf_settings lpf_calibration[16] = {
     },
 };
 
-static hpf_settings hpf_calibration[16] = {
+static const hpf_settings hpf_calibration[] = {
     {
         .cutoff = 527e3,
         .hpf_corner = 15,
