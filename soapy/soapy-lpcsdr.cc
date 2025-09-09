@@ -411,6 +411,24 @@ SoapySDR::RangeList LPCSDRDevice::getBandwidthRange(const int direction, const s
     return ranges;
 }
 
+SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
+{
+    SoapySDR::ArgInfoList args;
+
+    SoapySDR::ArgInfo buffer_size;
+    buffer_size.key = "buffer_size";
+    buffer_size.value = "262144";
+    buffer_size.name = "Buffer size";
+    buffer_size.description = "Buffer size used to pass data to application (controls stream MTU)";
+    buffer_size.units = "samples";
+    buffer_size.type = SoapySDR::ArgInfo::Type::INT;
+    buffer_size.range = SoapySDR::Range(0, UINT32_MAX, 1);
+
+    args.push_back(buffer_size);
+
+    return args;
+}
+
 void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value)
 {
     TRACECALLF("(\"%s\",\"%s\")", key.c_str(), value.c_str());

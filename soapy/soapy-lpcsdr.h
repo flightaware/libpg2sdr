@@ -180,12 +180,9 @@ class LPCSDRDevice : public SoapySDR::Device
     std::string getHardwareKey(void) const override;
 
     /* settings */
+    SoapySDR::ArgInfoList getSettingInfo(void) const override;
     void writeSetting(const std::string &key, const std::string &value) override;
     std::string readSetting(const std::string &key) const override;
-
-    // SoapySDR::ArgInfoList getSettingInfo(void) const override;
-    // void writeSetting(const std::string &key, const std::string &value) override;
-    // std::string readSetting(const std::string &key) const override;
 
     // /* stream */
     size_t getNumChannels(const int direction) const override;
