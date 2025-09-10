@@ -3,7 +3,7 @@ include_directories(${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_library(lpcsdr errors.c boot.c context.c device.c dsp.c control.c adc.c stream.c tuner.c)
+add_library(lpcsdr errors.c boot.c context.c device.c dsp.c control.c adc.c stream.c tuner.c config.c)
 
 # Link libusb through dynamic shell
 #$(shell pkg-config --libs libusb-1.0)

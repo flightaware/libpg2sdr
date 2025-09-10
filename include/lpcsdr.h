@@ -124,13 +124,13 @@ typedef bool (*lpcsdr_stream_callback)(lpcsdr_sample_buffer *buffer, void *user_
 const char *lpcsdr_strerror(int error);
 const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen);
 
-/* context.c */
+/* Library context (context.c) */
 int lpcsdr_init(lpcsdr_context **ctx);
 int lpcsdr_exit(lpcsdr_context *ctx);
 int lpcsdr_set_firmware_path(lpcsdr_context *ctx, const char *firmware_path);
 int lpcsdr_set_log_callback(lpcsdr_context *ctx, lpcsdr_log_callback callback);
 
-/* device.c */
+/* Device discovery and open/close (device.c) */
 int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle);
 void lpcsdr_free_device_list(lpc_device **device_list);
 ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
@@ -138,15 +138,12 @@ int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device
 int lpcsdr_close_device(lpcsdr_device_handle *dev);
 int lpcsdr_get_serial(lpcsdr_device_handle *dev, char *serial, size_t length);
 
-// Open by Methods
-// static int generic_match(lpc_device *dev, void *arg);
-// static int generic_open_by(lpcsdr_context *ctx, struct match_tuple *match, lpcsdr_device_handle **device);
 int lpcsdr_open_by_serial(lpcsdr_context *ctx, const char *serial, lpcsdr_device_handle **device);
 int lpcsdr_open_by_address(lpcsdr_context *ctx, uint8_t bus, uint8_t address, lpcsdr_device_handle **device);
 int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_handle **device);
 int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device);
 
-// Device configuration
+/* Device configuration (config.c) */
 
 /*
  * Conversion mode, sample rate, center frequency, sideband, bandpass, decimation mode:
@@ -342,7 +339,7 @@ int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);
 
-// Streaming
+/* Streaming (stream.c) */
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
 int lpcsdr_stop_streaming(lpcsdr_device_handle *dev);
 void lpcsdr_release_buffer(lpcsdr_sample_buffer *buffer);
