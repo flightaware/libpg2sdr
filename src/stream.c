@@ -392,7 +392,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     }
 
  cleanup:
-    for (unsigned i = 0; i < MAX_POST_DECIMATORS; ++i) {
+    for (unsigned i = 0; i < LPCSDR_DECIMATION_MAX; ++i) {
         lpcsdr__dsp_halfband_decimate_free(dev->post_decimators[i]);
         dev->post_decimators[i] = NULL;
     }
@@ -530,7 +530,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
         break;
 
     case LPCSDR_MODE_BASEBAND:
-        if (dev->decimation_mode >= 0 && dev->decimation_mode <= MAX_POST_DECIMATORS) {
+        if (dev->decimation_mode >= 0 && dev->decimation_mode <= LPCSDR_DECIMATION_MAX) {
             /* Explicit decimation setting */
             post_decimation = dev->decimation_mode;
         } else if (dev->decimation_mode == LPCSDR_DECIMATION_AUTO) {
@@ -540,7 +540,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
              */
             double scaled = dev->requested_sample_rate;
             post_decimation = 0;
-            while (scaled <= 5e6 && post_decimation < MAX_POST_DECIMATORS && (scaled - dev->requested_sample_rate) < 0.5e6) {
+            while (scaled <= 5e6 && post_decimation < LPCSDR_DECIMATION_MAX && (scaled - dev->requested_sample_rate) < 0.5e6) {
                 ++post_decimation;
                 scaled *= 2;
             }
@@ -548,7 +548,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
             /* Scale up sample rate as far as possible (given fADC <= 20MHz) */
             double scaled = dev->requested_sample_rate;
             post_decimation = 0;
-            while (scaled <= 5e6 && post_decimation < MAX_POST_DECIMATORS) {
+            while (scaled <= 5e6 && post_decimation < LPCSDR_DECIMATION_MAX) {
                 ++post_decimation;
                 scaled *= 2;
             }
@@ -854,7 +854,7 @@ int lpcsdr_set_decimation_mode(lpcsdr_device_handle *dev, int decimation_mode)
 {
     CHECK_DEV(dev);
 
-    if (decimation_mode > MAX_POST_DECIMATORS || (decimation_mode < 0 && decimation_mode != LPCSDR_DECIMATION_AUTO && decimation_mode != LPCSDR_DECIMATION_AUTO_MAX))
+    if (decimation_mode > LPCSDR_DECIMATION_MAX || (decimation_mode < 0 && decimation_mode != LPCSDR_DECIMATION_AUTO && decimation_mode != LPCSDR_DECIMATION_AUTO_MAX))
         return LPCSDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);

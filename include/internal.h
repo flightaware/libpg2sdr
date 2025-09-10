@@ -117,8 +117,7 @@ struct lpcsdr_device_handle {
 
     /* State for BASEBAND-mode streaming */
     dsp_downconvert_state_t *downconverter;  /* Fs/4 downconvertor+decimator */
-#define MAX_POST_DECIMATORS 8
-    dsp_halfband_decimate_state_t *post_decimators[MAX_POST_DECIMATORS]; /* Chain of decimators for extra decimation following downconversion */
+    dsp_halfband_decimate_state_t *post_decimators[LPCSDR_DECIMATION_MAX]; /* Chain of decimators for extra decimation following downconversion */
     int16_t *work_buffer[2];                 /* ping-pong work buffers */
 };
 

@@ -152,6 +152,8 @@ int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size);
 int lpcsdr_get_buffer_size(lpcsdr_device_handle *dev, size_t *buffer_size);
 int lpcsdr_set_sample_rate(lpcsdr_device_handle *dev, double rate);
 int lpcsdr_get_sample_rate(lpcsdr_device_handle *dev, double *requested, double *actual);
+
+#define LPCSDR_DECIMATION_MAX (8)
 #define LPCSDR_DECIMATION_AUTO (-1)
 #define LPCSDR_DECIMATION_AUTO_MAX (-2)
 int lpcsdr_set_decimation_mode(lpcsdr_device_handle *dev, int decimation_mode);
