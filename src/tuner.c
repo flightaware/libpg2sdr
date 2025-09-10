@@ -227,29 +227,105 @@ static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
     return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
-int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain)
+int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
+
+    if (gain > 15)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+    int error;
+
     change_set cs = {0};
     set_tuner_reg(&cs, LNA_GAIN, gain);
-    return update_tuner_regs(dev, &cs);
+    if ((error = update_tuner_regs(dev, &cs)) < 0)
+        goto done;
+    dev->lna_gain = gain;
+
+ done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
 }
 
-int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain)
+int lpcsdr_get_lna_gain(lpcsdr_device_handle *dev, unsigned *gain)
 {
     CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    if (gain)
+        *gain = dev->lna_gain;
+    pthread_mutex_unlock(&dev->mutex);
+
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, unsigned gain)
+{
+    CHECK_DEV(dev);
+
+    if (gain > 15)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+    int error = LPCSDR_SUCCESS;
+
     change_set cs = {0};
     set_tuner_reg(&cs, MIX_GAIN, gain);
-    return update_tuner_regs(dev, &cs);
+    if ((error = update_tuner_regs(dev, &cs)) < 0)
+        goto done;
+    dev->mix_gain = gain;
+
+ done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
 }
 
-int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain)
+int lpcsdr_get_mix_gain(lpcsdr_device_handle *dev, unsigned *gain)
 {
     CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    if (gain)
+        *gain = dev->mix_gain;
+    pthread_mutex_unlock(&dev->mutex);
+
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, unsigned gain)
+{
+    CHECK_DEV(dev);
+
+    if (gain > 15)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+    int error = LPCSDR_SUCCESS;
+
     change_set cs = {0};
     set_tuner_reg(&cs, VGA_GAIN, gain);
-    return update_tuner_regs(dev, &cs);
+    if ((error = update_tuner_regs(dev, &cs)) < 0)
+        goto done;
+    dev->vga_gain = gain;
+
+ done:
+    pthread_mutex_unlock(&dev->mutex);
+    return error;
 }
+
+int lpcsdr_get_vga_gain(lpcsdr_device_handle *dev, unsigned *gain)
+{
+    CHECK_DEV(dev);
+
+    pthread_mutex_lock(&dev->mutex);
+    if (gain)
+        *gain = dev->vga_gain;
+    pthread_mutex_unlock(&dev->mutex);
+
+    return LPCSDR_SUCCESS;
+}
+
 /*
     Set the low pass filter values.
     Derive the absolute maximum from the requested sampling rate.
@@ -333,7 +409,7 @@ int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
     set_tuner_reg(&cs, R5_RESERVED_6_0, 0);
     set_tuner_reg(&cs, PWD_LNA1, 0);
     set_tuner_reg(&cs, LNA_GAIN_MODE, 1);
-    set_tuner_reg(&cs, LNA_GAIN, 0);
+    set_tuner_reg(&cs, LNA_GAIN, 0); dev->lna_gain = 0;
 
     // TunerR6
     set_tuner_reg(&cs, PWD_PDET1, 0);
@@ -348,8 +424,7 @@ int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
     set_tuner_reg(&cs, PW_MIX, 1);
     set_tuner_reg(&cs, PW0_MIX, 1);
     set_tuner_reg(&cs, MIXGAIN_MODE, 0);
-    set_tuner_reg(&cs, MIX_GAIN, 0);
-
+    set_tuner_reg(&cs, MIX_GAIN, 0); dev->mix_gain = 0;
 
     // TunerR8
     set_tuner_reg(&cs, PW_AMP, 1);
@@ -380,7 +455,7 @@ int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
     set_tuner_reg(&cs, PW_VGA, 1);
     set_tuner_reg(&cs, R12_RESERVED_5_1, 1);
     set_tuner_reg(&cs, VGA_GAIN_MODE, 0);
-    set_tuner_reg(&cs, VGA_GAIN, 0);
+    set_tuner_reg(&cs, VGA_GAIN, 0); dev->vga_gain = 0;
 
     // TunerR13
     set_tuner_reg(&cs, LNA_VTH_H, 5);

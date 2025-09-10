@@ -335,9 +335,12 @@ int lpcsdr_get_bandpass(lpcsdr_device_handle *dev, double *req_low, double *req_
 int lpcsdr_apply_changes(lpcsdr_device_handle *dev);
 
 // Gain
-int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, uint16_t gain);
-int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, uint16_t gain);
-int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, uint16_t gain);
+int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, unsigned gain);
+int lpcsdr_get_lna_gain(lpcsdr_device_handle *dev, unsigned *gain);
+int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, unsigned gain);
+int lpcsdr_get_mix_gain(lpcsdr_device_handle *dev, unsigned *gain);
+int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, unsigned gain);
+int lpcsdr_get_vga_gain(lpcsdr_device_handle *dev, unsigned *gain);
 
 /* Streaming (stream.c) */
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);

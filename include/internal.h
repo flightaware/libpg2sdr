@@ -75,6 +75,11 @@ struct lpcsdr_device_handle {
     bool streaming; /* true when lpcsdr_stream_data is active */
     bool draining;  /* true when we are waiting to drain all active transfers */
 
+    /* current tuner gain steps (0-15) */
+    unsigned lna_gain;
+    unsigned mix_gain;
+    unsigned vga_gain;
+
     lpcsdr_conversion_mode_t conversion_mode;
 
     double requested_sample_rate;         /* user requested sample rate */
