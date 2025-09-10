@@ -462,6 +462,7 @@ int lpcsdr_set_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode
     dev->conversion_mode = mode;
     dev->changing_rate = true;
     dev->changing_freq = true;
+    dev->changing_bandpass = true;
 
  done:
     pthread_mutex_unlock(&dev->mutex);
