@@ -31,7 +31,7 @@ copy over the checked-out repo
 ```
 $ mkdir ~/git
 $ cd ~/git
-$ git clone --recurse-submodules git@github.flightaware.com:flightaware/liblpcsdr.git
+$ git clone --recurse-submodules git@github.flightaware.com:flightaware/liblpcsdr.git -b initial
 
 $ cd ~/git/liblpcsdr
 $ make
