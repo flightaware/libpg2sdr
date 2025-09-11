@@ -1,0 +1,13 @@
+iff --git a/sdr_soapy.c b/sdr_soapy.c
+index 5161193..0eb74e3 100644
+--- a/sdr_soapy.c
++++ b/sdr_soapy.c
+@@ -230,6 +230,8 @@ bool soapyOpen(void)
+     // Configure everything
+     //
+ 
++    SoapySDRDevice_writeSetting(SOAPY.dev, "decimation", "max");
++
+     if (SOAPY.channel) {
+         size_t supported_channels = SoapySDRDevice_getNumChannels(SOAPY.dev, SOAPY_SDR_RX);
+         if (SOAPY.channel >= supported_channels) {
