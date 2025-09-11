@@ -39,6 +39,15 @@ $ make
 
 ## Check out and build dump1090
 
+You don't _have_ to build dump1090 yourself, it should be possible to use an
+existing dump1090 package as they already have soapysdr support.
+
+There is one caveat -- the existing packages have no way to set the extra
+decimation setting, so lpcsdr will run at 9.6MHz rather than 19.2MHz, and the
+noise floor will be a bit higher. But it should work.
+
+If you're not using an existing package, then build from source:
+
 ```
 $ cd ~/git
 $ git clone https://github.com/flightaware/dump1090.git
