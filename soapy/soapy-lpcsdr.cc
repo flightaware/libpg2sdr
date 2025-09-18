@@ -192,7 +192,35 @@ static inline void CheckChannel(const int direction, const size_t channel)
         throw std::invalid_argument("channel out of range");
 }
 
-bool LPCSDRDevice::tryApplyChanges() const
+// A helper class that ensures that the stream is paused (not active)
+// for the lifetime of the instance. If the stream is active, it will
+// deactivate the stream when constructed, then re-activate it when
+// the guard instance is destroyed / leaves scope.
+class PauseStreamGuard
+{
+public:
+    PauseStreamGuard(const LPCSDRDevice &dev) : dev_(dev), lock_(dev.mutex_)
+    {
+        if (dev_.active_stream_) {
+            Logf(SOAPY_SDR_DEBUG, "LPCSDR: pausing stream");
+            dev_.active_stream_->deactivate();
+        }
+    }
+
+    ~PauseStreamGuard()
+    {
+        if (dev_.active_stream_) {
+            Logf(SOAPY_SDR_DEBUG, "LPCSDR: resuming stream");
+            dev_.active_stream_->activate();
+        }
+    }
+
+private:
+    const LPCSDRDevice &dev_;
+    std::unique_lock<std::mutex> lock_;
+};
+
+void LPCSDRDevice::tryApplyChanges() const
 {
     // It's possible that changes will fail to apply for a couple of reasons:
     //
@@ -201,22 +229,21 @@ bool LPCSDRDevice::tryApplyChanges() const
     //     but we might be halfway through a series of API calls reconfiguring the device to a
     //     state that _is_ acceptable
     //
-    // In those cases, log about the errors, but continue without throwing an exception; if they
-    // are real errors, we'll try to re-apply them when streaming is next started, and those will
-    // throw an error.
+    // There's not a lot we can realistically do about (2)
+    // but for (1), we can retry with the stream paused
 
-    int error = LIBCALL_NOTHROW(lpcsdr_apply_changes);
+    // Don't use LIBCALL initially, we don't want to log scary bad-state errors at ERROR level here
+    int error = lpcsdr_apply_changes(handle_);
     if (!error)
-        return true;
-    if (error == LPCSDR_ERROR_BAD_STATE  /* todo: also ignore rate/freq range errors once they are recognizable */) {
-        Logf(SOAPY_SDR_DEBUG,
-             "Ignoring %s error from lpcsdr_apply_changes (changes will be applied when streaming is next restarted)",
-             lpcsdr_strerror_string(error).c_str());
-        return false;
+        return;
+    if (error == LPCSDR_ERROR_BAD_STATE) {
+        // Retry with the stream paused
+        PauseStreamGuard pause_stream(*this);
+        LIBCALL(lpcsdr_apply_changes);
+        return;
     }
 
-    std::string message = "Unable to apply pending changes: " + lpcsdr_strerror_string(error);
-    throw std::runtime_error(message);
+    LPCSDR::ReportLPCSDRError(ctx_, "lpcsdr_apply_changes", error, true);
 }
 
 void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
@@ -289,8 +316,12 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     TRACECALLF("(%d,%zu,%f)", direction, channel, rate);
     CheckChannel(direction, channel);
 
-    LIBCALL(lpcsdr_set_sample_rate, rate);
-    tryApplyChanges();
+    // We know that changing sample rate is not safe when streaming
+    {
+        PauseStreamGuard pause_stream(*this);
+        LIBCALL(lpcsdr_set_sample_rate, rate);
+        LIBCALL(lpcsdr_apply_changes);
+    }
 }
 
 double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const
@@ -425,10 +456,14 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value)
 {
     TRACECALLF("(\"%s\",\"%s\")", key.c_str(), value.c_str());
+
     if (key == setting_buffer_size) {
         size_t size = std::stoi(value);
-        LIBCALL(lpcsdr_set_buffer_size, size);
-        return;
+        
+        {
+            PauseStreamGuard pause_stream(*this);
+            LIBCALL(lpcsdr_set_buffer_size, size);
+        }
     } else if (key == setting_decimation) {
         int mode;
         if (value == setting_decimation_auto)
@@ -438,8 +473,10 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
         else
             mode = std::stoi(value);
 
-        LIBCALL(lpcsdr_set_decimation_mode, mode);
-        return;
+        {
+            PauseStreamGuard pause_stream(*this);
+            LIBCALL(lpcsdr_set_decimation_mode, mode);
+        }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
     }
@@ -726,6 +763,12 @@ int LPCSDRStream::activate()
         return 0;
     }
 
+    // first, ensure we can apply all pending changes, so the direct caller can notice
+    // errors (otherwise, they might only be noticed in the streaming worker thread
+    // where it's harder to propagate them back to a useful place)
+    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_apply_changes, dev_.handle()) < 0)
+        return SOAPY_SDR_STREAM_ERROR;
+
     // record sampling rate at start of streaming,
     // so we can compute timestamps appropriately
     if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_get_sample_rate, dev_.handle(), &sample_rate_, NULL) < 0)
@@ -734,6 +777,7 @@ int LPCSDRStream::activate()
     expected_timestamp_ = 0;
 
     // start the streaming thread
+    Logf(SOAPY_SDR_DEBUG, "LPCSDR: activating the streaming thread");
     thread_.reset(new std::thread(std::bind(&LPCSDRStream::StreamingWorker, this)));
     return 0;
 }
@@ -745,22 +789,32 @@ int LPCSDRStream::deactivate()
         return 0;
     }
 
-    // ask liblpcsdr to stop streaming; this will make lpcsdr_stream_data()
-    // stop receiving new data and return control to StreamingWorker
-    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_stop_streaming, dev_.handle()) < 0)
-        return SOAPY_SDR_STREAM_ERROR;
+    Logf(SOAPY_SDR_DEBUG, "LPCSDR: deactivating the streaming thread");
+    // ask the worker thread to stop
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        please_stop_ = true;
+    }
+
+    // the worker thread will call lpcsdr_stop_streaming from the buffer callback
+    // when that callback next happens, but it doesn't hurt to also call it here
+    // to try to make lpcsdr_stream_data bail out faster
+    (void) lpcsdr_stop_streaming(dev_.handle());
 
     // wait for the streaming thread to stop (this should happen promptly)
     thread_->join();
     thread_.reset();
 
-    // drain any remaining data left on the queue and any pending partial block
+    // drain any remaining data left on the queue and any pending partial block;
+    // reset the stop request so future reactivations work correctly
     {
         std::unique_lock<std::mutex> lock(queue_mutex_);
         queue_.clear();
         queue_size_ = 0;
         pending_.reset();
+        please_stop_ = false;
     }
+    Logf(SOAPY_SDR_DEBUG, "LPCSDR: done with deactivating the streaming thread");
 
     return 0;
 }
@@ -807,7 +861,7 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
         if (received == 0) {
             // Start of output buffer, set the timestamp
             if (expected_timestamp_ != 0 && expected_timestamp_ < timestamp) {
-                SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: timestamp jumped by %" PRIu64 " (samples dropped)", timestamp - expected_timestamp_);
+                Logf(SOAPY_SDR_DEBUG, "LPCSDR: timestamp jumped by %" PRIu64 " (samples dropped)", timestamp - expected_timestamp_);
             }
 
             timeNs = (unsigned long long)(timestamp * 1e9 / sample_rate_);
@@ -841,6 +895,7 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
     if (received > 0) {
         return received;
     } else {
+        Logf(SOAPY_SDR_DEBUG, "LPCSDR: stream read timeout");
         return SOAPY_SDR_TIMEOUT;
     }
 }
@@ -860,7 +915,6 @@ void LPCSDRStream::StreamingWorker()
     if (error < 0)
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
-        // emplace_back would be better, 
         queue_.emplace_back(error);
         queue_signal_.notify_all();
     }
@@ -878,10 +932,17 @@ bool LPCSDRStream::StreamCallback(lpcsdr_sample_buffer *buffer)
 {
     std::lock_guard<std::mutex> lock(queue_mutex_);
 
+    if (please_stop_) {
+        // Something wants to stop streaming,
+        // make sure that happens
+        Logf(SOAPY_SDR_DEBUG, "LPCSDR: streaming thread saw a stop flag");
+        (void) lpcsdr_stop_streaming(buffer->dev);
+    }
+
     auto new_size = queue_size_ + buffer->count;
     if (new_size > queue_limit_) {
         // Our queue is too large. Drop new data.
-        SoapySDR::logf(SOAPY_SDR_DEBUG, "LPCSDR: queue full, buffer dropped");
+        Logf(SOAPY_SDR_DEBUG, "LPCSDR: queue full, buffer dropped");
         return true; // caller can free the buffer
     }
 

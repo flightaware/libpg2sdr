@@ -233,11 +233,13 @@ class LPCSDRDevice : public SoapySDR::Device
 
     bool tryApplyChanges() const;
 
-    std::mutex mutex_;                      // protects active_stream_
-    LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
+    mutable std::mutex mutex_;                      // protects active_stream_
+    mutable LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
 
     mutable Context ctx_;
     mutable lpcsdr_device_handle *handle_;
+
+    friend class PauseStreamGuard;
 };
 
 /* The implementation hiding behind our opaque Stream* handle */
@@ -293,6 +295,7 @@ private:
     std::condition_variable queue_signal_; // notified when an item is added to the queue
     std::list<QueueItem> queue_;           // queue of pending buffers/errors
     std::size_t queue_size_;               // sum of buffer->count_ for all items in queue_
+    bool please_stop_;                     // flag that makes the worker thread exit (needed to avoid activate->deactivate races)
 
     std::optional<QueueItem> pending_;     // Next partially processed queue item waiting to be consumed
 
