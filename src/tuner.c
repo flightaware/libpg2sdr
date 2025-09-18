@@ -559,8 +559,7 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
     double pll_feedback_frac = modf(pll_feedback, &pll_feedback_int_part);
 
     unsigned pll_feedback_int = (unsigned) pll_feedback_int_part;
-    unsigned sdm_numerator = (unsigned) round(pll_feedback_frac * (1<<18));
-
+    unsigned sdm_numerator = (unsigned) (pll_feedback_frac * (1<<18) + 1);
     sdm_numerator = (sdm_numerator & ~3) | 1;
 
     if (sdm_numerator < 8)
