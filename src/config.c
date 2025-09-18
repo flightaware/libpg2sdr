@@ -66,6 +66,8 @@ int lpcsdr_get_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode
 int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size)
 {
     CHECK_DEV(dev);
+    if (buffer_size < 1)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
     int error = LPCSDR_SUCCESS;
@@ -75,12 +77,10 @@ int lpcsdr_set_buffer_size(lpcsdr_device_handle *dev, size_t buffer_size)
         goto done;
     }
 
-    if (buffer_size < 1) {
-        error = LPCSDR_ERROR_BAD_ARGUMENT;
-        goto done;
+    if (dev->buffer_size != buffer_size) {
+        dev->buffer_size = buffer_size;
+        dev->changing_rate = true; // we need to recalculate buffer sizes that depend on sample rate + buffer size
     }
-
-    dev->buffer_size = buffer_size;
 
  done:
     pthread_mutex_unlock(&dev->mutex);
