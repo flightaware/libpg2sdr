@@ -110,6 +110,11 @@ void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *fir
 int lpcsdr__set_tuner_value_in_change_set(change_set *cs, uint8_t reg, uint8_t mask, uint8_t value);
 int lpcsdr__vco_scan(lpcsdr_device_handle *dev);
 
+int lpcsdr__tuner_set_lna(lpcsdr_device_handle *dev, unsigned lna);
+int lpcsdr__tuner_set_mix(lpcsdr_device_handle *dev, unsigned mix);
+int lpcsdr__tuner_set_vga(lpcsdr_device_handle *dev, unsigned vga);
+int lpcsdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga);
+
 REG_BITS(TunerR0, TUNER_ID,             7, 0)
 
 REG_BITS(TunerR1, DET3_ADC,             5, 0)

@@ -334,13 +334,40 @@ int lpcsdr_get_bandpass(lpcsdr_device_handle *dev, double *req_low, double *req_
  */
 int lpcsdr_apply_changes(lpcsdr_device_handle *dev);
 
-// Gain
+/* Per-gain-stage gain configuration, in gain steps */
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, unsigned gain);
-int lpcsdr_get_lna_gain(lpcsdr_device_handle *dev, unsigned *gain);
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, unsigned gain);
-int lpcsdr_get_mix_gain(lpcsdr_device_handle *dev, unsigned *gain);
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, unsigned gain);
-int lpcsdr_get_vga_gain(lpcsdr_device_handle *dev, unsigned *gain);
+int lpcsdr_get_stage_gains(lpcsdr_device_handle *dev, unsigned *lna, unsigned *mix, unsigned *vga);
+
+/* Per-gain-stage gain configuration, in dB */
+int lpcsdr_set_lna_gain_db(lpcsdr_device_handle *dev, double gain_db);
+int lpcsdr_set_mix_gain_db(lpcsdr_device_handle *dev, double gain_db);
+int lpcsdr_set_vga_gain_db(lpcsdr_device_handle *dev, double gain_db);
+int lpcsdr_get_stage_gains_db(lpcsdr_device_handle *dev, double *lna_db, double *mix_db, double *vga_db);
+
+/* Total gain configuration, in dB (uses all gain stages) */
+int lpcsdr_set_total_gain_db(lpcsdr_device_handle *dev, double gain_db);
+int lpcsdr_get_total_gain_db(lpcsdr_device_handle *dev, double *gain_db);
+
+/* Gain table access */
+typedef struct {
+    double gain_db;
+    unsigned lna_gain;
+    unsigned mix_gain;
+    unsigned vga_gain;
+} lpcsdr_gain_table_t;
+int lpcsdr_set_gain_tables(lpcsdr_device_handle *dev,
+                           const lpcsdr_gain_table_t *gain_table, size_t gain_table_size,
+                           const double *lna_table,
+                           const double *mix_table,
+                           const double *vga_table);
+int lpcsdr_get_gain_tables(lpcsdr_device_handle *dev,
+                           lpcsdr_gain_table_t **gain_table,
+                           size_t *gain_table_size,
+                           double *lna_table,
+                           double *mix_table,
+                           double *vga_table);
 
 /* Streaming (stream.c) */
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);

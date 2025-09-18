@@ -54,6 +54,14 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     if ((error = lpcsdr__init_tuner(dev)) < 0)
         goto cleanup;
 
+    /* set default gain tables */
+    if ((error = lpcsdr_set_gain_tables(dev,
+                                        lpcsdr__default_gain_table, lpcsdr__default_gain_table_size,
+                                        lpcsdr__default_lna_table,
+                                        lpcsdr__default_mix_table,
+                                        lpcsdr__default_vga_table)) < 0)
+        goto cleanup;
+
     *out = dev;
     return LPCSDR_SUCCESS;
 

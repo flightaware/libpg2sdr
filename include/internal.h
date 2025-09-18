@@ -75,11 +75,6 @@ struct lpcsdr_device_handle {
     bool streaming; /* true when lpcsdr_stream_data is active */
     bool draining;  /* true when we are waiting to drain all active transfers */
 
-    /* current tuner gain steps (0-15) */
-    unsigned lna_gain;
-    unsigned mix_gain;
-    unsigned vga_gain;
-
     lpcsdr_conversion_mode_t conversion_mode;
 
     double requested_sample_rate;         /* user requested sample rate */
@@ -100,6 +95,19 @@ struct lpcsdr_device_handle {
     size_t buffer_size;                   /* requested user buffer size, counted in user samples */
 
     int decimation_mode;                  /* decimation mode: LPCSDR_DECIMATION_AUTO, or >=0 for manual */
+
+    /* current tuner gain steps (0-15) */
+    unsigned lna_gain;
+    unsigned mix_gain;
+    unsigned vga_gain;
+
+    lpcsdr_gain_table_t *gain_table;      /* current total-gain table */
+    size_t gain_table_size;               /* # of entries in gain_table */
+    double lna_table[16];                 /* LNA gain-step-to-dB lookup */
+    double mix_table[16];                 /* MIX gain-step-to-dB lookup */
+    double vga_table[16];                 /* VGA gain-step-to-dB lookup */
+
+    lpcsdr_gain_table_t *current_gain_entry; /* if gain was last set via lpcsdr_set_total_gain_db, pointer to the entry we used, otherwise NULL */
 
     unsigned usb_transfer_size;           /* transfer size we decided on */
     unsigned adc_samples_per_transfer;    /* ADC samples per USB transfer */
@@ -146,5 +154,12 @@ int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
 int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
 int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
 int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
+
+/* gain-table.gen.c (generated code) */
+extern const double lpcsdr__default_lna_table[16];
+extern const double lpcsdr__default_mix_table[16];
+extern const double lpcsdr__default_vga_table[16];
+extern const size_t lpcsdr__default_gain_table_size;
+extern const lpcsdr_gain_table_t lpcsdr__default_gain_table[];
 
 #endif /* INTERNAL_H */

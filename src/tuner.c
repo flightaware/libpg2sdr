@@ -230,101 +230,51 @@ static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
     return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
-int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, unsigned gain)
+int lpcsdr__tuner_set_lna(lpcsdr_device_handle *dev, unsigned lna)
 {
-    CHECK_DEV(dev);
-
-    if (gain > 15)
+    if (lna > 15)
         return LPCSDR_ERROR_BAD_ARGUMENT;
+    return lpcsdr__tuner_set_gains(dev, lna, -1, -1);
+}
 
-    pthread_mutex_lock(&dev->mutex);
+int lpcsdr__tuner_set_mix(lpcsdr_device_handle *dev, unsigned mix)
+{
+    if (mix > 15)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+    return lpcsdr__tuner_set_gains(dev, -1, mix, -1);
+}
+
+int lpcsdr__tuner_set_vga(lpcsdr_device_handle *dev, unsigned vga)
+{
+    if (vga > 15)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+    return lpcsdr__tuner_set_gains(dev, -1, -1, vga);
+}
+
+int lpcsdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga)
+{
+    assert (lna <= 15);
+    assert (mix <= 15);
+    assert (vga <= 15);
+
+    change_set cs = {0};
+    if (lna >= 0 && lna != dev->lna_gain)
+        set_tuner_reg(&cs, LNA_GAIN, lna);
+    if (mix >= 0 && mix != dev->mix_gain)
+        set_tuner_reg(&cs, MIX_GAIN, mix);
+    if (vga >= 0 && vga != dev->vga_gain)
+        set_tuner_reg(&cs, VGA_GAIN, vga);
+
     int error;
-
-    change_set cs = {0};
-    set_tuner_reg(&cs, LNA_GAIN, gain);
     if ((error = update_tuner_regs(dev, &cs)) < 0)
-        goto done;
-    dev->lna_gain = gain;
+        return error;
 
- done:
-    pthread_mutex_unlock(&dev->mutex);
-    return error;
-}
-
-int lpcsdr_get_lna_gain(lpcsdr_device_handle *dev, unsigned *gain)
-{
-    CHECK_DEV(dev);
-
-    pthread_mutex_lock(&dev->mutex);
-    if (gain)
-        *gain = dev->lna_gain;
-    pthread_mutex_unlock(&dev->mutex);
-
-    return LPCSDR_SUCCESS;
-}
-
-int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, unsigned gain)
-{
-    CHECK_DEV(dev);
-
-    if (gain > 15)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
-
-    pthread_mutex_lock(&dev->mutex);
-    int error = LPCSDR_SUCCESS;
-
-    change_set cs = {0};
-    set_tuner_reg(&cs, MIX_GAIN, gain);
-    if ((error = update_tuner_regs(dev, &cs)) < 0)
-        goto done;
-    dev->mix_gain = gain;
-
- done:
-    pthread_mutex_unlock(&dev->mutex);
-    return error;
-}
-
-int lpcsdr_get_mix_gain(lpcsdr_device_handle *dev, unsigned *gain)
-{
-    CHECK_DEV(dev);
-
-    pthread_mutex_lock(&dev->mutex);
-    if (gain)
-        *gain = dev->mix_gain;
-    pthread_mutex_unlock(&dev->mutex);
-
-    return LPCSDR_SUCCESS;
-}
-
-int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, unsigned gain)
-{
-    CHECK_DEV(dev);
-
-    if (gain > 15)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
-
-    pthread_mutex_lock(&dev->mutex);
-    int error = LPCSDR_SUCCESS;
-
-    change_set cs = {0};
-    set_tuner_reg(&cs, VGA_GAIN, gain);
-    if ((error = update_tuner_regs(dev, &cs)) < 0)
-        goto done;
-    dev->vga_gain = gain;
-
- done:
-    pthread_mutex_unlock(&dev->mutex);
-    return error;
-}
-
-int lpcsdr_get_vga_gain(lpcsdr_device_handle *dev, unsigned *gain)
-{
-    CHECK_DEV(dev);
-
-    pthread_mutex_lock(&dev->mutex);
-    if (gain)
-        *gain = dev->vga_gain;
-    pthread_mutex_unlock(&dev->mutex);
+    if (lna >= 0)
+        dev->lna_gain = lna;
+    if (mix >= 0)
+        dev->mix_gain = mix;
+    if (vga >= 0)
+        dev->vga_gain = vga;
 
     return LPCSDR_SUCCESS;
 }
