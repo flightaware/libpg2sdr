@@ -436,7 +436,6 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     }
 
     double target = dev->requested_sample_rate * adc_samples_per_user_sample;
-    LOGDEBUG(dev, "ADC sample rate changes to %.3f with %u post-decimation steps (divide-by-%u)", target/1e6, post_decimation, 1<<post_decimation);
 
     /* work out the PLL config so we know it's possible & what the exact
      * ADC rate is. The actual PLL programming only happens when we start streaming data
@@ -446,6 +445,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     if ((error = lpcsdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true, /* epsilon= */ 0)) < 0)
         return error;
 
+    LOGDEBUG(dev, "ADC sample rate changes to %.6f MHz with %u post-decimation steps (divide-by-%u)", new_config.actual_frequency/1e6, post_decimation, 1<<post_decimation);
     dev->adc_pll_config = new_config;
 
     /* recompute transfer sizes */
@@ -473,7 +473,6 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
     }
 
     double target = dev->requested_frequency + lo_offset(dev);
-    LOGDEBUG(dev, "tuner LO frequency changes to %.3f", target/1e6);
 
     int error;
     tuner_pll_config_t new_config;
@@ -487,6 +486,7 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
         return LPCSDR_SUCCESS;
     }
 
+    LOGDEBUG(dev, "tuner LO frequency changes to %.6f MHz", new_config.actual_frequency/1e6);
     if ((error = lpcsdr__start_pll(dev, &new_config)) < 0) {
         /* we failed while configuring the tuner, so the LO state is uncertain.
          * Mark the current config as invalid as it probably no longer matches

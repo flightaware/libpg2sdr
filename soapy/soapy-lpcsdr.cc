@@ -295,7 +295,7 @@ void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const
 
 void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args)
 {
-    TRACECALLF("(%d,%zu,\"%s\",%f,\"%s\")", direction, channel, name.c_str(), frequency, SoapySDR::KwargsToString(args).c_str());
+    TRACECALLF("(%d,%zu,\"%s\",%.0f,\"%s\")", direction, channel, name.c_str(), frequency, SoapySDR::KwargsToString(args).c_str());
     CheckChannel(direction, channel);
     if (name != "" && name != "RF")
         throw std::invalid_argument("unrecognized tunable element " + name);
@@ -355,7 +355,7 @@ SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const s
 
 void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, const double rate)
 {
-    TRACECALLF("(%d,%zu,%f)", direction, channel, rate);
+    TRACECALLF("(%d,%zu,%.0f)", direction, channel, rate);
     CheckChannel(direction, channel);
 
     // We know that changing sample rate is not safe when streaming
@@ -611,14 +611,14 @@ std::vector<std::string> LPCSDRDevice::listGains(const int direction, const size
 
 void LPCSDRDevice::setGain(const int direction, const size_t channel, const double value)
 {
-    TRACECALLF("(%d,%zu,%f)", direction, channel, value);
+    TRACECALLF("(%d,%zu,%.1f)", direction, channel, value);
     CheckChannel(direction, channel);
     LIBCALL(lpcsdr_set_total_gain_db, value);
 }
 
 void LPCSDRDevice::setGain(const int direction, const size_t channel, const std::string &name, const double value)
 {
-    TRACECALLF("(%d,%zu,\"%s\",%f)", direction, channel, name.c_str(), value);
+    TRACECALLF("(%d,%zu,\"%s\",%.1f)", direction, channel, name.c_str(), value);
     CheckChannel(direction, channel);
     
     if (name == gain_element_LNA) {
