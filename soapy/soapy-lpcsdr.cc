@@ -150,16 +150,6 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
 
 static SoapySDR::Registry registerLPCSDRDevice("lpcsdr", &LPCSDRDevice::FindDevices, &LPCSDRDevice::MakeDevice, SOAPY_SDR_ABI_VERSION);
 
-// template <typename T> static T Clamp(double d)
-// {
-//     using L = std::numeric_limits<T>;
-//     if (d < L::lowest())
-//         return L::lowest();
-//     if (d > L::max())
-//         return L::max();
-//     return (T)d;
-// }
-
 LPCSDRDevice::~LPCSDRDevice()
 {
     Logf(SOAPY_SDR_DEBUG, "LPCSDR: dtor called for %p", this);
