@@ -19,6 +19,14 @@
 
 namespace LPCSDR {
 
+// Some settings constants
+
+static std::string setting_buffer_size = "buffer_size";
+
+static std::string setting_decimation = "decimation";
+static std::string setting_decimation_auto = "auto";
+static std::string setting_decimation_max = "max";
+
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
 static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
@@ -373,7 +381,7 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
     SoapySDR::ArgInfoList args;
 
     SoapySDR::ArgInfo buffer_size;
-    buffer_size.key = "buffer_size";
+    buffer_size.key = setting_buffer_size;
     buffer_size.value = "262144";
     buffer_size.name = "Buffer size";
     buffer_size.description = "Buffer size used to pass data to application (controls stream MTU)";
@@ -384,30 +392,30 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
     args.push_back(buffer_size);
 
     SoapySDR::ArgInfo decimation;
-    decimation.key = "decimation";
-    decimation.value = "auto";
+    decimation.key = setting_decimation;
+    decimation.value = setting_decimation_auto;
     decimation.name = "Decimation mode";
     decimation.description =
         "Control internal decimation stages, which improve fidelity but require higher ADC rates.";
     decimation.type = SoapySDR::ArgInfo::Type::STRING;
     decimation.options = std::vector<std::string> {
-        "auto",
-        "max",
+        setting_decimation_auto,
+        setting_decimation_max,
         "0",
         "1", "2", "3", "4", "5", "6", "7", "8"
     };
     decimation.optionNames = std::vector<std::string> {
-        "decimate as needed to avoid bandwidth loss at low IF frequencies",
-        "add decimation stages until ADC limits are reached",
-        "no extra decimation",
-        "extra decimate-by-2",
-        "extra decimate-by-4",
-        "extra decimate-by-8",
-        "extra decimate-by-16",
-        "extra decimate-by-32",
-        "extra decimate-by-64",
-        "extra decimate-by-128",
-        "extra decimate-by-256"
+        /* auto */ "decimate as needed to avoid bandwidth loss at low IF frequencies",
+        /* max */  "add decimation stages until ADC limits are reached",
+        /* 0 */    "no additional decimation",
+        /* 1 */    "decimate by 2**1 (/2)",
+        /* 2 */    "decimate by 2**2 (/4)",
+        /* 3 */    "decimate by 2**3 (/8)",
+        /* 4 */    "decimate by 2**4 (/16)",
+        /* 5 */    "decimate by 2**5 (/32)",
+        /* 6 */    "decimate by 2**6 (/64)",
+        /* 7 */    "decimate by 2**7 (/128)",
+        /* 8 */    "decimate by 2**8 (/256)",
     };
 
     args.push_back(decimation);
@@ -417,51 +425,47 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value)
 {
     TRACECALLF("(\"%s\",\"%s\")", key.c_str(), value.c_str());
-    if (key == "buffer_size") {
+    if (key == setting_buffer_size) {
         size_t size = std::stoi(value);
         LIBCALL(lpcsdr_set_buffer_size, size);
         return;
-    }
-
-    if (key == "decimation") {
+    } else if (key == setting_decimation) {
         int mode;
-        if (value == "auto")
+        if (value == setting_decimation_auto)
             mode = LPCSDR_DECIMATION_AUTO;
-        else if (value == "max")
+        else if (value == setting_decimation_max)
             mode = LPCSDR_DECIMATION_AUTO_MAX;
         else
             mode = std::stoi(value);
 
         LIBCALL(lpcsdr_set_decimation_mode, mode);
         return;
+    } else {
+        throw std::invalid_argument("unrecognized setting " + key);
     }
-
-    throw std::invalid_argument("unrecognized setting " + key);
 }
 
 std::string LPCSDRDevice::readSetting(const std::string &key) const
 {
     TRACECALLF("(\"%s\")", key.c_str());
-    if (key == "buffer_size") {
+    if (key == setting_buffer_size) {
         size_t size;
         LIBCALL(lpcsdr_get_buffer_size, &size);
         return std::to_string(size);
-    }
-
-    if (key == "decimation") {
+    } else if (key == setting_decimation) {
         int mode;
         LIBCALL(lpcsdr_get_decimation_mode, &mode);
         if (mode >= 0)
             return std::to_string(mode);
         else if (mode == LPCSDR_DECIMATION_AUTO)
-            return "auto";
+            return setting_decimation_auto;
         else if (mode == LPCSDR_DECIMATION_AUTO_MAX)
-            return "max";
+            return setting_decimation_max;
         else
-            return "unknown";
+            throw std::runtime_error("bad decimation mode value");
+    } else {
+        throw std::invalid_argument("unrecognized setting " + key);
     }
-
-    throw std::invalid_argument("unrecognized setting " + key);
 }
 
 std::vector<std::string> LPCSDRDevice::listGains(const int direction, const size_t channel) const
