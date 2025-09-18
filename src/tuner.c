@@ -224,6 +224,9 @@ static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
     uint16_t payload_size;
 
     lpcsdr__prepare_tuner_payload_from_change_set(cs, &first, payload, &payload_size);
+    if (!payload_size)
+        return LPCSDR_SUCCESS; /* no work to do */
+
     return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
@@ -736,7 +739,8 @@ int lpcsdr__set_tuner_value_in_change_set(change_set *cs, uint8_t reg, uint8_t m
 /*
     Create a payload of bytes from the changeset.
  */
-void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size) {
+void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size)
+{
     uint16_t num_entries = 0;
     uint16_t first_entry = TUNER_REG_COUNT;
     uint16_t last_entry = 5;
@@ -749,6 +753,11 @@ void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *fir
             if (last_entry < i)
                 last_entry = i;
         }
+    }
+
+    if (!num_entries) {
+        *out_size = 0;
+        return;
     }
 
     unsigned count = last_entry - first_entry + 1;
