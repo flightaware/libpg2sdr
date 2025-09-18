@@ -25,7 +25,7 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __att
 static inline int ReportLPCSDRError(lpcsdr_context *ctx, const char *fname, int error, bool throw_on_error)
 {
     if (error < 0) {
-        std::string message = std::string(fname) + ": " + std::to_string(error) + "/" + lpcsdr_strerror_string(error);
+        std::string message = std::string(fname) + ": " + lpcsdr_strerror_string(error);
         SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: " + message);
         if (throw_on_error)
             throw std::runtime_error(message);
