@@ -27,6 +27,16 @@ static std::string setting_decimation = "decimation";
 static std::string setting_decimation_auto = "auto";
 static std::string setting_decimation_max = "max";
 
+static std::string setting_gain_config = "gain_config";
+static std::string setting_gain_config_individual = "individual";
+static std::string setting_gain_config_total = "total";
+static std::string setting_gain_config_both = "both";
+
+static std::string gain_element_LNA = "LNA";
+static std::string gain_element_MIX = "MIX";
+static std::string gain_element_VGA = "VGA";
+static std::string gain_element_ALL = "ALL";
+
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
 static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
@@ -174,10 +184,42 @@ LPCSDRDevice::~LPCSDRDevice()
     }
 }
 
-LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle) : ctx_(std::move(ctx)), handle_(handle)
+static SoapySDR::Range simple_gain_range(double *table)
+{
+    auto range = std::minmax_element(&table[0], &table[16]);
+    return SoapySDR::Range(*range.first, *range.second);
+}
+
+LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle)
+    : ctx_(std::move(ctx)),
+      handle_(handle),
+      gain_element_mode_(GainElementMode::INDIVIDUAL)
 {
     LIBCALL(lpcsdr_set_buffer_size, 128*1024);
     LIBCALL(lpcsdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
+
+    // Collect info on gain ranges
+
+    double lna[16], mix[16], vga[16];
+    lpcsdr_gain_table_t *gain_table;
+    size_t gain_table_size;
+
+    LIBCALL(lpcsdr_get_gain_tables, &gain_table, &gain_table_size, lna, mix, vga);
+
+    // stage gain tables are not sorted, so do a full scan
+    lna_range_ = simple_gain_range(lna);
+    Logf(SOAPY_SDR_DEBUG, "LNA gain range [%.1f,%.1f] dB", lna_range_.minimum(), lna_range_.maximum());
+    mix_range_ = simple_gain_range(mix);
+    Logf(SOAPY_SDR_DEBUG, "MIX gain range [%.1f,%.1f] dB", mix_range_.minimum(), mix_range_.maximum());
+    vga_range_ = simple_gain_range(vga);
+    Logf(SOAPY_SDR_DEBUG, "VGA gain range [%.1f,%.1f] dB", vga_range_.minimum(), vga_range_.maximum());
+
+    // gain_table is sorted by gain, so use first/last entry
+    total_gain_range_ = SoapySDR::Range(gain_table[0].gain_db, gain_table[gain_table_size-1].gain_db);
+    Logf(SOAPY_SDR_DEBUG, "Total gain range [%.1f,%.1f] dB", total_gain_range_.minimum(), total_gain_range_.maximum());
+
+    // liblpcsdr allocated space for our copy of the table, we must free it
+    free(gain_table);
 }
 
 std::string LPCSDRDevice::getDriverKey(void) const { return "lpcsdr"; }
@@ -418,7 +460,7 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
     buffer_size.description = "Buffer size used to pass data to application (controls stream MTU)";
     buffer_size.units = "samples";
     buffer_size.type = SoapySDR::ArgInfo::Type::INT;
-    buffer_size.range = SoapySDR::Range(0, UINT32_MAX, 1);
+    buffer_size.range = SoapySDR::Range(0, INT32_MAX, 1);
 
     args.push_back(buffer_size);
 
@@ -450,6 +492,27 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
     };
 
     args.push_back(decimation);
+
+    SoapySDR::ArgInfo gain;
+    gain.key = setting_gain_config;
+    gain.value = setting_gain_config_individual;
+    gain.name = "Gain element configuration";
+    gain.description =
+        "Controls how the internal gain elements are exposed to the SoapySDR client";
+    gain.type = SoapySDR::ArgInfo::Type::STRING;
+    gain.options = std::vector<std::string> {
+        setting_gain_config_individual,
+        setting_gain_config_total,
+        setting_gain_config_both,
+    };
+    gain.optionNames = std::vector<std::string> {
+        /* individual */ "LNA/MIX/VGA elements only",
+        /* total */      "ALL (total combined gain) element only",
+        /* both */       "LNA/MIX/VGA/ALL elements"
+    };
+
+    args.push_back(gain);
+
     return args;
 }
 
@@ -477,6 +540,16 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
             PauseStreamGuard pause_stream(*this);
             LIBCALL(lpcsdr_set_decimation_mode, mode);
         }
+    } else if (key == setting_gain_config) {
+        if (value == setting_gain_config_individual) {
+            gain_element_mode_ = GainElementMode::INDIVIDUAL;
+        } else if (value == setting_gain_config_total) {
+            gain_element_mode_ = GainElementMode::TOTAL;
+        }  else if (value == setting_gain_config_both) {
+            gain_element_mode_ = GainElementMode::BOTH;
+        } else {
+            throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
+        }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
     }
@@ -500,69 +573,124 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
             return setting_decimation_max;
         else
             throw std::runtime_error("bad decimation mode value");
+    } else if (key == setting_gain_config) {
+        switch (gain_element_mode_) {
+        case GainElementMode::INDIVIDUAL:
+            return setting_gain_config_individual;
+        case GainElementMode::TOTAL:
+            return setting_gain_config_total;
+        case GainElementMode::BOTH:
+            return setting_gain_config_both;
+        default:
+            throw std::runtime_error("bad gain_element_mode_ value");
+        }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
     }
 }
 
+// CubicSDR unfortunately calls the gain-getter APIs a _lot_, so tracing of those calls is disabled
+
 std::vector<std::string> LPCSDRDevice::listGains(const int direction, const size_t channel) const
 {
-    TRACECALLF("(%d,%zu)", direction, channel);
+    /* this means "get gain elements" */
+
+    //TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
-    return { "LNA", "MIX", "VGA" };
+    switch (gain_element_mode_) {
+    case GainElementMode::INDIVIDUAL:
+        return { gain_element_LNA, gain_element_MIX, gain_element_VGA };
+    case GainElementMode::TOTAL:
+        return { gain_element_ALL };
+    case GainElementMode::BOTH:
+        return { gain_element_LNA, gain_element_MIX, gain_element_VGA, gain_element_ALL };
+    default:
+        throw std::runtime_error("bad gain_element_mode_ value");
+    }
+}
+
+void LPCSDRDevice::setGain(const int direction, const size_t channel, const double value)
+{
+    TRACECALLF("(%d,%zu,%f)", direction, channel, value);
+    CheckChannel(direction, channel);
+    LIBCALL(lpcsdr_set_total_gain_db, value);
 }
 
 void LPCSDRDevice::setGain(const int direction, const size_t channel, const std::string &name, const double value)
 {
     TRACECALLF("(%d,%zu,\"%s\",%f)", direction, channel, name.c_str(), value);
     CheckChannel(direction, channel);
-
-    unsigned gain;
-    if (value < 0)
-        gain = 0;
-    else if (value > 15)
-        gain = 15;
-    else
-        gain = (unsigned) value;
     
-    if (name == "LNA") {
-        LIBCALL(lpcsdr_set_lna_gain, gain);
-    } else if (name == "MIX") {
-        LIBCALL(lpcsdr_set_mix_gain, gain);
-    } else if (name == "VGA") {
-        LIBCALL(lpcsdr_set_vga_gain, gain);
+    if (name == gain_element_LNA) {
+        LIBCALL(lpcsdr_set_lna_gain_db, value);
+    } else if (name == gain_element_MIX) {
+        LIBCALL(lpcsdr_set_mix_gain_db, value);
+    } else if (name == gain_element_VGA) {
+        LIBCALL(lpcsdr_set_vga_gain_db, value);
+    } else if (name == gain_element_ALL) {
+        LIBCALL(lpcsdr_set_total_gain_db, value);
     } else {
         throw std::invalid_argument("unrecognized amplification element: " + name);
     }
+}
+
+double LPCSDRDevice::getGain(const int direction, const size_t channel) const
+{
+    //TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+
+    double total;
+    LIBCALL(lpcsdr_get_total_gain_db, &total);
+    return total;
 }
 
 double LPCSDRDevice::getGain(const int direction, const size_t channel, const std::string &name) const
 {
-    TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
+    //TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
     CheckChannel(direction, channel);
 
-    unsigned gain;
-    if (name == "LNA") {
-        LIBCALL(lpcsdr_get_lna_gain, &gain);
-    } else if (name == "MIX") {
-        LIBCALL(lpcsdr_get_mix_gain, &gain);
-    } else if (name == "VGA") {
-        LIBCALL(lpcsdr_get_vga_gain, &gain);
+    if (name == gain_element_ALL) {
+        double total;
+        LIBCALL(lpcsdr_get_total_gain_db, &total);
+        return total;
+    }
+
+    double lna, mix, vga;
+    LIBCALL(lpcsdr_get_stage_gains_db, &lna, &mix, &vga);
+    if (name == gain_element_LNA) {
+        return lna;
+    } else if (name == gain_element_MIX) {
+        return mix;
+    } else if (name == gain_element_VGA) {
+        return vga;
     } else {
         throw std::invalid_argument("unrecognized amplification element: " + name);
     }
-    return gain;
 }
-    
+
+SoapySDR::Range LPCSDRDevice::getGainRange(const int direction, const size_t channel) const
+{
+    //TRACECALLF("(%d,%zu)", direction, channel);
+    CheckChannel(direction, channel);
+    return total_gain_range_;
+}
+
 SoapySDR::Range LPCSDRDevice::getGainRange(const int direction, const size_t channel, const std::string &name) const
 {
-    TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
+    //TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
     CheckChannel(direction, channel);
 
-    if (name != "LNA" && name != "MIX" && name != "VGA")
+    if (name == gain_element_LNA) {
+        return lna_range_;
+    } else if (name == gain_element_MIX) {
+        return mix_range_;
+    } else if (name == gain_element_VGA) {
+        return vga_range_;
+    } else if (name == gain_element_ALL) {
+        return total_gain_range_;
+    } else {
         throw std::invalid_argument("unrecognized amplification element: " + name);
-
-    return SoapySDR::Range(0, 15, 1);
+    }
 }
 
 

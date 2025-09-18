@@ -197,11 +197,11 @@ class LPCSDRDevice : public SoapySDR::Device
 
     /* gains */
     std::vector<std::string> listGains(const int direction, const size_t channel) const override;
-    //void setGain(const int direction, const size_t channel, const double value) override;
+    void setGain(const int direction, const size_t channel, const double value) override;
     void setGain(const int direction, const size_t channel, const std::string &name, const double value) override;
-    //double getGain(const int direction, const size_t channel) const override;
+    double getGain(const int direction, const size_t channel) const override;
     double getGain(const int direction, const size_t channel, const std::string &name) const override;
-    //SoapySDR::Range getGainRange(const int direction, const size_t channel) const override;
+    SoapySDR::Range getGainRange(const int direction, const size_t channel) const override;
     SoapySDR::Range getGainRange(const int direction, const size_t channel, const std::string &name) const override;
 
     /* frequency */
@@ -231,13 +231,24 @@ class LPCSDRDevice : public SoapySDR::Device
   private:
     LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle);
 
-    bool tryApplyChanges() const;
+    void tryApplyChanges() const;
+
+    enum class GainElementMode { INDIVIDUAL, TOTAL, BOTH };
 
     mutable std::mutex mutex_;                      // protects active_stream_
     mutable LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
 
     mutable Context ctx_;
     mutable lpcsdr_device_handle *handle_;
+
+    // how are we advertising gain stages?
+    GainElementMode gain_element_mode_;
+
+    // computed gain ranges from gain table contents
+    SoapySDR::Range lna_range_;
+    SoapySDR::Range mix_range_;
+    SoapySDR::Range vga_range_;
+    SoapySDR::Range total_gain_range_;
 
     friend class PauseStreamGuard;
 };
