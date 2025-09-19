@@ -438,6 +438,8 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         /* continue anyway */
     }
 
+    free(dev->gain_table);
+
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;
     pthread_mutex_unlock(&dev->mutex);
