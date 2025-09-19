@@ -8,9 +8,9 @@ target_compile_options(lpcsdrSupport PRIVATE -O3 -Wall -Werror)
 target_link_libraries(lpcsdrSupport lpcsdr)
 
 # SoapySDR library dependency
-target_include_directories(lpcsdrSupport PRIVATE ${SOAPYSDR_INCLUDE_DIRS})
-target_compile_options(lpcsdrSupport PRIVATE ${SOAPYSDR_CFLAGS_OTHERS})
-target_link_libraries(lpcsdrSupport ${SOAPYSDR_LIBRARIES})
+target_include_directories(lpcsdrSupport PRIVATE ${SoapySDR_INCLUDE_DIRS})
+target_compile_options(lpcsdrSupport PRIVATE ${SoapySDR_CFLAGS_OTHERS})
+target_link_libraries(lpcsdrSupport ${SoapySDR_LIBRARIES})
 
 # liblpcsdr dependency
 target_link_libraries(lpcsdrSupport lpcsdr)
