@@ -6,8 +6,10 @@ project(liblpcsdr LANGUAGES C CXX)
 
 # Set the C standard to C11
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_BUILD_TYPE Debug)
 
 # Fetch GoogleTest framework and build it
 include(FetchContent)
@@ -27,6 +29,9 @@ include(GoogleTest)
 
 enable_testing()
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 # Add subdirectories
 add_subdirectory(src)
 add_subdirectory(tests)
+add_subdirectory(soapy)

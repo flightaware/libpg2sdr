@@ -4,45 +4,15 @@ all: build
 
 clean:
 	rm -rf build
-	make -C soapy clean
 
 build:
 	cmake -B ./build -S ./
 	make -C build
-	make -C soapy
 
-debug:
-	cmake -DCMAKE_BUILD_TYPE=Debug -B ./build -S ./
-	cd build && make
-
-run-unit-tests:
-	make clean
-	make build
+run-unit-tests: build
 	cd build && ctest -L "Unit" --output-on-failure
 
-run-stream-integration-tests:
-	make clean
-	make build
+run-stream-integration-tests: build
 	cd build && ctest -L "Integration" --output-on-failure
 
-dsp:
-	make clean
-	make debug
-	cd build/tests &&  gdb dsp_tests
-
-adc:
-	make clean
-	make debug
-	cd build/tests &&  gdb adc_tests
-
-str:
-	make clean
-	make debug
-	cd build/tests &&  gdb stream_tests
-
-tuner:
-	make clean
-	make debug
-	cd build/tests &&  gdb tuner_tests 
-
-.PHONY: build
+.PHONY: build clean run-unit-tests run-stream-integration-tests
