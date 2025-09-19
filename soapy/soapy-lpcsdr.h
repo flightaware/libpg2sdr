@@ -52,6 +52,8 @@ class Context
 
     static void Log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message)
     {
+        (void) ctx; /* unused */
+
         SoapySDR::LogLevel ll;
         switch (level) {
         case LPCSDR_LOG_INFO:
@@ -138,7 +140,7 @@ class DeviceList
 
     lpc_device *operator[](size_t index)
     {
-        if (index < 0 || index >= size_)
+        if (index >= size_)
             throw std::out_of_range("device index out of range");
         return list_[index];
     }

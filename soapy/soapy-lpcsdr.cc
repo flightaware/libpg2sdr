@@ -40,7 +40,7 @@ static std::string gain_element_ALL = "ALL";
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
 static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
-static inline int ReportLPCSDRError(lpcsdr_context *ctx, const char *fname, int error, bool throw_on_error)
+static inline int ReportLPCSDRError(const char *fname, int error, bool throw_on_error)
 {
     if (error < 0) {
         std::string message = std::string(fname) + ": " + lpcsdr_strerror_string(error);
@@ -63,8 +63,8 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
 #define TRACECALL LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
 #define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__ __VA_OPT__(,) __VA_ARGS__)
 
-#define LIBCALL_DIRECT(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), true)
-#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(_ctx, #fn, fn(__VA_ARGS__), false)
+#define LIBCALL_DIRECT(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(#fn, fn(__VA_ARGS__), true)
+#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(#fn, fn(__VA_ARGS__), false)
 
 #define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 #define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
@@ -285,7 +285,7 @@ void LPCSDRDevice::tryApplyChanges() const
         return;
     }
 
-    LPCSDR::ReportLPCSDRError(ctx_, "lpcsdr_apply_changes", error, true);
+    LPCSDR::ReportLPCSDRError("lpcsdr_apply_changes", error, true);
 }
 
 void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
@@ -332,12 +332,15 @@ double LPCSDRDevice::getFrequency(const int direction, const size_t channel, con
 
 std::vector<std::string> LPCSDRDevice::listFrequencies(const int direction, const size_t channel) const
 {
+    CheckChannel(direction, channel);
+
     // This slightly-confusingly-named method wants us to return a list of tuneable elements, not a list of frequencies
     return { "RF" };
 }
 
 SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const size_t channel) const
 {
+    CheckChannel(direction, channel);
     return getFrequencyRange(direction, channel, "RF");
 }
 
