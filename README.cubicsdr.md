@@ -6,28 +6,23 @@
 $ sudo apt install cubicsdr libsoapysdr-dev soapysdr-tools
 ```
 
-## Build liblpcsdr
+## Build liblpcsdr and the soapy module
 
 ```
 $ cd ~/git/liblpcsdr
 $ make
 ```
 
-## Build the soapysdr driver
-
-```
-$ cd ~/git/liblpcsdr/soapy
-$ make
-
-```
-
 ## Set env vars
 
 ```
 $ export LPCSDR_FIRMWARE=$HOME/git/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin
-$ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/soapy
+$ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/build/soapy
 $ export SOAPY_SDR_LOG_LEVEL=DEBUG
 ```
+
+If your source code is not in $HOME/git/liblpcsdr, update those paths to match
+whereever it is.
 
 ## Ensure that the LPCSDR has firmware loaded
 
@@ -119,7 +114,8 @@ $ CubicSDR
 
 ## Configure cubicsdr
 
-You should see the LPCSDR in the device list. Select it, set a sample rate of 10MHz, click Start:
+You should see the LPCSDR in the device list. Select it, change the
+gain configuration to "LNA/VGA/MIX/ALL":
 
 ![CubicSDR setup screen](screenshots/cubicsdr-startup.png)
 
@@ -138,15 +134,20 @@ will be tuned to 90MHz and the ADC will run at 20MHz, capturing frequencies betw
 
 ## Gain
 
-Currently the soapy driver just sets a fixed gain.
+In the Settings menu, make sure that automatic gain is _disabled_:
 
-You can use the python tuner.py script in a separate console while CubicSDR is running, to
-change the gains manually:
+![CubicSDR autogain menu option](screenshots/cubicsdr-autogain.png)
 
-```
-$ cd ~/git/liblpcsdr/lpcsdr_firmware
-$ python/tuner.py --lna-gain 7 --mix-gain 7 --vga-gain 7
-```
+Now you should have gain settings available at the top left:
+
+![CubicSDR gain controls](screenshots/cubicsdr-gain-bars.png)
+
+Clicking on the bars changes the gain. The numbers are in approximate dB.
+
+The "ALL" bar controls the total gain of all stages. Changing the "ALL" gain
+will change the LNA/MIX/VGA settings based on the gain curve that liblpcsdr uses.
+Vice versa, changing the LNA/MIX/VGA settings will update the ALL gain to
+the approximate total gain.
 
 ## Interpreting the waterfall
 
