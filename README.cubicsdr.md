@@ -119,7 +119,7 @@ gain configuration to "LNA/VGA/MIX/ALL":
 
 ![CubicSDR setup screen](screenshots/cubicsdr-startup.png)
 
-You should now have a waterfall display running.
+Click Start. You should now have a waterfall display running.
 
 ## Tuning
 
