@@ -9,7 +9,6 @@ target_link_libraries(lpcsdrSupport lpcsdr)
 
 # SoapySDR library dependency
 target_include_directories(lpcsdrSupport PRIVATE ${SoapySDR_INCLUDE_DIRS})
-target_compile_options(lpcsdrSupport PRIVATE ${SoapySDR_CFLAGS_OTHERS})
 target_link_libraries(lpcsdrSupport ${SoapySDR_LIBRARIES})
 
 # liblpcsdr dependency
