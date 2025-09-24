@@ -1,4 +1,7 @@
 #include "util.h"
+
+#include "tuner-regs.h"
+
 using namespace testing;
 
 TEST(lpf_settings_for, Success) {
@@ -52,35 +55,38 @@ TEST(bitrange_sanity_test, Success) {
     }
 }
 
-TEST(set_tuner_value_in_change_set, Success) {
+TEST(set_tuner_value_in_change_set, Success)
+{
     change_set cs = {0};
 
-    set_tuner_reg(&cs, LNA_GAIN, 8);
-    set_tuner_reg(&cs, LNA_GAIN_MODE, 1);
-    set_tuner_reg(&cs, MIX_GAIN, 2);
+    set_tuner_bits(&cs, LNA_GAIN, 8);
+    set_tuner_bits(&cs, LNA_GAIN_MODE, 1);
+    set_tuner_bits(&cs, MIX_GAIN, 2);
 
-    ASSERT_EQ(cs.entries[TunerR5].current_value, 0b11000);
-    ASSERT_EQ(cs.entries[TunerR5].current_mask, LNA_GAIN_MASK | LNA_GAIN_MODE_MASK);
-    ASSERT_EQ(cs.entries[TunerR7].current_value, 2);
-    ASSERT_EQ(cs.entries[TunerR7].current_mask, MIX_GAIN_MASK);
+    EXPECT_EQ(cs.entries[LNA_GAIN_REG].current_value & LNA_GAIN_MASK, (8 << LNA_GAIN_OFFSET));
+    EXPECT_EQ(cs.entries[LNA_GAIN_REG].current_mask & LNA_GAIN_MASK, LNA_GAIN_MASK);
+    EXPECT_EQ(cs.entries[LNA_GAIN_MODE_REG].current_value & LNA_GAIN_MODE_MASK, (1 << LNA_GAIN_MODE_OFFSET));
+    EXPECT_EQ(cs.entries[LNA_GAIN_MODE_REG].current_mask & LNA_GAIN_MODE_MASK, LNA_GAIN_MODE_MASK);
+    EXPECT_EQ(cs.entries[MIX_GAIN_REG].current_value & MIX_GAIN_MASK, (2 << MIX_GAIN_OFFSET));
+    EXPECT_EQ(cs.entries[MIX_GAIN_REG].current_mask & MIX_GAIN_MASK, MIX_GAIN_MASK);
 }
 
 TEST(prepare_tuner_payload_from_change_set, Success) {
     change_set cs = {0};
 
-    set_tuner_reg(&cs, PW_LDO_A, 1); //17
-    set_tuner_reg(&cs, PW_LDO_D, 2); //23
-    set_tuner_reg(&cs, PWD_SDM, 1); //18
-    set_tuner_reg(&cs, SEL_DIV, 1); //16
-    set_tuner_reg(&cs, REF_DIV2, 1); //16
-    set_tuner_reg(&cs, S_I2C, 1); //20
-    set_tuner_reg(&cs, N_I2C, 1); //20
-    set_tuner_reg(&cs, SDM_IN_LSB, 1); //21
-    set_tuner_reg(&cs, SDM_IN_MSB, 1); //22
-    set_tuner_reg(&cs, PLL_AUTO_CLK, 0); //26
-    set_tuner_reg(&cs, VCO_CURRENT, 4); //18
-    set_tuner_reg(&cs, VCO_MODE, 1);    //19
-    set_tuner_reg(&cs, VCO_DAC, 1); //19
+    set_tuner_bits(&cs, PW_LDO_A, 1); //17
+    set_tuner_bits(&cs, PW_LDO_D, 2); //23
+    set_tuner_bits(&cs, PWD_SDM, 1); //18
+    set_tuner_bits(&cs, SEL_DIV, 1); //16
+    set_tuner_bits(&cs, REF_DIV2, 1); //16
+    set_tuner_bits(&cs, S_I2C, 1); //20
+    set_tuner_bits(&cs, N_I2C, 1); //20
+    set_tuner_bits(&cs, SDM_IN_LSB, 1); //21
+    set_tuner_bits(&cs, SDM_IN_MSB, 1); //22
+    set_tuner_bits(&cs, PLL_AUTO_CLK, 0); //26
+    set_tuner_bits(&cs, VCO_CURRENT, 4); //18
+    set_tuner_bits(&cs, VCO_MODE, 1);    //19
+    set_tuner_bits(&cs, VCO_DAC, 1); //19
 
     uint16_t first;
     uint8_t payload[TUNER_REG_MAX_PAYLOAD_SIZE]= {};
@@ -135,16 +141,9 @@ TEST(gain_sanity_check, Success) {
     ASSERT_EQ(lpcsdr_set_mix_gain(h, 2), LPCSDR_SUCCESS);
     ASSERT_EQ(lpcsdr_set_vga_gain(h, 3), LPCSDR_SUCCESS);
 
-
-    uint8_t buffer[1] = {};
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR5, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-    ASSERT_EQ(extract_tuner_val(buffer[0], LNA_GAIN), 1);
-
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR7, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-    ASSERT_EQ(extract_tuner_val(buffer[0], MIX_GAIN), 2);
-
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR12, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-    ASSERT_EQ(extract_tuner_val(buffer[0], VGA_GAIN), 3);
+    EXPECT_EQ(read_tuner_bits(h, LNA_GAIN), 1);
+    EXPECT_EQ(read_tuner_bits(h, MIX_GAIN), 2);
+    EXPECT_EQ(read_tuner_bits(h, VGA_GAIN), 3);
 }
 
 TEST(filter_sanity_check, Success) {
@@ -163,17 +162,14 @@ TEST(filter_sanity_check, Success) {
 
     EXPECT_EQ(lpcsdr__tuner_set_bandpass(h, hpf, lpf), LPCSDR_SUCCESS);
 
-    uint8_t buffer[2] = {0};
-    ASSERT_EQ(lpcsdr__ctrl_read_tuner_register(h, TunerR10, 0, buffer, sizeof(buffer)), LPCSDR_SUCCESS);
-
     // Check High-Pass HPF_CORNER set to 14
-    EXPECT_EQ(extract_tuner_val(buffer[1], IFFILT_HPF_CORNER), hpf->hpf_corner);
+    EXPECT_EQ(read_tuner_bits(h, IFFILT_HPF_CORNER), hpf->hpf_corner);
 
     // Check TunerR11 Low-Pass
-    EXPECT_EQ(extract_tuner_val(buffer[0], IFFILT_Q), lpf->lpf_q);
-    EXPECT_EQ(extract_tuner_val(buffer[0], IFFILT_FINE_LPF), lpf->lpf_fine);
-    EXPECT_EQ(extract_tuner_val(buffer[1], IFFILT_NARROW), lpf->lpf_narrow);
-    EXPECT_EQ(extract_tuner_val(buffer[1], IFFILT_COARSE_LPF), lpf->lpf_coarse);
+    EXPECT_EQ(read_tuner_bits(h, IFFILT_Q), lpf->lpf_q);
+    EXPECT_EQ(read_tuner_bits(h, IFFILT_FINE_LPF), lpf->lpf_fine);
+    EXPECT_EQ(read_tuner_bits(h, IFFILT_NARROW), lpf->lpf_narrow);
+    EXPECT_EQ(read_tuner_bits(h, IFFILT_COARSE_LPF), lpf->lpf_coarse);
 }
 
 typedef double PLLRangeTestParam;

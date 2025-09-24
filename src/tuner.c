@@ -1,7 +1,8 @@
 #include <pthread.h>
+#include <math.h>
 
 #include "internal.h"
-#include "math.h"
+#include "tuner-regs.h"
 
 static const lpf_settings lpf_calibration[] = {
     {
@@ -218,7 +219,8 @@ static const hpf_settings hpf_calibration[] = {
 
 };
 
-static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
+static int apply_tuner_changeset(lpcsdr_device_handle *dev, change_set *cs)
+{
     uint16_t first;
     uint8_t payload[TUNER_REG_MAX_PAYLOAD_SIZE] = {0};
     uint16_t payload_size;
@@ -228,6 +230,15 @@ static int update_tuner_regs(lpcsdr_device_handle *dev, change_set *cs) {
         return LPCSDR_SUCCESS; /* no work to do */
 
     return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
+}
+
+int lpcsdr__read_tuner_bits(lpcsdr_device_handle *dev, uint8_t reg, uint8_t mask, unsigned offset)
+{
+    int error;
+    uint8_t value;
+    if ((error = lpcsdr__ctrl_read_tuner_register(dev, reg, CACHE_NORMAL, &value, sizeof(value))) < 0)
+        return error;
+    return (value & mask) >> offset;
 }
 
 int lpcsdr__tuner_set_lna(lpcsdr_device_handle *dev, unsigned lna)
@@ -259,14 +270,14 @@ int lpcsdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga
 
     change_set cs = {0};
     if (lna >= 0 && lna != dev->lna_gain)
-        set_tuner_reg(&cs, LNA_GAIN, lna);
+        set_tuner_bits(&cs, LNA_GAIN, lna);
     if (mix >= 0 && mix != dev->mix_gain)
-        set_tuner_reg(&cs, MIX_GAIN, mix);
+        set_tuner_bits(&cs, MIX_GAIN, mix);
     if (vga >= 0 && vga != dev->vga_gain)
-        set_tuner_reg(&cs, VGA_GAIN, vga);
+        set_tuner_bits(&cs, VGA_GAIN, vga);
 
     int error;
-    if ((error = update_tuner_regs(dev, &cs)) < 0)
+    if ((error = apply_tuner_changeset(dev, &cs)) < 0)
         return error;
 
     if (lna >= 0)
@@ -289,12 +300,12 @@ int lpcsdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const hpf_settings *hp
     assert(lpf && lpf->valid);
 
     change_set cs = {0};
-    set_tuner_reg(&cs, IFFILT_HPF_CORNER, hpf->hpf_corner);
-    set_tuner_reg(&cs, IFFILT_Q, lpf->lpf_q);
-    set_tuner_reg(&cs, IFFILT_NARROW, lpf->lpf_narrow);
-    set_tuner_reg(&cs, IFFILT_FINE_LPF, lpf->lpf_fine);
-    set_tuner_reg(&cs, IFFILT_COARSE_LPF, lpf->lpf_coarse);
-    return update_tuner_regs(dev, &cs);
+    set_tuner_bits(&cs, IFFILT_HPF_CORNER, hpf->hpf_corner);
+    set_tuner_bits(&cs, IFFILT_Q, lpf->lpf_q);
+    set_tuner_bits(&cs, IFFILT_NARROW, lpf->lpf_narrow);
+    set_tuner_bits(&cs, IFFILT_FINE_LPF, lpf->lpf_fine);
+    set_tuner_bits(&cs, IFFILT_COARSE_LPF, lpf->lpf_coarse);
+    return apply_tuner_changeset(dev, &cs);
 }
 
 /* 
@@ -337,194 +348,197 @@ const hpf_settings *lpcsdr__hpf_settings_for(double target)
     return &hpf_calibration[MAX(0, p - 1)];
 }
 
-int lpcsdr__init_tuner(lpcsdr_device_handle *dev) {
+int lpcsdr__init_tuner(lpcsdr_device_handle *dev)
+{
     int error = LPCSDR_SUCCESS;
 
     if ((error = lpcsdr__ctrl_set_rf_power(dev, RF_POWER_RESET)) < 0)
         return error;
 
-    uint8_t buffer;
-    if ((error = lpcsdr__ctrl_read_tuner_register(dev, TunerR0, 0, &buffer, sizeof(uint8_t))) < 0)
-        return error;
-
-    uint8_t tuner_id = extract_tuner_val(buffer, TUNER_ID);
+    int tuner_id = read_tuner_bits(dev, TUNER_ID);
+    if (tuner_id < 0)    /* read failed */
+        return tuner_id;
     if (tuner_id != 0x96)
         return LPCSDR_TUNER_INIT_FAILED;
 
-    return lpcsdr__set_initial_values(dev);
-}
-
-int lpcsdr__set_initial_values(lpcsdr_device_handle *dev) {
+    /* Populate fixed initial register values.
+     *
+     * We express all the fields separately for readability, but
+     * the compiler has enough visibility into the operation of
+     * set_tuner_bits that it can optimize this down to direct
+     * initialization of the changeset elements with constant
+     * values.
+     */
     change_set cs = {0};
 
     // TunerR5
-    set_tuner_reg(&cs, PWD_LT, 1);
-    set_tuner_reg(&cs, R5_RESERVED_6_0, 0);
-    set_tuner_reg(&cs, PWD_LNA1, 0);
-    set_tuner_reg(&cs, LNA_GAIN_MODE, 1);
-    set_tuner_reg(&cs, LNA_GAIN, 0); dev->lna_gain = 0;
+    set_tuner_bits(&cs, PWD_LT, 1);
+    set_tuner_bits(&cs, R5_RESERVED_6_0, 0);
+    set_tuner_bits(&cs, PWD_LNA1, 0);
+    set_tuner_bits(&cs, LNA_GAIN_MODE, 1);
+    set_tuner_bits(&cs, LNA_GAIN, 0); dev->lna_gain = 0;
 
     // TunerR6
-    set_tuner_reg(&cs, PWD_PDET1, 0);
-    set_tuner_reg(&cs, PWD_PDET2, 0);
-    set_tuner_reg(&cs, FILT_3DB, 1);
-    set_tuner_reg(&cs, R6_RESERVED_4_1, 1);
-    set_tuner_reg(&cs, R6_RESERVED_3_0, 0);
-    set_tuner_reg(&cs, PW_LNA, 2);
+    set_tuner_bits(&cs, PWD_PDET1, 0);
+    set_tuner_bits(&cs, PWD_PDET2, 0);
+    set_tuner_bits(&cs, FILT_3DB, 1);
+    set_tuner_bits(&cs, R6_RESERVED_4_1, 1);
+    set_tuner_bits(&cs, R6_RESERVED_3_0, 0);
+    set_tuner_bits(&cs, PW_LNA, 2);
 
     // TunerR7
-    set_tuner_reg(&cs, IMG_R, 0);
-    set_tuner_reg(&cs, PW_MIX, 1);
-    set_tuner_reg(&cs, PW0_MIX, 1);
-    set_tuner_reg(&cs, MIXGAIN_MODE, 0);
-    set_tuner_reg(&cs, MIX_GAIN, 0); dev->mix_gain = 0;
+    set_tuner_bits(&cs, IMG_R, 0);
+    set_tuner_bits(&cs, PW_MIX, 1);
+    set_tuner_bits(&cs, PW0_MIX, 1);
+    set_tuner_bits(&cs, MIXGAIN_MODE, 0);
+    set_tuner_bits(&cs, MIX_GAIN, 0); dev->mix_gain = 0;
 
     // TunerR8
-    set_tuner_reg(&cs, PW_AMP, 1);
-    set_tuner_reg(&cs, PW0_AMP, 1);
-    set_tuner_reg(&cs, IMR_G_PATH, 0);
-    set_tuner_reg(&cs, IMR_G, 0);
+    set_tuner_bits(&cs, PW_AMP, 1);
+    set_tuner_bits(&cs, PW0_AMP, 1);
+    set_tuner_bits(&cs, IMR_G_PATH, 0);
+    set_tuner_bits(&cs, IMR_G, 0);
 
     // TunerR9
-    set_tuner_reg(&cs, PWD_IFFILT, 0);
-    set_tuner_reg(&cs, PW1_IFFILT, 1);
-    set_tuner_reg(&cs, IMR_P_PATH, 0);
-    set_tuner_reg(&cs, IMR_P, 0);
+    set_tuner_bits(&cs, PWD_IFFILT, 0);
+    set_tuner_bits(&cs, PW1_IFFILT, 1);
+    set_tuner_bits(&cs, IMR_P_PATH, 0);
+    set_tuner_bits(&cs, IMR_P, 0);
 
     // TunerR10
-    set_tuner_reg(&cs, PW_FILT, 1);
-    set_tuner_reg(&cs, FILTER_CUR, 3);
-    set_tuner_reg(&cs, IFFILT_Q, 0);
-    set_tuner_reg(&cs, IFFILT_FINE_LPF, 0);
+    set_tuner_bits(&cs, PW_FILT, 1);
+    set_tuner_bits(&cs, FILTER_CUR, 3);
+    set_tuner_bits(&cs, IFFILT_Q, 0);
+    set_tuner_bits(&cs, IFFILT_FINE_LPF, 0);
 
     // TunerR11
-    set_tuner_reg(&cs, IFFILT_NARROW, 0);
-    set_tuner_reg(&cs, IFFILT_COARSE_LPF, 0);
-    set_tuner_reg(&cs, CALIBRATION_TRIGGER, 0);
-    set_tuner_reg(&cs, IFFILT_HPF_CORNER, 15);
+    set_tuner_bits(&cs, IFFILT_NARROW, 0);
+    set_tuner_bits(&cs, IFFILT_COARSE_LPF, 0);
+    set_tuner_bits(&cs, CALIBRATION_TRIGGER, 0);
+    set_tuner_bits(&cs, IFFILT_HPF_CORNER, 15);
 
     // TunerR12
-    set_tuner_reg(&cs, PWD_ADC, 1);
-    set_tuner_reg(&cs, PW_VGA, 1);
-    set_tuner_reg(&cs, R12_RESERVED_5_1, 1);
-    set_tuner_reg(&cs, VGA_GAIN_MODE, 0);
-    set_tuner_reg(&cs, VGA_GAIN, 0); dev->vga_gain = 0;
+    set_tuner_bits(&cs, PWD_ADC, 1);
+    set_tuner_bits(&cs, PW_VGA, 1);
+    set_tuner_bits(&cs, R12_RESERVED_5_1, 1);
+    set_tuner_bits(&cs, VGA_GAIN_MODE, 0);
+    set_tuner_bits(&cs, VGA_GAIN, 0); dev->vga_gain = 0;
 
     // TunerR13
-    set_tuner_reg(&cs, LNA_VTH_H, 5);
-    set_tuner_reg(&cs, LNA_VTH_L, 3);
+    set_tuner_bits(&cs, LNA_VTH_H, 5);
+    set_tuner_bits(&cs, LNA_VTH_L, 3);
 
     // TunerR14
-    set_tuner_reg(&cs, MIX_VTH_H, 7);
-    set_tuner_reg(&cs, MIX_VTH_L, 5);
+    set_tuner_bits(&cs, MIX_VTH_H, 7);
+    set_tuner_bits(&cs, MIX_VTH_L, 5);
 
     // TunerR15
-    set_tuner_reg(&cs, FLT_EXT_WIDEST, 0);
-    set_tuner_reg(&cs, R15_RESERVED_6_0, 0);
-    set_tuner_reg(&cs, R15_RESERVED_5_1, 1);
-    set_tuner_reg(&cs, CLK_OUT_DIS, 1);
-    set_tuner_reg(&cs, RING_DISABLE, 1);
-    set_tuner_reg(&cs, R15_RESERVED_2_0, 0);
-    set_tuner_reg(&cs, CLK_AGC_DIS, 0);
-    set_tuner_reg(&cs, R15_RESERVED_0_0, 0);
+    set_tuner_bits(&cs, FLT_EXT_WIDEST, 0);
+    set_tuner_bits(&cs, R15_RESERVED_6_0, 0);
+    set_tuner_bits(&cs, R15_RESERVED_5_1, 1);
+    set_tuner_bits(&cs, CLK_OUT_DIS, 1);
+    set_tuner_bits(&cs, RING_DISABLE, 1);
+    set_tuner_bits(&cs, R15_RESERVED_2_0, 0);
+    set_tuner_bits(&cs, CLK_AGC_DIS, 0);
+    set_tuner_bits(&cs, R15_RESERVED_0_0, 0);
 
     // TunerR16
-    set_tuner_reg(&cs, SEL_DIV, 0);
-    set_tuner_reg(&cs, REF_DIV2, 1);
-    set_tuner_reg(&cs, XTAL_DRIVE, 0);
-    set_tuner_reg(&cs, DET1_CAP, 1);
-    set_tuner_reg(&cs, CAPX, 0);
+    set_tuner_bits(&cs, SEL_DIV, 0);
+    set_tuner_bits(&cs, REF_DIV2, 1);
+    set_tuner_bits(&cs, XTAL_DRIVE, 0);
+    set_tuner_bits(&cs, DET1_CAP, 1);
+    set_tuner_bits(&cs, CAPX, 0);
 
     // TunerR17
-    set_tuner_reg(&cs, PW_LDO_A, 0);
-    set_tuner_reg(&cs, CP_CURRENT, 0);
-    set_tuner_reg(&cs, R17_RESERVED_2_0, 0);
-    set_tuner_reg(&cs, R17_RESERVED_1_0, 0);
-    set_tuner_reg(&cs, R17_RESERVED_0_0, 0);
+    set_tuner_bits(&cs, PW_LDO_A, 0);
+    set_tuner_bits(&cs, CP_CURRENT, 0);
+    set_tuner_bits(&cs, R17_RESERVED_2_0, 0);
+    set_tuner_bits(&cs, R17_RESERVED_1_0, 0);
+    set_tuner_bits(&cs, R17_RESERVED_0_0, 0);
 
     // TunerR18
-    set_tuner_reg(&cs, VCO_CURRENT, 4);
-    set_tuner_reg(&cs, SDM_DITHER_DIS, 0);
-    set_tuner_reg(&cs, PWD_SDM, 1);
-    set_tuner_reg(&cs, R18_RESERVED_2_0, 0);
-    set_tuner_reg(&cs, R18_RESERVED_1_0, 0);
-    set_tuner_reg(&cs, R18_RESERVED_0_0, 0);
+    set_tuner_bits(&cs, VCO_CURRENT, 4);
+    set_tuner_bits(&cs, SDM_DITHER_DIS, 0);
+    set_tuner_bits(&cs, PWD_SDM, 1);
+    set_tuner_bits(&cs, R18_RESERVED_2_0, 0);
+    set_tuner_bits(&cs, R18_RESERVED_1_0, 0);
+    set_tuner_bits(&cs, R18_RESERVED_0_0, 0);
 
     // TunerR19
-    set_tuner_reg(&cs, R18_RESERVED_7_0, 0);
-    set_tuner_reg(&cs, VCO_MODE, 0);
-    set_tuner_reg(&cs, VCO_DAC, 0);
+    set_tuner_bits(&cs, R18_RESERVED_7_0, 0);
+    set_tuner_bits(&cs, VCO_MODE, 0);
+    set_tuner_bits(&cs, VCO_DAC, 0);
 
     // TunerR20
-    set_tuner_reg(&cs, S_I2C, 0);
-    set_tuner_reg(&cs, N_I2C, 0);
+    set_tuner_bits(&cs, S_I2C, 0);
+    set_tuner_bits(&cs, N_I2C, 0);
 
     // TunerR21
-    set_tuner_reg(&cs, SDM_IN_LSB, 0);
+    set_tuner_bits(&cs, SDM_IN_LSB, 0);
 
     // TunerR22
-    set_tuner_reg(&cs, SDM_IN_MSB, 0);
+    set_tuner_bits(&cs, SDM_IN_MSB, 0);
 
     // TunerR23
-    set_tuner_reg(&cs, PW_LDO_D, 0);
-    set_tuner_reg(&cs, DIV_BUF_CUR, 3);
-    set_tuner_reg(&cs, OPEN_D, 0);
-    set_tuner_reg(&cs, R23_RESERVED_2_1, 1);
-    set_tuner_reg(&cs, R23_RESERVED_1_0, 0);
-    set_tuner_reg(&cs, R23_RESERVED_0_0, 0);
+    set_tuner_bits(&cs, PW_LDO_D, 0);
+    set_tuner_bits(&cs, DIV_BUF_CUR, 3);
+    set_tuner_bits(&cs, OPEN_D, 0);
+    set_tuner_bits(&cs, R23_RESERVED_2_1, 1);
+    set_tuner_bits(&cs, R23_RESERVED_1_0, 0);
+    set_tuner_bits(&cs, R23_RESERVED_0_0, 0);
 
     // TunerR24
-    set_tuner_reg(&cs, R24_RESERVED_7_0, 0);
-    set_tuner_reg(&cs, R24_RESERVED_6_1, 1);
-    set_tuner_reg(&cs, RING_SE23, 0);
-    set_tuner_reg(&cs, PW_RING, 0);
-    set_tuner_reg(&cs, RING_N, 0);
+    set_tuner_bits(&cs, R24_RESERVED_7_0, 0);
+    set_tuner_bits(&cs, R24_RESERVED_6_1, 1);
+    set_tuner_bits(&cs, RING_SE23, 0);
+    set_tuner_bits(&cs, PW_RING, 0);
+    set_tuner_bits(&cs, RING_N, 0);
 
     // TunerR25
-    set_tuner_reg(&cs, PW_RFFILT, 1);
-    set_tuner_reg(&cs, RFFILT_CURRENT, 2);
-    set_tuner_reg(&cs, SW_AGC, 0);
-    set_tuner_reg(&cs, R25_RESERVED_3_1, 1);
-    set_tuner_reg(&cs, R25_RESERVED_2_1, 1);
-    set_tuner_reg(&cs, RING_SELDIV, 0);
+    set_tuner_bits(&cs, PW_RFFILT, 1);
+    set_tuner_bits(&cs, RFFILT_CURRENT, 2);
+    set_tuner_bits(&cs, SW_AGC, 0);
+    set_tuner_bits(&cs, R25_RESERVED_3_1, 1);
+    set_tuner_bits(&cs, R25_RESERVED_2_1, 1);
+    set_tuner_bits(&cs, RING_SELDIV, 0);
 
     // TunerR26
-    set_tuner_reg(&cs, RFMUX, 1);
-    set_tuner_reg(&cs, AGC_CLOCK, 2);
-    set_tuner_reg(&cs, PLL_AUTO_CLK, 0);
-    set_tuner_reg(&cs, RFFILT, 0);
+    set_tuner_bits(&cs, RFMUX, 1);
+    set_tuner_bits(&cs, AGC_CLOCK, 2);
+    set_tuner_bits(&cs, PLL_AUTO_CLK, 0);
+    set_tuner_bits(&cs, RFFILT, 0);
 
     // TunerR27
-    set_tuner_reg(&cs, TF_NCH, 0);
-    set_tuner_reg(&cs, TF_LP, 0);
+    set_tuner_bits(&cs, TF_NCH, 0);
+    set_tuner_bits(&cs, TF_LP, 0);
 
     // TunerR28
-    set_tuner_reg(&cs, PDET3_GAIN, 5);
-    set_tuner_reg(&cs, R28_RESERVED_3_0, 0);
-    set_tuner_reg(&cs, DISCHARGE_MODE, 1);
-    set_tuner_reg(&cs, RF_SOURCE, 0);
-    set_tuner_reg(&cs, R28_RESERVED_0_0, 0);
+    set_tuner_bits(&cs, PDET3_GAIN, 5);
+    set_tuner_bits(&cs, R28_RESERVED_3_0, 0);
+    set_tuner_bits(&cs, DISCHARGE_MODE, 1);
+    set_tuner_bits(&cs, RF_SOURCE, 0);
+    set_tuner_bits(&cs, R28_RESERVED_0_0, 0);
 
     // TunerR29
-    set_tuner_reg(&cs, DETECT_BW, 2);
-    set_tuner_reg(&cs, PDET1_GAIN, 4);
-    set_tuner_reg(&cs, PDET2_GAIN, 6);
+    set_tuner_bits(&cs, DETECT_BW, 2);
+    set_tuner_bits(&cs, PDET1_GAIN, 4);
+    set_tuner_bits(&cs, PDET2_GAIN, 6);
 
     // TunerR30
-    set_tuner_reg(&cs, SW_PDET, 0);
-    set_tuner_reg(&cs, FILTER_EXT, 0);
-    set_tuner_reg(&cs, PDET_CLK, 0x0A);
+    set_tuner_bits(&cs, SW_PDET, 0);
+    set_tuner_bits(&cs, FILTER_EXT, 0);
+    set_tuner_bits(&cs, PDET_CLK, 0x0A);
 
     // TunerR31
-    set_tuner_reg(&cs, LT_ATT, 1);
-    set_tuner_reg(&cs, R31_RESERVED_6_1, 1);
-    set_tuner_reg(&cs, R31_RESERVED_5_0, 0);
-    set_tuner_reg(&cs, R31_RESERVED_4_0, 0);
-    set_tuner_reg(&cs, R31_RESERVED_3_0, 0);
-    set_tuner_reg(&cs, R31_RESERVED_2_0, 0);
-    set_tuner_reg(&cs, RING_ATT, 0);
+    set_tuner_bits(&cs, LT_ATT, 1);
+    set_tuner_bits(&cs, R31_RESERVED_6_1, 1);
+    set_tuner_bits(&cs, R31_RESERVED_5_0, 0);
+    set_tuner_bits(&cs, R31_RESERVED_4_0, 0);
+    set_tuner_bits(&cs, R31_RESERVED_3_0, 0);
+    set_tuner_bits(&cs, R31_RESERVED_2_0, 0);
+    set_tuner_bits(&cs, RING_ATT, 0);
 
-    return update_tuner_regs(dev, &cs);
+    return apply_tuner_changeset(dev, &cs);
 }
 
 int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_t *out) {
@@ -608,10 +622,8 @@ int lpcsdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
         return LPCSDR_TUNER_LOCK_ERR;
 
     change_set cs = {0};
-    set_tuner_reg(&cs, PLL_AUTO_CLK, 2);
-    error = update_tuner_regs(dev, &cs);
-
-    return error;
+    set_tuner_bits(&cs, PLL_AUTO_CLK, 2);
+    return apply_tuner_changeset(dev, &cs);
 }
 
 int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
@@ -651,39 +663,32 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t
 
     change_set cs = {0};
 
-    set_tuner_reg(&cs, IMG_R, dev->upper_sideband ? 1 : 0);
-    set_tuner_reg(&cs, PW_LDO_A, 1);
-    set_tuner_reg(&cs, PW_LDO_D, 2);
-    set_tuner_reg(&cs, PWD_SDM, sdm_disable);
-    set_tuner_reg(&cs, SEL_DIV, seldiv);
-    set_tuner_reg(&cs, REF_DIV2, refdiv);
-    set_tuner_reg(&cs, S_I2C, si2c);
-    set_tuner_reg(&cs, N_I2C, ni2c);
-    set_tuner_reg(&cs, SDM_IN_LSB, sdm_lsb);
-    set_tuner_reg(&cs, SDM_IN_MSB, sdm_msb);
-    set_tuner_reg(&cs, PLL_AUTO_CLK, 0);
-    set_tuner_reg(&cs, VCO_CURRENT, 4);
-    set_tuner_reg(&cs, VCO_MODE, 1);
-    set_tuner_reg(&cs, VCO_DAC, vco_dac);
+    set_tuner_bits(&cs, IMG_R, dev->upper_sideband ? 1 : 0);
+    set_tuner_bits(&cs, PW_LDO_A, 1);
+    set_tuner_bits(&cs, PW_LDO_D, 2);
+    set_tuner_bits(&cs, PWD_SDM, sdm_disable);
+    set_tuner_bits(&cs, SEL_DIV, seldiv);
+    set_tuner_bits(&cs, REF_DIV2, refdiv);
+    set_tuner_bits(&cs, S_I2C, si2c);
+    set_tuner_bits(&cs, N_I2C, ni2c);
+    set_tuner_bits(&cs, SDM_IN_LSB, sdm_lsb);
+    set_tuner_bits(&cs, SDM_IN_MSB, sdm_msb);
+    set_tuner_bits(&cs, PLL_AUTO_CLK, 0);
+    set_tuner_bits(&cs, VCO_CURRENT, 4);
+    set_tuner_bits(&cs, VCO_MODE, 1);
+    set_tuner_bits(&cs, VCO_DAC, vco_dac);
 
-    return update_tuner_regs(dev, &cs);
+    return apply_tuner_changeset(dev, &cs);
 }
 
 int lpcsdr__has_pll_lock(lpcsdr_device_handle *dev) {
-    int error = LPCSDR_SUCCESS;
-    uint8_t buffer;
-    
-    if ((error = lpcsdr__ctrl_read_tuner_register(dev, TunerR2, 0, &buffer, sizeof(uint8_t))) < 0)
-        return error;
+    int value;
+    if ((value = read_tuner_bits(dev, PLL_LOCK)) < 0)
+        return value;
 
-    return extract_tuner_val(buffer, PLL_LOCK);
+    return (value != 0);
 }
 
-int lpcsdr__set_tuner_value_in_change_set(change_set *cs, uint8_t reg, uint8_t mask, uint8_t value) {
-    cs->entries[reg].current_mask |= mask;
-    cs->entries[reg].current_value = (cs->entries[reg].current_value & ~mask) | value;
-    return LPCSDR_SUCCESS;
-}
 
 /*
     Create a payload of bytes from the changeset.
