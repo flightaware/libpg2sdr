@@ -1,15 +1,7 @@
 .vscode
 .DS_Store
 *.tsv
-*.o
-test
-libsdr.a
+*~
 build/
 debug/
 local_build/
-
-src/CMake*
-src/Makefile
-tests/CMake*
-tests/Makefile
-CTestTestfile.cmake
