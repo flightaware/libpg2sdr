@@ -152,7 +152,7 @@ int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle);
 int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config);
 int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
 int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, tuner_reg_num first_reg, uint16_t cache, uint8_t *buffer, uint16_t buffer_size);
+int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
 int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
 
 /* gain-table.gen.c (generated code) */
