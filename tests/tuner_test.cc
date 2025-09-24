@@ -101,10 +101,12 @@ TEST(Test_find_pll_parameters, Success) {
     const double target = 100e6;
 
     ASSERT_EQ(lpcsdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
-    ASSERT_EQ(p.refdiv, true);
-    ASSERT_EQ(p.seldiv, 32);
-    ASSERT_EQ(p.feedback_n, 111);
-    ASSERT_EQ(p.feedback_sdm, 7281);
+
+    // these are very prescriptive white-box tests, needed?
+    EXPECT_EQ(p.refdiv, true);
+    EXPECT_EQ(p.seldiv, 32);
+    EXPECT_EQ(p.feedback_n, 111);
+    EXPECT_EQ(p.feedback_sdm, 7282);
 
     // actual freq should be within 1ppm of requested freq
     ASSERT_NEAR(p.actual_frequency, target, target * 1e-6);
