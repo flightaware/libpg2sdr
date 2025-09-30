@@ -2,10 +2,11 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
 # Generate gain-tables.gen.c from csv files
+find_package(Python3 REQUIRED)
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gain-tables.gen.c
   COMMAND
-    ${CMAKE_SOURCE_DIR}/gain/generate-gain-tables.py
+    ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/gain/generate-gain-tables.py
     --lna-table ${CMAKE_SOURCE_DIR}/gain/lna.csv
     --mix-table ${CMAKE_SOURCE_DIR}/gain/mix.csv
     --vga-table ${CMAKE_SOURCE_DIR}/gain/vga.csv
