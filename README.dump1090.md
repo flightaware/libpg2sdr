@@ -40,13 +40,14 @@ $ make
 ## Check out and build dump1090
 
 You don't _have_ to build dump1090 yourself, it should be possible to use an
-existing dump1090 package as they already have soapysdr support.
+existing dump1090 package as they already have soapysdr support. But you probably
+want to build from the soapy-settings branch for support for --device-setting
 
 If you're not using an existing package, then build from source:
 
 ```
 $ cd ~/git
-$ git clone https://github.com/flightaware/dump1090.git
+$ git clone https://github.com/flightaware/dump1090.git -b soapy-settings
 
 $ cd ~/git/dump1090
 
@@ -135,6 +136,9 @@ The gain-element settings sets the gain of each individual gain stage directly
 ## Extra dump1090 args
 
 Useful extra flags to pass, depending on what you're doing:
+
+`--device-setting decimation=max` - makes the ADC will run at 19.2MHz
+(default is 9.6)
 
 `--quiet` - don't write the decoded ADS-B mesages to stdout. You will want this after you've confirmed that messages are arriving correctly.
 
