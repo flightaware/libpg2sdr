@@ -1,14 +1,12 @@
 find_package(SoapySDR REQUIRED)
 
-add_library(lpcsdrSupport SHARED soapy-lpcsdr.cc)
+SOAPY_SDR_MODULE_UTIL(
+  TARGET lpcsdrSupport
+  SOURCES
+    soapy-lpcsdr.cc
+  LIBRARIES
+    lpcsdr)
 
-# The SoapySDR driver for lpcsdr itself
 target_compile_features(lpcsdrSupport PRIVATE cxx_std_17)
 target_compile_options(lpcsdrSupport PRIVATE -O3 -Wall -Werror)
-
-# SoapySDR library dependency
 target_include_directories(lpcsdrSupport PRIVATE ${SoapySDR_INCLUDE_DIRS})
-target_link_libraries(lpcsdrSupport ${SoapySDR_LIBRARIES})
-
-# liblpcsdr dependency
-target_link_libraries(lpcsdrSupport lpcsdr)
