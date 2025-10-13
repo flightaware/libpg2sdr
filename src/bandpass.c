@@ -72,27 +72,45 @@ static double filter_penalty(const lpcsdr_bandpass_table_t *entry,
                              double low_nyquist,
                              double high_nyquist)
 {
-    /* If this bandpass filter exceeds the Nyquist frequency band, then
-     * treat the folded frequencies as interference and reduce the effective
-     * bandwidth
-     */
+    double penalty = 0;
     double lower_corner = entry->lower_corner;
+    double upper_corner = entry->upper_corner;
+
+    /* If the filter is too wide, penalize it a little.
+     * The additional width means extra noise that the client doesn't care
+     * about.
+     *
+     * Do this before adjusting for Nyquist; any folding that does occur
+     * still contributes to unwanted signal outside the bandpass region.
+     */
+    if (lower_corner < low_signal)
+        penalty += 0.25 * (low_signal - lower_corner);
+    if (upper_corner > high_signal)
+        penalty += 0.25 * (upper_corner - high_signal);
+
+    /* Adjust for Nyquist folding, which effectively narrows the
+     * usable bandpass region if it starts to encroach on the signal.
+     */
     if (lower_corner < low_nyquist)
         lower_corner = low_nyquist + (low_nyquist - lower_corner);
-    double upper_corner = entry->upper_corner;
     if (upper_corner > high_nyquist)
         upper_corner = high_nyquist - (upper_corner - high_nyquist);
 
-    /* penalize filters that are too narrow; smaller penalty for filters that are too wide */
-    double lower_penalty = (lower_corner <= low_signal) ? 0.25*(low_signal - lower_corner) : (lower_corner - low_signal);
-    double upper_penalty = (upper_corner >= high_signal) ? 0.25*(upper_corner - high_signal) : (high_signal - upper_corner);
+    /* If the effective filter (after folding) is too narrow, apply a larger penalty --
+     * we are throwing away signal that the client wants.
+     */
+    if (lower_corner > low_signal)
+        penalty += lower_corner - low_signal;
+    if (upper_corner < high_signal)
+        penalty += high_signal - upper_corner;
+
     /* normalize the penalty by bandwidth, so we can compare consistently to ripple */
-    double bw_penalty = (lower_penalty + upper_penalty) / (high_signal - low_signal);
+    penalty /= (high_signal - low_signal);
 
     /* penalize filters with more passband ripple */
-    double ripple_penalty = entry->ripple * 0.05; /* make 1dB ripple worth about 5% signal bandwidth */
+    penalty += entry->ripple * 0.05; /* make 1dB ripple worth about 5% signal bandwidth */
 
-    return bw_penalty + ripple_penalty;
+    return penalty;
 }
 
 const lpcsdr_bandpass_table_t *lpcsdr__select_bandpass_filter(lpcsdr_device_handle *dev,
