@@ -352,10 +352,10 @@ int lpcsdr_get_total_gain_db(lpcsdr_device_handle *dev, double *gain_db);
 
 /* Gain table access */
 typedef struct {
-    double gain_db;
-    unsigned lna_gain;
-    unsigned mix_gain;
-    unsigned vga_gain;
+    double gain_db;         /* Total gain, dB */
+    unsigned lna_gain : 4;  /* Register 5 bits 3:0 */
+    unsigned mix_gain : 4;  /* Register 7 bits 3:0 */
+    unsigned vga_gain : 4;  /* Register 12 bits 3:0 */
 } lpcsdr_gain_table_t;
 int lpcsdr_set_gain_tables(lpcsdr_device_handle *dev,
                            const lpcsdr_gain_table_t *gain_table, size_t gain_table_size,
