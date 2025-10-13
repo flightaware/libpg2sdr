@@ -252,6 +252,9 @@ class LPCSDRDevice : public SoapySDR::Device
     SoapySDR::Range vga_range_;
     SoapySDR::Range total_gain_range_;
 
+    // requested bandwidth (0 = not set)
+    double bandwidth_;
+
     friend class PauseStreamGuard;
 };
 

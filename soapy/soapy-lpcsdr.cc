@@ -193,7 +193,8 @@ static SoapySDR::Range simple_gain_range(double *table)
 LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle)
     : ctx_(std::move(ctx)),
       handle_(handle),
-      gain_element_mode_(GainElementMode::INDIVIDUAL)
+      gain_element_mode_(GainElementMode::INDIVIDUAL),
+      bandwidth_(-1)
 {
     LIBCALL(lpcsdr_set_buffer_size, 128*1024);
     LIBCALL(lpcsdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
@@ -365,6 +366,8 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     {
         PauseStreamGuard pause_stream(*this);
         LIBCALL(lpcsdr_set_sample_rate, rate);
+        if (bandwidth_ < 0) // bandwidth not set, default to full bandwidth
+            LIBCALL(lpcsdr_set_bandpass, -rate/2.0, rate/2.0);
         LIBCALL(lpcsdr_apply_changes);
     }
 }
@@ -409,8 +412,12 @@ void LPCSDRDevice::setBandwidth(const int direction, const size_t channel, const
     TRACECALLF("(%d,%zu,%.3fMHz)", direction, channel, bw/1e6);
     CheckChannel(direction, channel);
 
+    if (bw < 0)
+        throw std::invalid_argument("bandwidth cannot be negative");
+
     LIBCALL(lpcsdr_set_bandpass, -bw/2.0, bw/2.0);
     tryApplyChanges();
+    bandwidth_ = bw;
 }
 
 double LPCSDRDevice::getBandwidth(const int direction, const size_t channel) const
