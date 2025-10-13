@@ -107,7 +107,7 @@ struct lpcsdr_device_handle {
     double mix_table[16];                 /* MIX gain-step-to-dB lookup */
     double vga_table[16];                 /* VGA gain-step-to-dB lookup */
 
-    lpcsdr_gain_table_t *current_gain_entry; /* if gain was last set via lpcsdr_set_total_gain_db, pointer to the entry we used, otherwise NULL */
+    const lpcsdr_gain_table_t *current_gain_entry; /* if gain was last set via lpcsdr_set_total_gain_db, pointer to the entry we used, otherwise NULL */
 
     unsigned usb_transfer_size;           /* transfer size we decided on */
     unsigned adc_samples_per_transfer;    /* ADC samples per USB transfer */
