@@ -382,6 +382,11 @@ typedef struct {
     unsigned lpf_fine : 4;   /* Register 10 bits 3:0 */
     unsigned lpf_q : 1;      /* Register 10 bit 4 */
 } lpcsdr_bandpass_table_t;
+int lpcsdr_set_bandpass_table(lpcsdr_device_handle *dev,
+                              const lpcsdr_bandpass_table_t *bandpass_table, size_t bandpass_table_size);
+int lpcsdr_get_bandpass_table(lpcsdr_device_handle *dev,
+                              lpcsdr_bandpass_table_t **bandpass_table,
+                              size_t *bandpass_table_size);
 
 /* Streaming (stream.c) */
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
