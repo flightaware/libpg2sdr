@@ -17,8 +17,7 @@ static int apply_freq_change(lpcsdr_device_handle *dev);
 static int apply_bandpass_change(lpcsdr_device_handle *dev);
 
 static bool tuner_pll_config_equal(const tuner_pll_config_t *left, const tuner_pll_config_t *right);
-static bool tuner_hpf_equal(const hpf_settings *left, const hpf_settings *right);
-static bool tuner_lpf_equal(const lpf_settings *left, const lpf_settings *right);
+static bool tuner_bandpass_equal(const lpcsdr_bandpass_table_t *left, const lpcsdr_bandpass_table_t *right);
 
 int lpcsdr_set_conversion_mode(lpcsdr_device_handle *dev, lpcsdr_conversion_mode_t mode)
 {
@@ -299,26 +298,26 @@ static double actual_frequency(lpcsdr_device_handle *dev)
 
 static double actual_bandpass_low(lpcsdr_device_handle *dev)
 {
-    if (!dev->adc_pll_config.valid || !dev->tuner_lpf_config.valid || !dev->tuner_hpf_config.valid || dev->changing_rate || dev->changing_bandpass)
+    if (!dev->adc_pll_config.valid || !dev->current_bandpass_entry || dev->changing_rate || dev->changing_bandpass)
         return 0;
 
     const double center = center_if_frequency(dev);
     if (dev->upper_sideband)
-        return (dev->tuner_hpf_config.cutoff - center);
+        return (dev->current_bandpass_entry->lower_corner - center);
     else
-        return (center - dev->tuner_lpf_config.cutoff);
+        return (center - dev->current_bandpass_entry->lower_corner);
 }
 
 static double actual_bandpass_high(lpcsdr_device_handle *dev)
 {
-    if (!dev->adc_pll_config.valid || !dev->tuner_lpf_config.valid || !dev->tuner_hpf_config.valid || dev->changing_rate || dev->changing_bandpass)
+    if (!dev->adc_pll_config.valid || !dev->current_bandpass_entry || dev->changing_rate || dev->changing_bandpass)
         return 0;
 
     const double center = center_if_frequency(dev);
     if (dev->upper_sideband)
-        return (dev->tuner_lpf_config.cutoff - center);
+        return (dev->current_bandpass_entry->upper_corner - center);
     else
-        return (center - dev->tuner_hpf_config.cutoff);
+        return (center - dev->current_bandpass_entry->upper_corner);
 }
 
 
@@ -364,23 +363,14 @@ static bool tuner_pll_config_equal(const tuner_pll_config_t *left, const tuner_p
         left->feedback_sdm == right->feedback_sdm;
 }
 
-static bool tuner_hpf_equal(const hpf_settings *left, const hpf_settings *right)
+static bool tuner_bandpass_equal(const lpcsdr_bandpass_table_t *left, const lpcsdr_bandpass_table_t *right)
 {
     return
-        left->valid &&
-        right->valid &&
-        left->hpf_corner == right->hpf_corner;
-}
-
-static bool tuner_lpf_equal(const lpf_settings *left, const lpf_settings *right)
-{
-    return
-        left->valid &&
-        right->valid &&
+        left->hpf_corner == right->hpf_corner &&
+        left->lpf_narrow == right->lpf_narrow &&
         left->lpf_coarse == right->lpf_coarse &&
         left->lpf_fine == right->lpf_fine &&
-        left->lpf_q == right->lpf_q &&
-        left->lpf_narrow == right->lpf_narrow;
+        left->lpf_q == right->lpf_q;
 }
 
 static int apply_rate_change(lpcsdr_device_handle *dev)
@@ -566,27 +556,30 @@ static int apply_bandpass_change(lpcsdr_device_handle *dev)
     LOGDEBUG(dev, "IF bandpass filter constraints: (%.3f .. %.3f), <%.3f MHz",
              l/1e6, h/1e6, nyquist/1e6);
 
-    const lpf_settings *lpf = lpcsdr__lpf_settings_for(h, nyquist);
-    const hpf_settings *hpf = lpcsdr__hpf_settings_for(l < lpf->cutoff ? l : lpf->cutoff);
+    const lpcsdr_bandpass_table_t *settings = lpcsdr__select_bandpass_filter(dev,
+                                                                             /* wanted signal bandpass */ l, h,
+                                                                             /* Nyquist limits */ 0, nyquist);
 
-    if (tuner_hpf_equal(hpf, &dev->tuner_hpf_config) &&
-        tuner_lpf_equal(lpf, &dev->tuner_lpf_config)) {
+    if (dev->current_bandpass_entry && tuner_bandpass_equal(settings, dev->current_bandpass_entry)) {
         /* no work to do */
         return LPCSDR_SUCCESS;
     }
 
-    LOGDEBUG(dev, "set IF bandpass = %.3fMHz .. %.3fMHz", hpf->cutoff/1e6, lpf->cutoff/1e6);
+    LOGDEBUG(dev, "set IF bandpass = %.3fMHz .. %.3fMHz (%u/%u/%u/%u/%u)",
+             settings->lower_corner/1e6, settings->upper_corner/1e6,
+             settings->hpf_corner,
+             settings->lpf_narrow,
+             settings->lpf_coarse,
+             settings->lpf_fine,
+             settings->lpf_q);
 
     int error;
-    if ((error = lpcsdr__tuner_set_bandpass(dev, hpf, lpf)) < 0) {
+    if ((error = lpcsdr__tuner_set_bandpass(dev, settings)) < 0) {
         /* tuner state is indeterminate now */
-        dev->tuner_hpf_config.valid = false;
-        dev->tuner_lpf_config.valid = false;
+        dev->current_bandpass_entry = NULL;
         return error;
     }
 
-    dev->tuner_hpf_config = *hpf;
-    dev->tuner_lpf_config = *lpf;
+    dev->current_bandpass_entry = settings;
     return LPCSDR_SUCCESS;
 }
-

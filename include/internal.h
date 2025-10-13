@@ -88,8 +88,6 @@ struct lpcsdr_device_handle {
 
     double requested_bandpass_low;        /* bandpass low cutoff, relative to center frequency */
     double requested_bandpass_high;       /* bandpass high cutoff, relative to center frequency */
-    hpf_settings tuner_hpf_config;        /* actual tuner HPF config */
-    lpf_settings tuner_lpf_config;        /* actual tuner LPF config */
     bool changing_bandpass;               /* do we have unapplied bandpass changes? */
 
     size_t buffer_size;                   /* requested user buffer size, counted in user samples */
@@ -111,6 +109,7 @@ struct lpcsdr_device_handle {
 
     lpcsdr_bandpass_table_t *bandpass_table;               /* available bandpass filters */
     size_t bandpass_table_size;                            /* # of entries in bandpass_table */
+    const lpcsdr_bandpass_table_t *current_bandpass_entry; /* currently selected bandpass filter (pointer into bandpass_table) */
 
     unsigned usb_transfer_size;           /* transfer size we decided on */
     unsigned adc_samples_per_transfer;    /* ADC samples per USB transfer */
