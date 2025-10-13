@@ -40,8 +40,6 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
 
     dev->requested_bandpass_low = -100e6;
     dev->requested_bandpass_high = 100e6;
-    dev->tuner_hpf_config.valid = false;
-    dev->tuner_lpf_config.valid = false;
     dev->changing_bandpass = false;
 
     dev->decimation_mode = LPCSDR_DECIMATION_AUTO;
@@ -60,6 +58,10 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
                                         lpcsdr__default_lna_table,
                                         lpcsdr__default_mix_table,
                                         lpcsdr__default_vga_table)) < 0)
+        goto cleanup;
+
+    /* set default bandpass table */
+    if ((error = lpcsdr_set_bandpass_table(dev, lpcsdr__default_bandpass_table, lpcsdr__default_bandpass_table_size)) < 0)
         goto cleanup;
 
     *out = dev;
