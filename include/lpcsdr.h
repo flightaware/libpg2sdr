@@ -369,6 +369,20 @@ int lpcsdr_get_gain_tables(lpcsdr_device_handle *dev,
                            double *mix_table,
                            double *vga_table);
 
+/* Tuner bandpass filter table access */
+typedef struct {
+    /* floats here to reduce the size of the (large) table */
+    float lower_corner;      /* Passband lower corner frequency, Hz */
+    float upper_corner;      /* Passband upper corner frequency, Hz */
+    float ripple;            /* Passband ripple, dB */
+
+    unsigned hpf_corner : 4; /* Register 11 bits 3:0 */
+    unsigned lpf_narrow : 1; /* Register 11 bit 7 */
+    unsigned lpf_coarse : 2; /* Register 11 bits 6:5 */
+    unsigned lpf_fine : 4;   /* Register 10 bits 3:0 */
+    unsigned lpf_q : 1;      /* Register 10 bit 4 */
+} lpcsdr_bandpass_table_t;
+
 /* Streaming (stream.c) */
 int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms);
 int lpcsdr_stop_streaming(lpcsdr_device_handle *dev);
