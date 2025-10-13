@@ -39,8 +39,6 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
 int lpcsdr__has_pll_lock(lpcsdr_device_handle *dev);
 int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t *params);
 
-int lpcsdr__vco_scan(lpcsdr_device_handle *dev);
-
 int lpcsdr__tuner_set_lna(lpcsdr_device_handle *dev, unsigned lna);
 int lpcsdr__tuner_set_mix(lpcsdr_device_handle *dev, unsigned mix);
 int lpcsdr__tuner_set_vga(lpcsdr_device_handle *dev, unsigned vga);
