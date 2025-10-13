@@ -649,13 +649,13 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t
     uint8_t si2c = (params->feedback_n - 13) & 3;
     
     uint8_t seldiv_lut[6] = {2, 4, 8, 16, 32, 64};
-    uint8_t seldiv = -1;
+    uint8_t seldiv = 0;
     for (unsigned i = 0; i < sizeof(seldiv_lut)/ sizeof(seldiv_lut[0]); i++)
         if (seldiv_lut[i] == params->seldiv)
             seldiv = i;
+    assert (seldiv != 0);
 
-
-    uint8_t refdiv = (params->refdiv == true) ? 1: 0;
+    uint8_t refdiv = params->refdiv ? 1 : 0;
 
     uint8_t vco_dac = round(params->actual_vco * 0.0318e-6 - 49.0);
     vco_dac = MAX(0, vco_dac);
