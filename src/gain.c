@@ -230,14 +230,11 @@ int lpcsdr_get_gain_tables(lpcsdr_device_handle *dev,
                            double *vga_table)
 {
     CHECK_DEV(dev);
+    if ((gain_table && !gain_table_size) || (!gain_table && gain_table_size))
+        return LPCSDR_ERROR_BAD_ARGUMENT;
 
     int error = LPCSDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
-
-    if ((gain_table && !gain_table_size) || (!gain_table && gain_table_size)) {
-        error = LPCSDR_ERROR_BAD_ARGUMENT;
-        goto done;
-    }
 
     if (gain_table) {
         /* allocate a copy of the table, return a pointer; it is the caller's responsibility
