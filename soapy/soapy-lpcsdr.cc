@@ -413,7 +413,7 @@ std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const siz
     CheckChannel(direction, channel);
 
     std::vector<double> result;
-    for (auto i = 4; i <= 30; ++i)
+    for (auto i = 1; i <= 30; ++i)
         result.push_back(i * 0.5e6);
     return result;
 }
@@ -424,7 +424,7 @@ SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const 
     CheckChannel(direction, channel);
 
     SoapySDR::RangeList ranges;
-    ranges.push_back(SoapySDR::Range(2.0, 15.0));
+    ranges.push_back(SoapySDR::Range(0.5, 15.0));
     return ranges;
 }
 
