@@ -283,27 +283,22 @@ int lpcsdr__init_tuner(lpcsdr_device_handle *dev)
 }
 
 int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_t *out) {
-    bool refdiv = false;
-    double pll_ref = xtal;
+    const double VCO_MIN = 1750e6;
+    /* const double VCO_MAX = 3700e6; */
 
-    if (xtal > 24e6) {
-        refdiv = true;
-        pll_ref = xtal / 2;
-    }
+    bool refdiv = (xtal > 24e6);
+    double pll_ref = refdiv ? xtal/2 : xtal;
 
-    double VCO_MIN = 1750e6;
-    double VCO_MAX = 3700e6;
     double seldiv = 2;
     while ((requested * seldiv < VCO_MIN) && (seldiv < 64))
         seldiv *= 2;
 
     double required_vco = requested * seldiv;
-    if (required_vco < VCO_MIN || required_vco > VCO_MAX) {
-        // todo: we could continue here, since sometimes the VCO is okay
-        // running somewhat outside the nominal limits,
-        // and just report any PLL lock failure
-        return LPCSDR_TUNER_PLL_DIV_OUT_OF_RANGE;
-    }
+
+    /* required_vco might actually be out of range here (<VCO_MIN or >VCO_MAX)
+     * but continue anyway; maybe it can lock slightly out of range. We'll report
+     * a PLL lock failure later if necessary.
+     */
 
     double pll_feedback = (required_vco / 2) / pll_ref;
     if (pll_feedback < 13 || pll_feedback >= 269) {
