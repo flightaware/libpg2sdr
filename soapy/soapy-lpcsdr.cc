@@ -37,6 +37,8 @@ static std::string gain_element_MIX = "MIX";
 static std::string gain_element_VGA = "VGA";
 static std::string gain_element_ALL = "ALL";
 
+static std::string setting_undersampling = "undersampling";
+
 static std::string setting_sideband = "sideband";
 static std::string setting_sideband_lower = "lower";
 static std::string setting_sideband_upper = "upper";
@@ -544,6 +546,16 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 
     args.push_back(gain);
 
+    SoapySDR::ArgInfo undersampling;
+    undersampling.key = setting_undersampling;
+    undersampling.value = "1";
+    undersampling.name = "Undersampling mode";
+    undersampling.description = "Place the IF signal in the frequency range [(n-1)*f_s/2, n*f_s/2], n=1,2,3,..";
+    undersampling.type = SoapySDR::ArgInfo::Type::INT;
+    undersampling.range = SoapySDR::Range(1, 10, 1);
+
+    args.push_back(undersampling);
+
     SoapySDR::ArgInfo sideband;
     sideband.key = setting_sideband;
     sideband.value = setting_sideband_auto;
@@ -599,6 +611,13 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
             gain_element_mode_ = GainElementMode::BOTH;
         } else {
             throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
+        }
+    } else if (key == setting_undersampling) {
+        int mode = std::stoi(value);
+
+        {
+            PauseStreamGuard pause_stream(*this);
+            LIBCALL(lpcsdr_set_undersampling_mode, mode);
         }
     } else if (key == setting_sideband) {
         bool sideband;
@@ -656,6 +675,10 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
         default:
             throw std::runtime_error("bad gain_element_mode_ value");
         }
+    } else if (key == setting_undersampling) {
+        int mode;
+        LIBCALL(lpcsdr_get_undersampling_mode, &mode);
+        return std::to_string(mode);
     } else if (key == setting_sideband) {
         switch (sideband_mode_) {
         case SidebandMode::LOWER:
