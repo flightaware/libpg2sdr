@@ -29,6 +29,8 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
 
     dev->conversion_mode = LPCSDR_MODE_LOWIF_REAL;
 
+    dev->adc_limit = 28e6;
+
     dev->requested_sample_rate = 0;
     dev->adc_pll_config.valid = false;
     dev->changing_rate = false;

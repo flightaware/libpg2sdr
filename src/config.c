@@ -432,7 +432,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
              */
             double scaled = dev->requested_sample_rate;
             post_decimation = 0;
-            while (scaled <= 5e6 && post_decimation < LPCSDR_DECIMATION_MAX && (scaled - dev->requested_sample_rate) < 0.5e6) {
+            while (scaled * 4 <= dev->adc_limit && post_decimation < LPCSDR_DECIMATION_MAX && (scaled - dev->requested_sample_rate) < 0.5e6) {
                 ++post_decimation;
                 scaled *= 2;
             }
@@ -440,7 +440,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
             /* Scale up sample rate as far as possible (given fADC <= 20MHz) */
             double scaled = dev->requested_sample_rate;
             post_decimation = 0;
-            while (scaled <= 5e6 && post_decimation < LPCSDR_DECIMATION_MAX) {
+            while (scaled * 4 <= dev->adc_limit && post_decimation < LPCSDR_DECIMATION_MAX) {
                 ++post_decimation;
                 scaled *= 2;
             }
@@ -457,6 +457,8 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
     }
 
     double target = dev->requested_sample_rate * adc_samples_per_user_sample;
+    if (target > dev->adc_limit)
+        return LPCSDR_ERROR_ADC_RATE_RANGE;
 
     /* work out the PLL config so we know it's possible & what the exact
      * ADC rate is. The actual PLL programming only happens when we start streaming data

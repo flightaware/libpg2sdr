@@ -77,6 +77,8 @@ struct lpcsdr_device_handle {
 
     lpcsdr_conversion_mode_t conversion_mode;
 
+    double adc_limit;                     /* maximum ADC sample rate allowed, Hz */
+
     double requested_sample_rate;         /* user requested sample rate */
     adc_pll_config_t adc_pll_config;      /* actually configured ADC clock settings */
     bool changing_rate;                   /* do we have unapplied sample rate changes? */
