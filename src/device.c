@@ -74,6 +74,7 @@ cleanup:
     free(dev->bandpass_table);
     free(dev->gain_table);
     pthread_mutex_destroy(&dev->mutex);
+    dev->magic = MAGIC_FREE;
 
 cleanup_nomutex:
     free(dev);
