@@ -2,13 +2,24 @@
 
 int lpcsdr__translate_libusb_error(int error)
 {
-    if (error == LIBUSB_SUCCESS)
+    /* handle some cases that map directly to our own error codes */
+    switch (error) {
+    case LIBUSB_SUCCESS:
         return LPCSDR_SUCCESS;
+    case LIBUSB_ERROR_NO_DEVICE:
+        return LPCSDR_ERROR_DISCONNECTED;
+    case LIBUSB_ERROR_BUSY:
+        return LPCSDR_ERROR_BUSY;
+    case LIBUSB_ERROR_TIMEOUT:
+        return LPCSDR_ERROR_TIMEOUT;
+    case LIBUSB_ERROR_NO_MEM:
+        return LPCSDR_ERROR_NO_MEMORY;
+    }
 
+    /* everything else, throw it into the generic "libusb error" range */
     int converted = LPCSDR_ERROR_LIBUSB_MIN - error; /* nb: error is negative */
     if (converted >= LPCSDR_ERROR_LIBUSB_MIN && converted <= LPCSDR_ERROR_LIBUSB_MAX)
         return converted;
-
     return LPCSDR_ERROR_LIBUSB_MIN;
 }
 
@@ -26,7 +37,7 @@ int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
     case LIBUSB_TRANSFER_NO_DEVICE:
         return LPCSDR_ERROR_DISCONNECTED;
     default:
-        return LPCSDR_ERROR_TRANSFER_ERROR;
+        return LPCSDR_ERROR_TRANSFER_OTHER;
     }
 }
 
@@ -109,47 +120,34 @@ const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
     case LPCSDR_ERROR_BAD_STATE:
         return "Operation not possible in this state";
     case LPCSDR_ERROR_TIMEOUT:
-        return "Timed out waiting for data";
-    case LPCSDR_ERROR_USB_IO:
-        return "Bulk transfer I/O error";
+        return "Operation timed out";
     case LPCSDR_ERROR_CORRUPTION:
         return "Heap corruption or double-free detected";
-    case LPCSDR_ERROR_FIRMWARE_FAILURE:
-        return "Generic firmware error";
-    case LPCSDR_ERROR_TUNER_I2C:
-        return "Tuner I2C communication error";
-    case LPCSDR_ERROR_TUNER_NO_LOCK:
-        return "Tuner PLL lock failure";
-    case LPCSDR_ERROR_CLOCK_I2C:
-        return "Clock I2C communication error";
-    case LPCSDR_ERROR_CLOCK_NO_LOCK:
-        return "Clock PLL lock failure";
-    case LPCSDR_ERROR_OUT_OF_RANGE:
-        return "Parameter value out of range";
+
     case LPCSDR_ERROR_FWIMAGE_MISSING:
         return "Firmware image not found";
     case LPCSDR_ERROR_FWIMAGE_UPLOAD:
-        return "Firmware image upload failed";
-    case LPCSDR_ERROR_FWIMAGE_TIMEOUT:
-        return "Timeout after uploading firmware image";
-    case LPCSDR_ERROR_TRANSFER_FORMAT:
-        return "Malformed bulk endpoint data received";
-    case LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND:
-        return "LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND needs a description";
-    case LPCSDR_TUNER_PLL_DIV_OUT_OF_RANGE:
-        return "The requested pll frequency is out of range";
-    case LPCSDR_TUNER_INIT_FAILED:
-        return "The tuner could not be initialized. TunerR0 TUNER_ID was incorrect";
-    case LPCSDR_TUNER_LOCK_ERR:
-        return "The tuner pll could not obtain a lock on given frequency";
-    case LPCSDR_TUNER_LPF_INVALID_ARG:
-        return "Attempted to set low-pass filter with a maximum lower than given cutoff target";
-    case LPCSDR_ERROR_TRANSFER_ERROR:
+        return "Firmware image DFU upload failed";
+
+    case LPCSDR_ERROR_TRANSFER_OTHER:
         return "Uncategorized bulk endpoint transfer error";
     case LPCSDR_ERROR_TRANSFER_STALL:
         return "Bulk endpoint stall condition";
     case LPCSDR_ERROR_TRANSFER_OVERFLOW:
         return "Bulk endpoint transfer returned more data that expected";
+    case LPCSDR_ERROR_TRANSFER_FORMAT:
+        return "Malformed bulk endpoint data received";
+
+    case LPCSDR_ERROR_TUNER_DETECT:
+        return "Could not detect tuner";
+    case LPCSDR_ERROR_TUNER_PLL_LOCK:
+        return "Tuner PLL did not lock";
+    case LPCSDR_ERROR_TUNER_PLL_RANGE:
+        return "Required tuner PLL frequency out of range";
+    case LPCSDR_ERROR_TUNER_I2C:
+        return "Tuner I2C communication error";
+    case LPCSDR_ERROR_ADC_RATE_RANGE:
+        return "Required ADC sampling rate out of range";
 
     case LPCSDR_ERROR_SYSTEM_MIN:
         return "Unknown system error";

@@ -100,7 +100,7 @@ int lpcsdr__init_tuner(lpcsdr_device_handle *dev)
     if (tuner_id < 0)    /* read failed */
         return tuner_id;
     if (tuner_id != 0x96)
-        return LPCSDR_TUNER_INIT_FAILED;
+        return LPCSDR_ERROR_TUNER_DETECT;
 
     /* Populate fixed initial register values.
      *
@@ -307,7 +307,7 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
 
     double pll_feedback = (required_vco / 2) / pll_ref;
     if (pll_feedback < 13 || pll_feedback >= 269) {
-        return LPCSDR_TUNER_PLL_DIV_OUT_OF_RANGE;
+        return LPCSDR_ERROR_TUNER_PLL_RANGE;
     }
 
     double pll_feedback_int_part;
@@ -360,7 +360,7 @@ int lpcsdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
             break;
     }
     if (resp != 1)
-        return LPCSDR_TUNER_LOCK_ERR;
+        return LPCSDR_ERROR_TUNER_PLL_LOCK;
 
     change_set cs = {0};
     set_tuner_bits(&cs, PLL_AUTO_CLK, 2);

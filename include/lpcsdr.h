@@ -25,43 +25,34 @@ typedef enum { LPCSDR_MODE_LOWIF_REAL, LPCSDR_MODE_BASEBAND } lpcsdr_conversion_
 enum lpcsdr_error {
     LPCSDR_SUCCESS = 0, /* no error */
 
-    LPCSDR_ERROR_NOT_FOUND = -3,         /* no matching device found */
-    LPCSDR_ERROR_DISCONNECTED = -4,      /* device unexpectedly disconnected */
-    LPCSDR_ERROR_BAD_ARGUMENT = -5,      /* bad argument to API call */
-    LPCSDR_ERROR_NO_MEMORY = -6,         /* memory allocation failed */
-    LPCSDR_ERROR_NOT_IMPLEMENTED = -7,   /* not implemented */
-    LPCSDR_ERROR_FIRMWARE_MISMATCH = -8, /* host/firmware version mismatch */
-    LPCSDR_ERROR_MULTIPLE_DEVICES = -9,  /* more than one device found */
-    LPCSDR_ERROR_BUSY = -10,             /* device already in use */
-    LPCSDR_ERROR_BAD_STATE = -11,        /* operation not possible in this state */
-    LPCSDR_ERROR_TIMEOUT = -12,          /* timed out waiting for data */
-    LPCSDR_ERROR_USB_IO = -13,           /* Bulk transfer I/O error */
-    LPCSDR_ERROR_CORRUPTION = -14,       /* Heap corruption or double-free detected */
-
-    /* firmware-generated errors */
-    LPCSDR_ERROR_FIRMWARE_FAILURE = -50, /* generic firmware error */
-    LPCSDR_ERROR_TUNER_I2C = -51,        /* tuner I2C communication error */
-    LPCSDR_ERROR_TUNER_NO_LOCK = -52,    /* tuner PLL lock failure */
-    LPCSDR_ERROR_CLOCK_I2C = -53,        /* clock I2C communication error */
-    LPCSDR_ERROR_CLOCK_NO_LOCK = -54,    /* clock PLL lock failure */
-    LPCSDR_ERROR_OUT_OF_RANGE = -55,     /* parameter value out of range */
+    LPCSDR_ERROR_NOT_FOUND = -1,          /* no matching device found */
+    LPCSDR_ERROR_DISCONNECTED = -2,       /* device unexpectedly disconnected */
+    LPCSDR_ERROR_BAD_ARGUMENT = -3,       /* bad argument to API call */
+    LPCSDR_ERROR_NO_MEMORY = -4,          /* memory allocation failed */
+    LPCSDR_ERROR_NOT_IMPLEMENTED = -5,    /* not implemented */
+    LPCSDR_ERROR_FIRMWARE_MISMATCH = -6,  /* host/firmware version mismatch */
+    LPCSDR_ERROR_MULTIPLE_DEVICES = -7,   /* more than one device found */
+    LPCSDR_ERROR_BUSY = -8,               /* device already in use */
+    LPCSDR_ERROR_BAD_STATE = -9,          /* operation not possible in this state */
+    LPCSDR_ERROR_TIMEOUT = -10,           /* operation timed out */
+    LPCSDR_ERROR_CORRUPTION = -11,        /* Heap corruption or double-free detected */
 
     /* firmware image errors */
     LPCSDR_ERROR_FWIMAGE_MISSING = -100,   /* firmware image not found */
-    LPCSDR_ERROR_FWIMAGE_UPLOAD = -104,    /* firmware image DFU upload failed */
-    LPCSDR_ERROR_FWIMAGE_TIMEOUT = -105,   /* firmware did not re-enumerate within timeout after firmware upload */
+    LPCSDR_ERROR_FWIMAGE_UPLOAD = -101,    /* firmware image DFU upload failed */
 
-    LPCSDR_ERROR_TRANSFER_ERROR = -200,         /* libusb transfer status not COMPLETED and not otherwise handled */
-    LPCSDR_ERROR_TRANSFER_STALL = -201,         /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
-    LPCSDR_ERROR_TRANSFER_OVERFLOW = -202,      /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
-    LPCSDR_ERROR_TRANSFER_FORMAT = -203,        /* malformed bulk transfer data */
+    /* libusb transfer errors */
+    LPCSDR_ERROR_TRANSFER_OTHER = -200,    /* libusb transfer status not COMPLETED and not otherwise handled */
+    LPCSDR_ERROR_TRANSFER_STALL = -201,    /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
+    LPCSDR_ERROR_TRANSFER_OVERFLOW = -202, /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
+    LPCSDR_ERROR_TRANSFER_FORMAT = -203,   /* malformed bulk transfer data */
 
-    /* Tuner errors */
-    LPCSDR_TUNER_REGISTER_SYMBOL_NOT_FOUND = -300, /* Could not find provided register symbol for a given register */
-    LPCSDR_TUNER_INIT_FAILED = -301,               /* TUNER_ID was not correct value. Tuner init failed somehow */
-    LPCSDR_TUNER_PLL_DIV_OUT_OF_RANGE = -302,      /* Requested PLL Divisor was our of range */
-    LPCSDR_TUNER_LOCK_ERR = -303,                   /* Tuner PLL could not get lock */
-    LPCSDR_TUNER_LPF_INVALID_ARG = -304,
+    /* Tuner/ADC setup errors */
+    LPCSDR_ERROR_TUNER_DETECT = -300,      /* could not detect tuner */
+    LPCSDR_ERROR_TUNER_PLL_LOCK = -301,    /* tuner LO PLL did not lock */
+    LPCSDR_ERROR_TUNER_PLL_RANGE = -302,   /* required tuner LO PLL frequency out of range */
+    LPCSDR_ERROR_TUNER_I2C = -303,         /* tuner I2C communication error */
+    LPCSDR_ERROR_ADC_RATE_RANGE = -304,    /* required ADC sample rate out of range */
 
     /* system call error range */
     LPCSDR_ERROR_SYSTEM_MAX = -1000,

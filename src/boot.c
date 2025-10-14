@@ -227,7 +227,7 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
 
         if (now.tv_sec > deadline.tv_sec || (now.tv_sec == deadline.tv_sec && now.tv_usec >= deadline.tv_usec)) {
             /* timed out */
-            error = LPCSDR_ERROR_FWIMAGE_TIMEOUT;
+            error = LPCSDR_ERROR_TIMEOUT;
             goto failed;
         }
 

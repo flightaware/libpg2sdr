@@ -163,7 +163,7 @@ int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
 
     if (!current_best.valid) {
         /* All candidates were rejected */
-        return LPCSDR_ERROR_OUT_OF_RANGE;
+        return LPCSDR_ERROR_ADC_RATE_RANGE;
     }
 
     *divisors = current_best;
