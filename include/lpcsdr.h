@@ -251,6 +251,28 @@ int lpcsdr_set_undersampling_mode(lpcsdr_device_handle *dev, int undersampling_m
 /* Get the current undersampling mode, and place in *undersampling_mode */
 int lpcsdr_get_undersampling_mode(lpcsdr_device_handle *dev, int *undersampling_mode);
 
+/* Set the ADC sampling rate limit, in Hz. liblpcsdr will not set the ADC to a rate higher
+ * than this limit.
+ *
+ * Limiting the ADC rate implicitly limits the available sampling rates. In LOWIF_REAL mode,
+ * the sampling rate is limited to the ADC rate. In BASEBAND mode, the complex sampling rate
+ * is limited to one-half of the ADC rate.
+ *
+ * The ADC sampling rate defaults to 28MHz. Higher limits can be set, but they are not very
+ * useful as the limiting factor becomes the speed of the USB bus.
+ *
+ * Setting a lower limit can be useful to limit the USB bandwidth used by a single device,
+ * if it is sharing a USB bus with other devices. Setting a lower limit also reduces the
+ * maximum CPU work required on the host.
+ *
+ * May be called at any time; does not affect the configuration of any currently active stream.
+ * Call lpcsdr_apply_changes to complete the configuration change.
+ */
+int lpcsdr_set_adc_limit(lpcsdr_device_handle *dev, double adc_limit);
+
+/* Get the current ADC limit, and place in *adc_limit */
+int lpcsdr_get_adc_limit(lpcsdr_device_handle *dev, double *adc_limit);
+
 /* Set the current sideband tuning mode.
  *
  * If upper_sideband is true, the tuner LO will be tuned below the requested frequency, and

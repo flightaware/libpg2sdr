@@ -180,6 +180,33 @@ int lpcsdr_get_undersampling_mode(lpcsdr_device_handle *dev, int *undersampling_
     return LPCSDR_SUCCESS;
 }
 
+int lpcsdr_set_adc_limit(lpcsdr_device_handle *dev, double adc_limit)
+{
+    CHECK_DEV(dev);
+
+    if (adc_limit <= 0 || adc_limit > 80e6)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+    if (dev->adc_limit != adc_limit) {
+        dev->adc_limit = adc_limit;
+        dev->changing_rate = true;
+    }
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_get_adc_limit(lpcsdr_device_handle *dev, double *adc_limit)
+{
+    CHECK_DEV(dev);
+    pthread_mutex_lock(&dev->mutex);
+    if (adc_limit)
+        *adc_limit = dev->adc_limit;
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
 int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband)
 {
     CHECK_DEV(dev);
