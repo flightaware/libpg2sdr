@@ -44,6 +44,8 @@ static std::string setting_sideband_lower = "lower";
 static std::string setting_sideband_upper = "upper";
 static std::string setting_sideband_auto = "auto";
 
+static std::string setting_adc_limit = "adc_limit";
+
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
 static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
@@ -414,8 +416,11 @@ std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const siz
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
 
+    double adc_limit;
+    LIBCALL(lpcsdr_get_adc_limit, &adc_limit);
+
     std::vector<double> result;
-    for (auto i = 1; i <= 30; ++i)
+    for (auto i = 1; i <= adc_limit / 0.5e6 / 2.0; ++i)
         result.push_back(i * 0.5e6);
     return result;
 }
@@ -425,8 +430,11 @@ SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const 
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
 
+    double adc_limit;
+    LIBCALL(lpcsdr_get_adc_limit, &adc_limit);
+
     SoapySDR::RangeList ranges;
-    ranges.push_back(SoapySDR::Range(0.5, 15.0));
+    ranges.push_back(SoapySDR::Range(1, adc_limit / 2.0));
     return ranges;
 }
 
@@ -575,6 +583,17 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 
     args.push_back(sideband);
 
+    SoapySDR::ArgInfo adc_limit;
+    adc_limit.key = setting_adc_limit;
+    adc_limit.value = "28.0";
+    adc_limit.name = "Maximum ADC sampling rate";
+    adc_limit.description = "Maximum ADC sampling rate that liblpcsdr will use";
+    adc_limit.type = SoapySDR::ArgInfo::Type::FLOAT;
+    adc_limit.units = "MHz";
+    adc_limit.range = SoapySDR::Range(0, 80);
+
+    args.push_back(adc_limit);
+
     return args;
 }
 
@@ -641,6 +660,13 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
             PauseStreamGuard pause_stream(*this);
             LIBCALL(lpcsdr_set_sideband, sideband);
         }
+    } else if (key == setting_adc_limit) {
+        double limit = std::stod(value) * 1e6;
+
+        {
+            PauseStreamGuard pause_stream(*this);
+            LIBCALL(lpcsdr_set_adc_limit, limit);
+        }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
     }
@@ -690,6 +716,10 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
         default:
             throw std::runtime_error("bad sideband_mode_ value");
         }
+    } else if (key == setting_adc_limit) {
+        double limit;
+        LIBCALL(lpcsdr_get_adc_limit, &limit);
+        return std::to_string(limit / 1e6);
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
     }
