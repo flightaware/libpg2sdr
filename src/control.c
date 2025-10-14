@@ -45,6 +45,19 @@ static int control_out(libusb_device_handle *usb_handle,
     return LPCSDR_SUCCESS;
 }
 
+/* For tuner-specific control transfers, try to refine LIBUSB_ERROR_PIPE */
+static int convert_tuner_error(lpcsdr_device_handle *dev, int error)
+{
+    if (error == (LPCSDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
+        /* check if an I2C error was seen */
+        ep0_in_board_status_t status;
+        if (lpcsdr__ctrl_get_status(dev, &status) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
+            return LPCSDR_ERROR_TUNER_I2C;
+    }
+
+    return error;
+}
+
 int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config)
 {
     ep0_out_start_transfer_t buffer = {
@@ -178,12 +191,12 @@ int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle)
 
 int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
 {   
-    return control_out(dev->usb_handle,
-                       EP0_OUT_TUNER_UPDATE,
-                       first,
-                       0,
-                       (unsigned char *) payload,
-                       payload_size);
+    return convert_tuner_error(dev, control_out(dev->usb_handle,
+                                                EP0_OUT_TUNER_UPDATE,
+                                                first,
+                                                0,
+                                                (unsigned char *) payload,
+                                                payload_size));
 }
 
 int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode)
@@ -198,22 +211,22 @@ int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode)
 
 int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size)
 {
-    return control_in(dev->usb_handle,
-                      EP0_IN_TUNER_READ,
-                      first_reg,
-                      (uint16_t) cache_mode,
-                      buffer,
-                      buffer_size);
+    return convert_tuner_error(dev, control_in(dev->usb_handle,
+                                               EP0_IN_TUNER_READ,
+                                               first_reg,
+                                               (uint16_t) cache_mode,
+                                               buffer,
+                                               buffer_size));
 }
 
 int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout) {
     ep0_in_tuner_lock_t out;
-    int error =  control_in(dev->usb_handle,
-                       EP0_IN_TUNER_LOCK,
-                       vco_current,
-                       timeout,
-                       (unsigned char *) &out,
-                       sizeof(out));
+    int error = convert_tuner_error(dev, control_in(dev->usb_handle,
+                                                    EP0_IN_TUNER_LOCK,
+                                                    vco_current,
+                                                    timeout,
+                                                    (unsigned char *) &out,
+                                                    sizeof(out)));
 
     if (error < 0)
         return error;
