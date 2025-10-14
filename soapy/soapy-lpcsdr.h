@@ -236,6 +236,7 @@ class LPCSDRDevice : public SoapySDR::Device
     void tryApplyChanges() const;
 
     enum class GainElementMode { INDIVIDUAL, TOTAL, BOTH };
+    enum class SidebandMode { LOWER, UPPER, AUTO };
 
     mutable std::mutex mutex_;                      // protects active_stream_
     mutable LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
@@ -254,6 +255,9 @@ class LPCSDRDevice : public SoapySDR::Device
 
     // requested bandwidth (0 = not set)
     double bandwidth_;
+
+    // sideband mode
+    SidebandMode sideband_mode_;
 
     friend class PauseStreamGuard;
 };

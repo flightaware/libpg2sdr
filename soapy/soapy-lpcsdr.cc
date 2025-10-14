@@ -37,6 +37,11 @@ static std::string gain_element_MIX = "MIX";
 static std::string gain_element_VGA = "VGA";
 static std::string gain_element_ALL = "ALL";
 
+static std::string setting_sideband = "sideband";
+static std::string setting_sideband_lower = "lower";
+static std::string setting_sideband_upper = "upper";
+static std::string setting_sideband_auto = "auto";
+
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
 static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
@@ -194,7 +199,8 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle)
     : ctx_(std::move(ctx)),
       handle_(handle),
       gain_element_mode_(GainElementMode::INDIVIDUAL),
-      bandwidth_(-1)
+      bandwidth_(-1),
+      sideband_mode_(SidebandMode::AUTO)
 {
     LIBCALL(lpcsdr_set_buffer_size, 128*1024);
     LIBCALL(lpcsdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
@@ -305,7 +311,22 @@ void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const
 
     // extend the tuning range a little by using low-sideband for low frequencies, high-sideband
     // for high frequencies. (todo: should we have hysteresis here, rather than just a single boundary?)
-    LIBCALL(lpcsdr_set_sideband, frequency > 1e9 ? true : false);
+    bool sideband;
+    switch (sideband_mode_) {
+    case SidebandMode::LOWER:
+        sideband = false;
+        break;
+    case SidebandMode::UPPER:
+        sideband = true;
+        break;
+    case SidebandMode::AUTO:
+        sideband = (frequency > 1e9);
+        break;
+    default:
+        throw std::runtime_error("bad sideband_mode_ value");
+    }
+
+    LIBCALL(lpcsdr_set_sideband, sideband);
     LIBCALL(lpcsdr_set_frequency, frequency);
     tryApplyChanges();
 }
@@ -523,6 +544,25 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 
     args.push_back(gain);
 
+    SoapySDR::ArgInfo sideband;
+    sideband.key = setting_sideband;
+    sideband.value = setting_sideband_auto;
+    sideband.name = "Sideband tuning";
+    sideband.description = "Sets tuner LO position relative to tuned frequency";
+    sideband.type = SoapySDR::ArgInfo::Type::STRING;
+    sideband.options = std::vector<std::string> {
+        setting_sideband_lower,
+        setting_sideband_upper,
+        setting_sideband_auto
+    };
+    sideband.optionNames = std::vector<std::string> {
+        /* lower */ "Tune tuner LO above requested frequency, capture lower sideband",
+        /* upper */ "Tune tuner LO below requested frequency, capture upper sideband",
+        /* auto */  "Select sideband based on tuned frequency to extend tuning range"
+    };
+
+    args.push_back(sideband);
+
     return args;
 }
 
@@ -560,6 +600,28 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
         } else {
             throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
         }
+    } else if (key == setting_sideband) {
+        bool sideband;
+        if (value == setting_sideband_lower) {
+            sideband_mode_ = SidebandMode::LOWER;
+            sideband = false;
+        } else if (value == setting_sideband_upper) {
+            sideband_mode_ = SidebandMode::UPPER;
+            sideband = true;
+        } else if (value == setting_sideband_auto) {
+            sideband_mode_ = SidebandMode::AUTO;
+
+            double freq;
+            LIBCALL(lpcsdr_get_frequency, &freq, NULL);
+            sideband = (freq > 1e9);
+        } else {
+            throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
+        }
+
+        {
+            PauseStreamGuard pause_stream(*this);
+            LIBCALL(lpcsdr_set_sideband, sideband);
+        }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
     }
@@ -593,6 +655,17 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
             return setting_gain_config_both;
         default:
             throw std::runtime_error("bad gain_element_mode_ value");
+        }
+    } else if (key == setting_sideband) {
+        switch (sideband_mode_) {
+        case SidebandMode::LOWER:
+            return setting_sideband_lower;
+        case SidebandMode::UPPER:
+            return setting_sideband_upper;
+        case SidebandMode::AUTO:
+            return setting_sideband_auto;
+        default:
+            throw std::runtime_error("bad sideband_mode_ value");
         }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
