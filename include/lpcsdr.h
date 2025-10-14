@@ -235,6 +235,31 @@ int lpcsdr_set_decimation_mode(lpcsdr_device_handle *dev, int decimation_mode);
 /* Get the currently requested decimation mode and store it in *decimation_mode */
 int lpcsdr_get_decimation_mode(lpcsdr_device_handle *dev, int *decimation_mode);
 
+/* Set the current undersampling mode.
+ *
+ * The default mode (1) corresponds to the normal case where the ADC samples at
+ * some rate Fs, and we arrange for the IF signal to be contained between 0 .. Fs/2
+ *
+ * For values N>1, the ADC will sample at Fs but the IF signal will be contained
+ * between (N-1)*Fs/2 and N*Fs/2. For example, N=2 places the IF signal between
+ * Fs/2 and Fs.
+ *
+ * N>1 causes undersampling or bandpass sampling to happen - the IF signal is above
+ * the Nyquist frequency for the ADC's sample rate. One of the spectral replicas
+ * of the IF signal will lie between 0..Fs/2, and it is this replica/alias that is
+ * captured by the ADC.
+ *
+ * Undersampling can help in cases where there's no suitable tuner bandpass filter
+ * available for f < Fs/2. There are tradeoffs, notably increased noise.
+ *
+ * May be called at any time; does not affect the configuration of any currently active stream.
+ * Call lpcsdr_apply_changes to complete the configuration change.
+ */
+int lpcsdr_set_undersampling_mode(lpcsdr_device_handle *dev, int undersampling_mode);
+
+/* Get the current undersampling mode, and place in *undersampling_mode */
+int lpcsdr_get_undersampling_mode(lpcsdr_device_handle *dev, int *undersampling_mode);
+
 /* Set the current sideband tuning mode.
  *
  * If upper_sideband is true, the tuner LO will be tuned below the requested frequency, and

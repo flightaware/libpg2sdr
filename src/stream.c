@@ -136,6 +136,14 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
     const uint32_t spb = dev->usb_samples_per_block;
     const uint32_t swpb = spb / 8 * 3; /* "sample words per block", number of uint32_t words of sample data per block */
 
+    /* We might need to un-invert the spectrum while converting ADC data.
+     *
+     * Lower sideband tuning causes spectrum inversion;
+     * even-mode undersampling (N=2,4,...) also causes spectrum inversion;
+     * if both apply, they cancel out.
+     */
+    const bool inverted_spectrum = (!dev->upper_sideband) ^ ((dev->undersampling_mode & 1) == 0);
+
     switch(dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
         {
@@ -150,11 +158,10 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
         {
             /* unpack ADC data into work_buffer[0] */
             unsigned count = 0;
-            if (dev->upper_sideband) {
+            if (!inverted_spectrum) {
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
                     unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             } else {
-                /* low sideband tuning gives us inverted-spectrum ADC data; invert it again to reverse that, as we convert */
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
                     unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             }

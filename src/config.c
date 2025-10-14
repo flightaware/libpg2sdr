@@ -153,6 +153,33 @@ int lpcsdr_get_decimation_mode(lpcsdr_device_handle *dev, int *decimation_mode)
     return LPCSDR_SUCCESS;
 }
 
+int lpcsdr_set_undersampling_mode(lpcsdr_device_handle *dev, int undersampling_mode)
+{
+    CHECK_DEV(dev);
+
+    if (undersampling_mode <= 0)
+        return LPCSDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+    if (dev->undersampling_mode != undersampling_mode) {
+        dev->undersampling_mode = undersampling_mode;
+        dev->changing_rate = true;
+    }
+
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
+int lpcsdr_get_undersampling_mode(lpcsdr_device_handle *dev, int *undersampling_mode)
+{
+    CHECK_DEV(dev);
+    pthread_mutex_lock(&dev->mutex);
+    if (undersampling_mode)
+        *undersampling_mode = dev->undersampling_mode;
+    pthread_mutex_unlock(&dev->mutex);
+    return LPCSDR_SUCCESS;
+}
+
 int lpcsdr_set_sideband(lpcsdr_device_handle *dev, bool upper_sideband)
 {
     CHECK_DEV(dev);
@@ -320,18 +347,22 @@ static double actual_bandpass_high(lpcsdr_device_handle *dev)
         return (center - dev->current_bandpass_entry->upper_corner);
 }
 
+static double undersampling_offset(lpcsdr_device_handle *dev)
+{
+    return (dev->undersampling_mode - 1) * dev->adc_pll_config.actual_frequency / 2.0;
+}
 
 static double lo_offset(lpcsdr_device_handle *dev)
 {
     switch (dev->conversion_mode) {
     case LPCSDR_MODE_LOWIF_REAL:
-        return 0;
+        return undersampling_offset(dev) * (dev->upper_sideband ? -1.0 : 1.0);
 
     case LPCSDR_MODE_BASEBAND:
         /* lower sideband case: LO = freq + Fs/4
          * upper sideband case: LO = freq - Fs/4
          */
-        return (dev->adc_pll_config.actual_frequency / 4.0) * (dev->upper_sideband ? -1.0 : 1.0);
+        return (dev->adc_pll_config.actual_frequency / 4.0 + undersampling_offset(dev)) * (dev->upper_sideband ? -1.0 : 1.0);
 
     default:
         return 0;
@@ -536,8 +567,9 @@ static int apply_bandpass_change(lpcsdr_device_handle *dev)
      * (low-IF case is similar, but we tune the LO directly
      *  to the requested frequency)
      */
-    const double nyquist = dev->adc_pll_config.actual_frequency / 2.0; /* LPF cutoff should not exceed this, to avoid aliasing in the ADC itself */
     const double center = center_if_frequency(dev);   /* IF frequency where the tuned RF frequency appears; this will end up at 0Hz in user samples */
+    const double nyquist_low = undersampling_offset(dev);                                 /* low edge of unaliased bandpass sampling range */
+    const double nyquist_high = nyquist_low + dev->adc_pll_config.actual_frequency / 2.0; /* high edge of unaliased bandpass sampling range */
 
     double l, h;
     if (dev->upper_sideband) {
@@ -548,17 +580,18 @@ static int apply_bandpass_change(lpcsdr_device_handle *dev)
         h = center - dev->requested_bandpass_low;
     }
 
-    if (l < 0)
-        l = 0;
-    if (h > nyquist)
-        h = nyquist;
 
-    LOGDEBUG(dev, "IF bandpass filter constraints: (%.3f .. %.3f), <%.3f MHz",
-             l/1e6, h/1e6, nyquist/1e6);
+    if (l < nyquist_low)
+        l = nyquist_low;
+    if (h > nyquist_high)
+        h = nyquist_high;
+
+    LOGDEBUG(dev, "IF bandpass filter constraints: signal (%.3f .. %.3f), Nyquist (%.3f .. %.3f) MHz",
+             l/1e6, h/1e6, nyquist_low/1e6, nyquist_high/1e6);
 
     const lpcsdr_bandpass_table_t *settings = lpcsdr__select_bandpass_filter(dev,
                                                                              /* wanted signal bandpass */ l, h,
-                                                                             /* Nyquist limits */ 0, nyquist);
+                                                                             /* Nyquist limits */ nyquist_low, nyquist_high);
 
     if (dev->current_bandpass_entry && tuner_bandpass_equal(settings, dev->current_bandpass_entry)) {
         /* no work to do */

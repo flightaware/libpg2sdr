@@ -43,6 +43,7 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     dev->changing_bandpass = false;
 
     dev->decimation_mode = LPCSDR_DECIMATION_AUTO;
+    dev->undersampling_mode = 1;
 
     dev->usb_bytes_per_block = status.usb_bytes_per_block;
     dev->usb_samples_per_block = status.usb_samples_per_block;

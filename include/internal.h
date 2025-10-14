@@ -93,6 +93,7 @@ struct lpcsdr_device_handle {
     size_t buffer_size;                   /* requested user buffer size, counted in user samples */
 
     int decimation_mode;                  /* decimation mode: LPCSDR_DECIMATION_AUTO, or >=0 for manual */
+    int undersampling_mode;               /* undersampling mode: 1 for normal case, >1 for using a particular alias */
 
     /* current tuner gain steps (0-15) */
     unsigned lna_gain;
