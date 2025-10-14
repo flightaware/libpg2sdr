@@ -446,6 +446,7 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
     }
 
     free(dev->gain_table);
+    free(dev->bandpass_table);
 
     libusb_close(dev->usb_handle);
     dev->magic = MAGIC_FREE;
