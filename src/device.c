@@ -71,6 +71,8 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     return LPCSDR_SUCCESS;
 
 cleanup:
+    free(dev->bandpass_table);
+    free(dev->gain_table);
     pthread_mutex_destroy(&dev->mutex);
 
 cleanup_nomutex:
