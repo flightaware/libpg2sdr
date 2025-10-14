@@ -198,7 +198,7 @@ static SoapySDR::Range simple_gain_range(double *table)
 LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle)
     : ctx_(std::move(ctx)),
       handle_(handle),
-      gain_element_mode_(GainElementMode::INDIVIDUAL),
+      gain_element_mode_(GainElementMode::BOTH),
       bandwidth_(-1),
       sideband_mode_(SidebandMode::AUTO)
 {
@@ -526,7 +526,7 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
 
     SoapySDR::ArgInfo gain;
     gain.key = setting_gain_config;
-    gain.value = setting_gain_config_individual;
+    gain.value = setting_gain_config_both;
     gain.name = "Gain element configuration";
     gain.description =
         "Controls how the internal gain elements are exposed to the SoapySDR client";
