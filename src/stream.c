@@ -228,8 +228,9 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
     ep1_header_t h;
     unpack_header(data, &h);
 
-    buffer->timestamp = h.sequence * dev->usb_samples_per_block / dev->adc_samples_per_user_sample;
+    buffer->timestamp = (h.sequence * dev->usb_samples_per_block - dev->partial_samples) / dev->adc_samples_per_user_sample;
     buffer->count = count;
+    dev->partial_samples = (dev->partial_samples + adc_samples) % dev->adc_samples_per_user_sample;
 
     bool result = callback(buffer, user_data);
     if (result) {
@@ -301,6 +302,8 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             }
         }
     }
+
+    dev->partial_samples = 0;
 
     /* clear any endpoint halt first */
     if ((usb_error = libusb_clear_halt(dev->usb_handle, 0x81)) < 0) {
