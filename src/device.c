@@ -205,7 +205,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
 
         lpc_devices_to_return[matched]->context = ctx;
         lpc_devices_to_return[matched]->mode = mode;
-        static_assert(sizeof(lpc_devices_to_return[matched]->serial) == sizeof(serial));
+        static_assert(sizeof(lpc_devices_to_return[matched]->serial) == sizeof(serial), "serial field size mismatch");
         memcpy(lpc_devices_to_return[matched]->serial, serial, sizeof(serial));
         lpc_devices_to_return[matched]->usb_bus = libusb_get_bus_number(usb_dev);
         lpc_devices_to_return[matched]->usb_address = libusb_get_device_address(usb_dev);
