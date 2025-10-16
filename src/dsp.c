@@ -176,7 +176,7 @@ void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
     memset_elements(state->history, 0, state->history_len);
 }
 
-static uint32_t fs4_mix(const int16_t *in, uint32_t in_length, cs16_t *out)
+static uint32_t fs4_mix(const int16_t * restrict in, uint32_t in_length, cs16_t * restrict out)
 {
     assert (in_length % 4 == 0);
     for (uint32_t i = 0; i < in_length; i += 4, in += 4, out += 4) {
