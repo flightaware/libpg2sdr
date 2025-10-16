@@ -35,8 +35,8 @@ uint32_t lpcsdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const i
 void lpcsdr__dsp_downconvert_free(dsp_downconvert_state_t *state);
 void lpcsdr__dsp_downconvert_reset(dsp_downconvert_state_t *state);
 
-extern unsigned lpcsdr__standard_filter_ntaps;
-extern float lpcsdr__standard_filter_taps[];
+extern const unsigned lpcsdr__standard_filter_ntaps;
+extern const float lpcsdr__standard_filter_taps[];
 
 #if defined(__cplusplus)
 }

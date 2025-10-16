@@ -1,12 +1,12 @@
 #include "internal.h"
 
-float lpcsdr__standard_filter_taps[] = {
+const float lpcsdr__standard_filter_taps[] = {
     -0.00105091, 0, 0.00250767, 0, -0.0048923, 0, 0.00855213, 0, -0.0139827, 0, 0.0220117,  0, -0.0343224, 0, 0.0552597,  0, -0.100878,   0, 0.316537,
     0.5,
     0.316537, 0, -0.100878,   0, 0.0552597,  0, -0.0343224, 0, 0.0220117,  0, -0.0139827, 0, 0.00855213, 0, -0.0048923, 0, 0.00250767, 0, -0.00105091,
 };
 
-unsigned lpcsdr__standard_filter_ntaps = sizeof(lpcsdr__standard_filter_taps) / sizeof(lpcsdr__standard_filter_taps[0]);
+const unsigned lpcsdr__standard_filter_ntaps = sizeof(lpcsdr__standard_filter_taps) / sizeof(lpcsdr__standard_filter_taps[0]);
 
 static uint32_t halfband_decimate_block(const unsigned int ntaps, const int16_t *taps, const cs16_t *in, uint32_t in_length, cs16_t *out)
 {
