@@ -16,6 +16,7 @@ typedef struct {
     cs16_t *history;
     unsigned int history_max;
     unsigned int history_len;
+    unsigned int context_len;
 } dsp_halfband_decimate_state_t;
 
 int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, dsp_halfband_decimate_state_t **result);

@@ -8,9 +8,12 @@ const float lpcsdr__standard_filter_taps[] = {
 
 const unsigned lpcsdr__standard_filter_ntaps = sizeof(lpcsdr__standard_filter_taps) / sizeof(lpcsdr__standard_filter_taps[0]);
 
-static uint32_t halfband_decimate_block(const unsigned int ntaps, const int16_t *taps, const cs16_t *in, uint32_t in_length, cs16_t *out)
+static uint32_t halfband_decimate_block(const dsp_halfband_decimate_state_t *state, const cs16_t * restrict in, uint32_t in_length, cs16_t * restrict out)
 {
     assert (in_length % 2 == 0);
+
+    const unsigned ntaps = state->ntaps;
+    const int16_t * restrict taps = state->taps;
 
     const unsigned center_tap_offset = (ntaps-1)/2;
     const int16_t center_tap = taps[center_tap_offset];
@@ -37,63 +40,20 @@ static uint32_t halfband_decimate_block(const unsigned int ntaps, const int16_t 
     return out_index;
 }
 
-uint32_t lpcsdr__dsp_halfband_decimate_process(dsp_halfband_decimate_state_t *state, const cs16_t *in, uint32_t in_length, cs16_t *out)
-{
-    const unsigned ntaps = state->ntaps;
-    const int16_t *taps = state->taps;
-    cs16_t *history = state->history;
-    const unsigned history_len = state->history_len;
-    const unsigned history_max = state->history_max;
-
-    unsigned history_fill = history_max - history_len; /* elements required to completely fill the history buffer */
-    if (history_fill > in_length)                      /* .. but we can't fill with more elements than we have available */
-        history_fill = in_length;
-    memcpy_elements(history + history_len, in, history_fill); /* fill the history buffer */
-
-    const unsigned history_available = history_len + history_fill;             /* elements in the history buffer, including what we just copied */
-    if (history_available < ntaps) {
-        /* not enough history to do any useful processing, just retain what we have */
-        state->history_len = history_available;
-        return 0;
-    }
-
-    /* if history_available == ntaps, we can process 1 window
-     * if history_available == ntaps + 1, we can process 2 windows
-     * etc
-     */
-    const unsigned history_processed = (history_available - ntaps + 1) & ~1; /* number of windows we can process from the history buffer, multiple of 2 */
-    if (!history_processed) {
-        /* not enough history to do any useful processing, just retain what we have */
-        state->history_len = history_available;
-        return 0;
-    }
-
-    uint32_t out_produced = halfband_decimate_block(ntaps, taps, history, history_processed, out);
-
-    /* First unprocessed window in history starts at history[history_processed].
-     * We copied in[0] to history[history_len].
-     * So the first unprocessed window in input data starts at in[history_processed - history_len]
-     */
-    if (history_processed < history_len) {
-        /* no further data to process in the input, just shift history down */
-        memmove_elements(history, history + history_processed, history_available - history_processed);
-        state->history_len = history_available - history_processed;
-        return out_produced;
-    }
-
-    const unsigned offset = history_processed - history_len;                  /* offset in input of first unprocessed window */
-    const unsigned main_processed = ((in_length - offset) - ntaps + 1) & ~1;  /* number of windows we can process from the input buffer, multiple of 2 */
-
-    /* process the main block */
-    out_produced += halfband_decimate_block(ntaps, taps, in + offset, main_processed, out + out_produced);
-
-    /* preserve history starting from the first unprocessed window in input data */
-    const unsigned input_consumed = offset + main_processed;
-    memcpy_elements(history, in + input_consumed, in_length - input_consumed);
-    state->history_len = in_length - input_consumed;
-
-    return out_produced;
-}
+/* Build the history-processing wrapper */
+#define PROCESS_FN lpcsdr__dsp_halfband_decimate_process
+#define BLOCK_FN halfband_decimate_block
+#define STATE_TYPE dsp_halfband_decimate_state_t
+#define IN_TYPE cs16_t
+#define OUT_TYPE cs16_t
+#define IN_BLOCK_LEN 2
+# include "dsp-history.inc"
+#undef PROCESS_FN
+#undef BLOCK_FN
+#undef STATE_TYPE
+#undef IN_TYPE
+#undef OUT_TYPE
+#undef IN_BLOCK_LEN
 
 int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, dsp_halfband_decimate_state_t **result)
 {
@@ -134,7 +94,8 @@ int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *h
         first_nonzero = 0;
         state->ntaps = halfband_ntaps;
     }
-    state->history_max = state->ntaps * 2 + 2;
+    state->context_len = state->ntaps + 1;
+    state->history_max = state->context_len * 2;
 
     if (!(state->taps = malloc(state->ntaps * sizeof(int16_t))) ||
         !(state->history = malloc(state->history_max * sizeof(cs16_t)))) {
