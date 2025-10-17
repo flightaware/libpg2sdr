@@ -20,6 +20,9 @@ TEST(DSPDecimateTests, ImpulseResponse)
     // in the I and Q parts of the input at a 1-sample offset.
 
     size_t in_len = lpcsdr__standard_filter_ntaps;
+    if (in_len % 2 == 1)
+        ++in_len;
+
     cs16_t *in = new cs16_t[in_len];
     for (auto i = 0; i < in_len; ++i) {
         in[i].i = 0;
@@ -29,15 +32,14 @@ TEST(DSPDecimateTests, ImpulseResponse)
     in[0].i = 32767;
     in[1].q = 32767;
 
-    size_t out_len = in_len / 2 + 2;
-    cs16_t *out = new cs16_t[out_len];
+    size_t out_len = in_len / 2;
+    cs16_t *out = new cs16_t[out_len + 2];
 
     dsp_halfband_decimate_state_t *state;
     ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
     
     auto produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
-    ASSERT_LE(produced, out_len);
-
+    ASSERT_EQ(produced, out_len);
     auto center_tap_offset = state->ntaps/2;
     auto center_tap_value = state->taps[center_tap_offset];
 
@@ -136,23 +138,32 @@ TEST(DSPDecimateTests, AvoidOverflow)
     dsp_halfband_decimate_state_t *state;
     ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
 
-    uint32_t in_len = state->ntaps + 1;
+    size_t in_len = state->ntaps;
+    if (in_len % 2 == 1)
+        ++in_len; // Pad to even length
+
     cs16_t *in = new cs16_t[in_len];
-    for (auto i = 0; i < in_len; ++i) {
-        if (i < state->ntaps && state->taps[i] < 0) {
+    for (auto i = 0; i < state->ntaps; ++i) {
+        if (i >= state->ntaps) {
+            in[i].i = 0;
+            in[i].q = 0;
+        } else if (state->taps[i] < 0) {
             in[i].i = -32768;
             in[i].q = -32768;
-        } else {
+        } else if (state->taps[i] > 0) {
             in[i].i = 32767;
             in[i].q = 32767;
+        } else {
+            in[i].i = 0;
+            in[i].q = 0;
         }
     }
 
-    uint32_t out_len = in_len / 2;
+    size_t out_len = in_len / 2;
     cs16_t *out = new cs16_t[out_len];
 
     uint32_t produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
-    ASSERT_LE(produced, out_len);
+    ASSERT_EQ(produced, out_len);
 
     // Look at the final produced output, which should correspond to when our input
     // is exactly lined up with the full set of taps.
