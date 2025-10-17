@@ -82,31 +82,36 @@ int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *h
     if (!state)
         return LPCSDR_ERROR_NO_MEMORY;
 
-    unsigned first_nonzero;
     if (halfband_ntaps % 4 == 1) {
         /* First nonzero tap is at index 1 */
         assert(halfband_taps[0] == 0.0);
-        first_nonzero = 1;
-        state->ntaps = halfband_ntaps - 2;
+        halfband_taps += 1;
+        halfband_ntaps -= 2;
     } else {
         /* First nonzero tap must be at index 0 */
         assert(halfband_taps[0] != 0.0);
-        first_nonzero = 0;
-        state->ntaps = halfband_ntaps;
     }
-    state->context_len = state->ntaps + 1;
+
+    state->ntaps = halfband_ntaps;
+    state->context_len = state->ntaps;
     state->history_max = state->context_len * 2;
 
-    if (!(state->taps = malloc(state->ntaps * sizeof(int16_t))) ||
-        !(state->history = malloc(state->history_max * sizeof(cs16_t)))) {
+    /* pad out actually allocated taps space to a multiple of 4 for the NEON implementation */
+    unsigned ntapspad = state->ntaps + (4 - state->ntaps % 4);
+
+    if (!(state->taps = aligned_alloc(16, ntapspad * sizeof(int16_t))) ||
+        !(state->history = aligned_alloc(16, state->history_max * sizeof(cs16_t)))) {
         error = LPCSDR_ERROR_NO_MEMORY;
         goto fail;
     }
 
     /* scale taps so that the output cannot ever overflow a Q15 representation */
     float scale = 32767 / sum_taps;
-    for (unsigned i = 0; i < state->ntaps; ++i) {
-        state->taps[i] = (int16_t)(halfband_taps[first_nonzero + i] * scale + 0.5);
+    for (unsigned i = 0; i < ntapspad; ++i) {
+        if (i < halfband_ntaps)
+            state->taps[i] = (int16_t)(halfband_taps[i] * scale + 0.5);
+        else
+            state->taps[i] = 0;
     }
 
     lpcsdr__dsp_halfband_decimate_reset(state);
@@ -133,7 +138,7 @@ void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
     if (!state)
         return;
 
-    state->history_len = state->ntaps - 1;
+    state->history_len = state->context_len - 1;
     memset_elements(state->history, 0, state->history_len);
 }
 
