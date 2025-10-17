@@ -8,36 +8,30 @@ const float lpcsdr__standard_filter_taps[] = {
 
 const unsigned lpcsdr__standard_filter_ntaps = sizeof(lpcsdr__standard_filter_taps) / sizeof(lpcsdr__standard_filter_taps[0]);
 
-static uint32_t halfband_decimate_block(const dsp_halfband_decimate_state_t *state, const cs16_t * restrict in, uint32_t in_length, cs16_t * restrict out)
+static uint32_t halfband_decimate_block(const dsp_halfband_decimate_state_t *state, const cs16_t * restrict in, uint32_t count, cs16_t * restrict out)
 {
-    assert (in_length % 2 == 0);
-
     const unsigned ntaps = state->ntaps;
     const int16_t * restrict taps = state->taps;
-
     const unsigned center_tap_offset = (ntaps-1)/2;
     const int16_t center_tap = taps[center_tap_offset];
 
-    uint32_t window_end = 0;
-    uint32_t out_index = 0;
-    for (; window_end < in_length; window_end += 2, out_index++) {
-        int32_t q_sum = center_tap * in[window_end + center_tap_offset].q;
-        int32_t i_sum = center_tap * in[window_end + center_tap_offset].i;
-        uint32_t tap_pointer = 0;
-        uint32_t current = window_end;
+    assert(count % 2 == 0);
 
-        while (tap_pointer < ntaps) {
-            q_sum += (taps[tap_pointer] * in[current].q);
-            i_sum += (taps[tap_pointer] * in[current].i); 
-            tap_pointer += 2;
-            current += 2;
+    uint32_t out_i = 0;
+    for (uint32_t i = 0; i < count; i += 2, out_i += 1) {
+        int32_t sum_i = center_tap * in[i + center_tap_offset].i;
+        int32_t sum_q = center_tap * in[i + center_tap_offset].q;
+        const cs16_t * restrict inp = in + i;
+        for (uint32_t j = 0; j < ntaps; j += 2, inp += 2) {
+            sum_i += inp->i * taps[j];
+            sum_q += inp->q * taps[j];
         }
 
-        out[out_index].i = (int16_t) (i_sum >> 15);
-        out[out_index].q = (int16_t) (q_sum >> 15);
+        out[out_i].i = (int16_t) (sum_i >> 15);
+        out[out_i].q = (int16_t) (sum_q >> 15);
     }
 
-    return out_index;
+    return out_i;
 }
 
 /* Build the history-processing wrapper */
