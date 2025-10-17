@@ -41,6 +41,8 @@ add_library(lpcsdr STATIC
 target_compile_options(lpcsdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE)
 target_include_directories(lpcsdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(lpcsdr PRIVATE ${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
+set_target_properties(lpcsdr PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
 
 target_include_directories(lpcsdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
 target_compile_options(lpcsdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
