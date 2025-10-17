@@ -4,6 +4,14 @@ using namespace testing;
 #include "lpcsdr.h"
 #include "dsp.h"
 
+TEST(DSPTests, DataTypes)
+{
+    static_assert(alignof(cs16_t) == alignof(int16_t));
+    static_assert(sizeof(cs16_t) == 2 * alignof(int16_t));
+    static_assert(offsetof(cs16_t, i) == 0);
+    static_assert(offsetof(cs16_t, q) == sizeof(int16_t));
+}
+
 TEST(DSPDecimateTests, ImpulseResponse)
 {
     // Feed an impulse to the decimator and check that the impulse response

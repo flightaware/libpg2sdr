@@ -6,6 +6,6 @@
 typedef struct {
     int16_t i;
     int16_t q;
-} __attribute__((packed)) cs16_t;
+} cs16_t;
 
 #endif /* LPCSDR_DSP_TYPES_H */
