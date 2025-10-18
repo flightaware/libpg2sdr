@@ -8,8 +8,11 @@ const float lpcsdr__standard_filter_taps[] = {
 
 const unsigned lpcsdr__standard_filter_ntaps = sizeof(lpcsdr__standard_filter_taps) / sizeof(lpcsdr__standard_filter_taps[0]);
 
-#if defined(__ARM_NEON)
+#ifdef HAVE_NEON
 
+#ifndef __ARM_NEON
+#  error HAVE_NEON was set, but Neon does not seem to be available
+#endif
 #include <arm_neon.h>
 
 __attribute__((optimize("no-tree-vectorize"))) /* turn off auto-vectorization */

@@ -40,13 +40,13 @@ add_library(lpcsdr STATIC
   ${CMAKE_CURRENT_BINARY_DIR}/gain-tables.gen.c
   ${CMAKE_CURRENT_BINARY_DIR}/bandpass-table.gen.c)
 
-set_source_files_properties(dsp.c PROPERTIES COMPILE_OPTIONS "${NEON_EXTRA_FLAGS}")
-
 target_compile_options(lpcsdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE)
 target_include_directories(lpcsdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(lpcsdr PRIVATE ${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
 set_target_properties(lpcsdr PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-
+if(HAVE_NEON)
+  set_source_files_properties(dsp.c PROPERTIES COMPILE_OPTIONS "-DHAVE_NEON;${NEON_COMPILE_OPTIONS}")
+endif()
 
 target_include_directories(lpcsdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
 target_compile_options(lpcsdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
