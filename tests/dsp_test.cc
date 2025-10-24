@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 using namespace testing;
 
-#include "lpcsdr.h"
 #include "dsp.h"
 
 TEST(DSPTests, DataTypes)
@@ -19,7 +18,7 @@ TEST(DSPDecimateTests, ImpulseResponse)
     // which output sample gets discarded during decimation, put an impulse
     // in the I and Q parts of the input at a 1-sample offset.
 
-    size_t in_len = lpcsdr__standard_filter_ntaps;
+    size_t in_len = lpcsdr__dsp_default_halfband_ntaps;
     if (in_len % 2 == 1)
         ++in_len;
 
@@ -35,8 +34,8 @@ TEST(DSPDecimateTests, ImpulseResponse)
     size_t out_len = in_len / 2;
     cs16_t *out = new cs16_t[out_len + 2];
 
-    dsp_halfband_decimate_state_t *state;
-    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    ASSERT_NE(state, nullptr);
     
     auto produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
     ASSERT_EQ(produced, out_len);
@@ -105,9 +104,9 @@ TEST(DSPDecimateTests, LinearResponse)
         in_sum[i].q = in_1[i].q + in_2[i].q;
     }
 
-    dsp_halfband_decimate_state_t *state;
-    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
-    
+    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    ASSERT_NE(state, nullptr);
+
     auto out_1 = decimate(state, in_1, in_len);
     auto out_2 = decimate(state, in_2, in_len);
     auto out_sum = decimate(state, in_sum, in_len);
@@ -135,8 +134,8 @@ TEST(DSPDecimateTests, AvoidOverflow)
     // Build an input vector that, when multiplied by the decimator taps, produces the largest possible output.
     // Verify that the output doesn't overflow an int16.
 
-    dsp_halfband_decimate_state_t *state;
-    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    ASSERT_NE(state, nullptr);
 
     size_t in_len = state->ntaps;
     if (in_len % 2 == 1)
@@ -204,8 +203,8 @@ TEST(DSPDecimateTests, ChunkProcessing)
     uint32_t in_len = 65536;    
     cs16_t *in = make_random_input(in_len);
 
-    dsp_halfband_decimate_state_t *state;
-    ASSERT_EQ(lpcsdr__dsp_halfband_decimate_create(lpcsdr__standard_filter_ntaps, lpcsdr__standard_filter_taps, &state), LPCSDR_SUCCESS);
+    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    ASSERT_NE(state, nullptr);
 
     auto out_1 = decimate(state, in, in_len);
     auto out_2 = decimate_in_chunks(state, in, in_len, 20);

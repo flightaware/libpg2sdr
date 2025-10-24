@@ -2,6 +2,7 @@
 #define LPCSDR_DSP_H
 
 #include "dsp-types.h"
+#include <stdbool.h>
 #include <complex.h>
 #include <math.h>
 
@@ -19,7 +20,8 @@ typedef struct {
     unsigned int context_len;
 } dsp_halfband_decimate_state_t;
 
-int lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *halfband_taps, dsp_halfband_decimate_state_t **result);
+bool lpcsdr__dsp_halfband_taps_valid(unsigned halfband_ntaps, const float *halfband_taps);
+dsp_halfband_decimate_state_t *lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *halfband_taps);
 uint32_t lpcsdr__dsp_halfband_decimate_process(dsp_halfband_decimate_state_t *state, const cs16_t *in, uint32_t in_length, cs16_t *out);
 void lpcsdr__dsp_halfband_decimate_free(dsp_halfband_decimate_state_t *state);
 void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state);
@@ -31,13 +33,13 @@ typedef struct {
     uint32_t max_in_length;
 } dsp_downconvert_state_t;
 
-int lpcsdr__dsp_downconvert_create(unsigned halfband_ntaps, const float *halfband_taps, uint32_t max_in_length, dsp_downconvert_state_t **result);
+dsp_downconvert_state_t *lpcsdr__dsp_downconvert_create(unsigned halfband_ntaps, const float *halfband_taps, uint32_t max_in_length);
 uint32_t lpcsdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const int16_t *in, uint32_t in_length, cs16_t *out);
 void lpcsdr__dsp_downconvert_free(dsp_downconvert_state_t *state);
 void lpcsdr__dsp_downconvert_reset(dsp_downconvert_state_t *state);
 
-extern const unsigned lpcsdr__standard_filter_ntaps;
-extern const float lpcsdr__standard_filter_taps[];
+extern const unsigned lpcsdr__dsp_default_halfband_ntaps;
+extern const float lpcsdr__dsp_default_halfband_taps[];
 
 #if defined(__cplusplus)
 }

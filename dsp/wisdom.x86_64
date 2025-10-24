@@ -1,0 +1,5 @@
+# just best guesses since I haven't actually built on x86-64 yet
+
+halfband_decimate_block   generic_x86_64_avx2
+halfband_decimate_block   generic_x86_64_avx
+halfband_decimate_block   generic_default

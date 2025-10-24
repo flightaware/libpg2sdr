@@ -1,3 +1,7 @@
 [submodule "lpcsdr_firmware"]
 	path = lpcsdr_firmware
 	url = git@github.flightaware.com:flightaware/lpcsdr_firmware.git
+[submodule "dsp/starch"]
+	path = dsp/starch
+	url = https://github.com/flightaware/starch.git
+	branch = cmake-and-rework

@@ -277,11 +277,11 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     /* if we're downconverting, set up the DSP state & work buffers */
     if (dev->conversion_mode == LPCSDR_MODE_BASEBAND) {
-        if ((error = lpcsdr__dsp_downconvert_create(/* ntaps */ lpcsdr__standard_filter_ntaps,
-                                                    /* taps */ lpcsdr__standard_filter_taps,
-                                                    /* max_in_length */ dev->adc_samples_per_transfer,
-                                                    &dev->downconverter)) < 0) {
+        if (!(dev->downconverter = lpcsdr__dsp_downconvert_create(/* ntaps */ lpcsdr__dsp_default_halfband_ntaps,
+                                                                  /* taps */ lpcsdr__dsp_default_halfband_taps,
+                                                                  /* max_in_length */ dev->adc_samples_per_transfer))) {
             LOGDEBUG(dev, "lpcsdr_stream_data: dsp_create_downconvert failed");
+            error = LPCSDR_ERROR_NO_MEMORY;
             goto cleanup;
         }
 
@@ -294,10 +294,10 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         }
 
         for (unsigned i = 0; i < dev->post_decimation; ++i) {
-            if ((error = lpcsdr__dsp_halfband_decimate_create(/* ntaps */ lpcsdr__standard_filter_ntaps,
-                                                              /* taps */ lpcsdr__standard_filter_taps,
-                                                              &dev->post_decimators[i])) < 0) {
+            if (!(dev->post_decimators[i] = lpcsdr__dsp_halfband_decimate_create(/* ntaps */ lpcsdr__dsp_default_halfband_ntaps,
+                                                                                 /* taps */ lpcsdr__dsp_default_halfband_taps))) {
                 LOGDEBUG(dev, "lpcsdr_stream_data: dsp_halfband_decimate_create failed");
+                error = LPCSDR_ERROR_NO_MEMORY;
                 goto cleanup;
             }
         }

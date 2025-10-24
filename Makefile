@@ -15,4 +15,7 @@ run-unit-tests: build
 run-stream-integration-tests: build
 	cd build && ctest -L "Integration" --output-on-failure
 
-.PHONY: build clean run-unit-tests run-stream-integration-tests
+regenerate-starch:
+	cd dsp && ./starchgen.py --runtime-dir . --output-dir generated
+
+.PHONY: build clean run-unit-tests run-stream-integration-tests regenerate-starch

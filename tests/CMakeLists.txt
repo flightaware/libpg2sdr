@@ -11,7 +11,7 @@ add_test(NAME adc_tests COMMAND adc_tests)
 set_tests_properties(adc_tests PROPERTIES LABELS "Unit")
 
 add_executable(dsp_tests dsp_test.cc)
-target_link_libraries(dsp_tests GTest::gtest_main lpcsdr)
+target_link_libraries(dsp_tests GTest::gtest_main lpcsdr_dsp)
 add_test(NAME dsp_tests COMMAND dsp_tests)
 set_tests_properties(dsp_tests PROPERTIES LABELS "Unit")
 
