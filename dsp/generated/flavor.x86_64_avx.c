@@ -8,4 +8,5 @@
 #define STARCH_SYMBOL(_name) lpcsdr__starch_ ## _name ## _ ## x86_64_avx
 #define STARCH_IMPL(_function,_impl) lpcsdr__starch_ ## _function ## _ ## _impl ## _ ## x86_64_avx
 
+#include "../impl/fs4_mix.generic.c"
 #include "../impl/halfband_decimate.generic.c"
