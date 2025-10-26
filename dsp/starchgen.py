@@ -24,6 +24,9 @@ def main():
     gen.add_function(name = 'halfband_decimate_block',
                      argtypes = ['const dsp_halfband_decimate_state_t *', 'const cs16_t *', 'uint32_t', 'cs16_t *'],
                      returntype = 'uint32_t')
+    gen.add_function(name = 'fs4_mix',
+                     argtypes = ['const int16_t *', 'uint32_t', 'cs16_t *'],
+                     returntype = 'uint32_t')
 
     gen.add_flavor(name = 'default',
                    description = 'Build with compiler defaults',

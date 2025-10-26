@@ -132,28 +132,12 @@ void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
     memset_elements(state->history, 0, state->history_len);
 }
 
-static uint32_t fs4_mix(const int16_t * restrict in, uint32_t in_length, cs16_t * restrict out)
-{
-    assert (in_length % 4 == 0);
-    for (uint32_t i = 0; i < in_length; i += 4, in += 4, out += 4) {
-        out[0].i = in[0];
-        out[0].q = 0;
-        out[1].i = 0;
-        out[1].q = -in[1];
-        out[2].i = -in[2];
-        out[2].q = 0;
-        out[3].i = 0;
-        out[3].q = in[3];
-    }
-    return in_length;
-}
-
 uint32_t lpcsdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const int16_t *in, uint32_t in_length, cs16_t *out)
 {
     assert (in_length % 4 == 0);
     assert (in_length <= state->max_in_length);
 
-    uint32_t mixed_length = fs4_mix(in, in_length, state->buffer);
+    uint32_t mixed_length = lpcsdr__starch_fs4_mix(in, in_length, state->buffer);
     uint32_t decimated_length = lpcsdr__dsp_halfband_decimate_process(state->decimate, state->buffer, mixed_length, out);
 
     return decimated_length;
