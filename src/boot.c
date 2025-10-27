@@ -73,7 +73,7 @@ static int dfu_ctrl_download(libusb_device_handle *handle, int block, const uint
  * (nb: DFU uses "download" to mean "transfer from host to device", but we call that "upload"
  * elsewhere, so there's some contradictory terminology in here)
  *
- * Return 0 on success, or a negative liblpcsdr error code on failure
+ * Return 0 on success, or a negative libpg2sdr error code on failure
  */
 static int dfu_download_image(pg2sdr_context *ctx, libusb_device_handle *handle)
 {
@@ -154,10 +154,11 @@ cleanup:
 
 /* Given a device "orginal_dev" in DFU bootloader mode:
  *   use DFU to send a firmware image to the device
- *   wait for the device to restart with the new firmware image and re-enumerate as a LPCSDR device
+ *   wait for the device to restart with the new firmware image and
+ *     re-enumerate as a PG2SDR device
  *   clean up the old device handle (as that device has gone away)
- *   discover the new LPCSDR device, and put the handle in *reenumerated_dev
- * Return 0 on success, or a negative liblpcsdr error on failure
+ *   discover the new PG2SDR device, and put the handle in *reenumerated_dev
+ * Return 0 on success, or a negative libpg2sdr error on failure
  */
 int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
 {
@@ -250,7 +251,7 @@ int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libu
     /* hotplug callback seen, we have the new device */
     pg2sdr__log(ctx,
                 PG2SDR_LOG_INFO,
-                "New LPCSDR device discovered at bus %u port %u",
+                "New PG2SDR device discovered at bus %u port %u",
                 libusb_get_bus_number(cb_state.device),
                 libusb_get_port_number(cb_state.device));
     libusb_hotplug_deregister_callback(ctx->libusb_ctx, cb_handle);

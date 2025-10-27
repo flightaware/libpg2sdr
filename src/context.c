@@ -8,12 +8,12 @@
 static void default_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
 {
     if (level >= PG2SDR_LOG_INFO)
-        fprintf(stderr, "liblpcsdr: %s\n", message);
+        fprintf(stderr, "libpg2sdr: %s\n", message);
 }
 
 static void debug_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
 {
-    fprintf(stderr, "liblpcsdr: %s\n", message);
+    fprintf(stderr, "libpg2sdr: %s\n", message);
 }
 
 int pg2sdr_init(pg2sdr_context **ctx) {
