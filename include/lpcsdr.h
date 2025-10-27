@@ -15,10 +15,10 @@
 extern "C" {
 #endif
 
-typedef struct lpcsdr__context lpcsdr_context;
+typedef struct pg2sdr__context lpcsdr_context;
 typedef enum { LPCSDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } lpcsdr_log_level;
 typedef void (*lpcsdr_log_callback)(lpcsdr_context *context, lpcsdr_log_level level, const char *message);
-typedef struct lpcsdr__device_handle lpcsdr_device_handle;
+typedef struct pg2sdr__device_handle lpcsdr_device_handle;
 
 typedef enum { LPCSDR_MODE_LOWIF_REAL, LPCSDR_MODE_BASEBAND } lpcsdr_conversion_mode_t;
 

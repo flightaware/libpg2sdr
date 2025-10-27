@@ -9,7 +9,7 @@ static adc_p_i_tuple_t *p_i_table = NULL; /* Call init_p_i_table before use */
 static void init_p_i_table_once()
 {
     /* called via pthread_once exactly once */
-    p_i_table = lpcsdr__adc_make_p_i_table();
+    p_i_table = pg2sdr__adc_make_p_i_table();
 }
 
 static bool init_p_i_table()
@@ -19,7 +19,7 @@ static bool init_p_i_table()
     return (p_i_table != NULL);
 }
 
-int lpcsdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, bool minimize_error, float error_threshold)
+int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, bool minimize_error, float error_threshold)
 {
     if (!candidate->valid)
         return false;
@@ -51,7 +51,7 @@ int lpcsdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
         return !(current_best->m <= candidate->m * 4);
 }
 
-adc_p_i_tuple_t *lpcsdr__adc_make_p_i_table()
+adc_p_i_tuple_t *pg2sdr__adc_make_p_i_table()
 {
     adc_p_i_tuple_t *table = malloc(adc_p_i_table_size * sizeof(adc_p_i_tuple_t));
     if (!table)
@@ -79,7 +79,7 @@ adc_p_i_tuple_t *lpcsdr__adc_make_p_i_table()
     return table;
 }
 
-int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon)
+int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon)
 {
     if (target_frequency > 80e6)
         return LPCSDR_ERROR_ADC_RATE_RANGE;
@@ -134,7 +134,7 @@ int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
                 .actual_fcco = actual_fcco,
                 .actual_frequency = actual_frequency,
             };
-            if (lpcsdr__adc_candidate_is_better(&current_best, &candidate, minimize_error, error_threshold)) {
+            if (pg2sdr__adc_candidate_is_better(&current_best, &candidate, minimize_error, error_threshold)) {
                 current_best = candidate;
             }
         }
@@ -158,7 +158,7 @@ int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
                 .actual_fcco = actual_fcco,
                 .actual_frequency = actual_frequency,
             };
-            if (lpcsdr__adc_candidate_is_better(&current_best, &candidate, minimize_error, error_threshold)) {
+            if (pg2sdr__adc_candidate_is_better(&current_best, &candidate, minimize_error, error_threshold)) {
                 current_best = candidate;
             }
         }

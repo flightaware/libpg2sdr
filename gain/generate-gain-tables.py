@@ -52,20 +52,20 @@ def write_c_tables(path, lna_table, mix_table, vga_table, gain_curve):
 
 #include "internal.h"
 
-const double lpcsdr__default_lna_table[16] = {{
+const double pg2sdr__default_lna_table[16] = {{
 {make_c_array(lna_table, 4, format, '5.2f')}
 }};
 
-const double lpcsdr__default_mix_table[16] = {{
+const double pg2sdr__default_mix_table[16] = {{
 {make_c_array(mix_table, 4, format, '5.2f')}
 }};
 
-const double lpcsdr__default_vga_table[16] = {{
+const double pg2sdr__default_vga_table[16] = {{
 {make_c_array(vga_table, 4, format, '5.2f')}
 }};
 
-const size_t lpcsdr__default_gain_table_size = {len(gain_curve)};
-const lpcsdr_gain_table_t lpcsdr__default_gain_table[] = {{
+const size_t pg2sdr__default_gain_table_size = {len(gain_curve)};
+const lpcsdr_gain_table_t pg2sdr__default_gain_table[] = {{
 {make_c_array(gain_curve, 1, format_gain_entry)}
 }};
 """, file=out)

@@ -177,13 +177,13 @@ TEST(ADCTEST, Test_candidate_is_better) {
     
     for (unsigned cur = 0; cur < sizeof(test_cases)/sizeof(test_cases[0]); cur++) {
         candidate_is_better_test_case t = test_cases[cur];
-        ASSERT_EQ(lpcsdr__adc_candidate_is_better(&t.current_best, &t.candidate, t.minimize_error, t.error_threshold), t.expected);
+        ASSERT_EQ(pg2sdr__adc_candidate_is_better(&t.current_best, &t.candidate, t.minimize_error, t.error_threshold), t.expected);
     }
 }
 
 TEST(ADCTEST, Test_p_i_table_correct) {
 
-    adc_p_i_tuple_t *table = lpcsdr__adc_make_p_i_table();
+    adc_p_i_tuple_t *table = pg2sdr__adc_make_p_i_table();
     ASSERT_NE(table, nullptr);
 
     for (unsigned p_i = 0; p_i < adc_p_i_table_size; ++p_i) {
@@ -233,7 +233,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     uint32_t target_frequency = 5200000; //hz
 
     adc_pll_config_t int_divisors;
-    ASSERT_EQ(lpcsdr__adc_find_divisors(target_frequency, &int_divisors, false, false, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target_frequency, &int_divisors, false, false, 0), LPCSDR_SUCCESS);
     ASSERT_EQ(int_divisors.valid, true);
     ASSERT_EQ(int_divisors.error, 0);
     ASSERT_EQ(int_divisors.i, 0);
@@ -243,7 +243,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(int_divisors.actual_frequency, (float) target_frequency);
 
     adc_pll_config_t frac_divisors;
-    ASSERT_EQ(lpcsdr__adc_find_divisors(target_frequency, &frac_divisors, false, true, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target_frequency, &frac_divisors, false, true, 0), LPCSDR_SUCCESS);
     ASSERT_EQ(frac_divisors.valid, true);
     ASSERT_EQ(frac_divisors.error, 0);
     ASSERT_EQ(frac_divisors.i, 0);
@@ -256,7 +256,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
 TEST(ADCTEST, Test_N_divisor) {
     const double target = 5.234e4;
     adc_pll_config_t divisors;
-    ASSERT_EQ(lpcsdr__adc_find_divisors(target, &divisors, false, false, 0), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target, &divisors, false, false, 0), LPCSDR_SUCCESS);
 
     // Solution should produce a frequency within 1ppm of the requested frequency
     EXPECT_LT(abs(divisors.actual_frequency / target - 1.0), 1e-6);
@@ -282,7 +282,7 @@ TEST_P(ADCParameterizedTest, CanTune)
     std::tie(target, minimize_error, allow_fractional, epsilon) = GetParam();
 
     adc_pll_config_t divisors;
-    ASSERT_EQ(lpcsdr__adc_find_divisors(target, &divisors, minimize_error, allow_fractional, epsilon), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target, &divisors, minimize_error, allow_fractional, epsilon), LPCSDR_SUCCESS);
 
     // Solution should respect allow_fractional
     EXPECT_TRUE(allow_fractional || !divisors.fractional);

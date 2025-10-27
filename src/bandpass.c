@@ -113,7 +113,7 @@ static double filter_penalty(const lpcsdr_bandpass_table_t *entry,
     return penalty;
 }
 
-const lpcsdr_bandpass_table_t *lpcsdr__select_bandpass_filter(lpcsdr_device_handle *dev,
+const lpcsdr_bandpass_table_t *pg2sdr__select_bandpass_filter(lpcsdr_device_handle *dev,
                                                               double low_signal,
                                                               double high_signal,
                                                               double low_nyquist,

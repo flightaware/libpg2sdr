@@ -492,7 +492,7 @@ static int apply_rate_change(lpcsdr_device_handle *dev)
      */
     adc_pll_config_t new_config;
     int error;
-    if ((error = lpcsdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true, /* epsilon= */ 0)) < 0)
+    if ((error = pg2sdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true, /* epsilon= */ 0)) < 0)
         return error;
 
     LOGDEBUG(dev, "ADC sample rate changes to %.6f MHz with %u post-decimation steps (divide-by-%u)", new_config.actual_frequency/1e6, post_decimation, 1<<post_decimation);
@@ -526,7 +526,7 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
 
     int error;
     tuner_pll_config_t new_config;
-    if ((error = lpcsdr__find_pll_parameters(target, dev->tuner_xtal, &new_config)) < 0) {
+    if ((error = pg2sdr__find_pll_parameters(target, dev->tuner_xtal, &new_config)) < 0) {
         /* new value is out of range */
         return error;
     }
@@ -537,7 +537,7 @@ static int apply_freq_change(lpcsdr_device_handle *dev)
     }
 
     LOGDEBUG(dev, "tuner LO frequency changes to %.6f MHz", new_config.actual_frequency/1e6);
-    if ((error = lpcsdr__start_pll(dev, &new_config)) < 0) {
+    if ((error = pg2sdr__start_pll(dev, &new_config)) < 0) {
         /* we failed while configuring the tuner, so the LO state is uncertain.
          * Mark the current config as invalid as it probably no longer matches
          * the hardware state.
@@ -618,7 +618,7 @@ static int apply_bandpass_change(lpcsdr_device_handle *dev)
     LOGDEBUG(dev, "IF bandpass filter constraints: signal (%.3f .. %.3f), Nyquist (%.3f .. %.3f) MHz",
              l/1e6, h/1e6, nyquist_low/1e6, nyquist_high/1e6);
 
-    const lpcsdr_bandpass_table_t *settings = lpcsdr__select_bandpass_filter(dev,
+    const lpcsdr_bandpass_table_t *settings = pg2sdr__select_bandpass_filter(dev,
                                                                              /* wanted signal bandpass */ l, h,
                                                                              /* Nyquist limits */ nyquist_low, nyquist_high);
 
@@ -636,7 +636,7 @@ static int apply_bandpass_change(lpcsdr_device_handle *dev)
              settings->lpf_q);
 
     int error;
-    if ((error = lpcsdr__tuner_set_bandpass(dev, settings)) < 0) {
+    if ((error = pg2sdr__tuner_set_bandpass(dev, settings)) < 0) {
         /* tuner state is indeterminate now */
         dev->current_bandpass_entry = NULL;
         return error;

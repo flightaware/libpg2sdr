@@ -10,44 +10,44 @@ static int apply_tuner_changeset(lpcsdr_device_handle *dev, change_set *cs)
     uint8_t payload[TUNER_REG_MAX_PAYLOAD_SIZE] = {0};
     uint16_t payload_size;
 
-    lpcsdr__prepare_tuner_payload_from_change_set(cs, &first, payload, &payload_size);
+    pg2sdr__prepare_tuner_payload_from_change_set(cs, &first, payload, &payload_size);
     if (!payload_size)
         return LPCSDR_SUCCESS; /* no work to do */
 
-    return lpcsdr__ctrl_tuner_update(dev, first, payload, payload_size);
+    return pg2sdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
-int lpcsdr__read_tuner_bits(lpcsdr_device_handle *dev, uint8_t reg, uint8_t mask, unsigned offset)
+int pg2sdr__read_tuner_bits(lpcsdr_device_handle *dev, uint8_t reg, uint8_t mask, unsigned offset)
 {
     int error;
     uint8_t value;
-    if ((error = lpcsdr__ctrl_read_tuner_register(dev, reg, CACHE_NORMAL, &value, sizeof(value))) < 0)
+    if ((error = pg2sdr__ctrl_read_tuner_register(dev, reg, CACHE_NORMAL, &value, sizeof(value))) < 0)
         return error;
     return (value & mask) >> offset;
 }
 
-int lpcsdr__tuner_set_lna(lpcsdr_device_handle *dev, unsigned lna)
+int pg2sdr__tuner_set_lna(lpcsdr_device_handle *dev, unsigned lna)
 {
     if (lna > 15)
         return LPCSDR_ERROR_BAD_ARGUMENT;
-    return lpcsdr__tuner_set_gains(dev, lna, -1, -1);
+    return pg2sdr__tuner_set_gains(dev, lna, -1, -1);
 }
 
-int lpcsdr__tuner_set_mix(lpcsdr_device_handle *dev, unsigned mix)
+int pg2sdr__tuner_set_mix(lpcsdr_device_handle *dev, unsigned mix)
 {
     if (mix > 15)
         return LPCSDR_ERROR_BAD_ARGUMENT;
-    return lpcsdr__tuner_set_gains(dev, -1, mix, -1);
+    return pg2sdr__tuner_set_gains(dev, -1, mix, -1);
 }
 
-int lpcsdr__tuner_set_vga(lpcsdr_device_handle *dev, unsigned vga)
+int pg2sdr__tuner_set_vga(lpcsdr_device_handle *dev, unsigned vga)
 {
     if (vga > 15)
         return LPCSDR_ERROR_BAD_ARGUMENT;
-    return lpcsdr__tuner_set_gains(dev, -1, -1, vga);
+    return pg2sdr__tuner_set_gains(dev, -1, -1, vga);
 }
 
-int lpcsdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga)
+int pg2sdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga)
 {
     assert (lna <= 15);
     assert (mix <= 15);
@@ -76,7 +76,7 @@ int lpcsdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga
 }
 
 
-int lpcsdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const lpcsdr_bandpass_table_t *settings)
+int pg2sdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const lpcsdr_bandpass_table_t *settings)
 {
     assert(settings != NULL);
 
@@ -89,11 +89,11 @@ int lpcsdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const lpcsdr_bandpass_
     return apply_tuner_changeset(dev, &cs);
 }
 
-int lpcsdr__init_tuner(lpcsdr_device_handle *dev)
+int pg2sdr__init_tuner(lpcsdr_device_handle *dev)
 {
     int error = LPCSDR_SUCCESS;
 
-    if ((error = lpcsdr__ctrl_set_rf_power(dev, RF_POWER_RESET)) < 0)
+    if ((error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_RESET)) < 0)
         return error;
 
     int tuner_id = read_tuner_bits(dev, TUNER_ID);
@@ -282,7 +282,7 @@ int lpcsdr__init_tuner(lpcsdr_device_handle *dev)
     return apply_tuner_changeset(dev, &cs);
 }
 
-int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_t *out) {
+int pg2sdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_t *out) {
     const double VCO_MIN = 1750e6;
     /* const double VCO_MAX = 3700e6; */
 
@@ -337,17 +337,17 @@ int lpcsdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
+int pg2sdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
     int error = LPCSDR_SUCCESS;
     int resp = 0;
     
-    if ((error = lpcsdr__configure_pll_settings(dev, params)) < 0)
+    if ((error = pg2sdr__configure_pll_settings(dev, params)) < 0)
         return error;
 
     uint16_t vco_currents[5] = {4, 3, 2, 1, 0};
 
     for (unsigned i = 0; i < sizeof(vco_currents)/sizeof(vco_currents[0]); i++) {
-        resp = lpcsdr__ctrl_update_tuner_lock(dev, vco_currents[i], 50);
+        resp = pg2sdr__ctrl_update_tuner_lock(dev, vco_currents[i], 50);
         
         if (resp < 0)
             return resp;
@@ -362,7 +362,7 @@ int lpcsdr__start_pll(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
     return apply_tuner_changeset(dev, &cs);
 }
 
-int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
+int pg2sdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t *params) {
     LOGDEBUG(dev, "configuring PLL with:\n"
              "  SDM:    %u\n"
              "  SELDIV: %u\n"
@@ -417,7 +417,7 @@ int lpcsdr__configure_pll_settings(lpcsdr_device_handle *dev, tuner_pll_config_t
     return apply_tuner_changeset(dev, &cs);
 }
 
-int lpcsdr__has_pll_lock(lpcsdr_device_handle *dev) {
+int pg2sdr__has_pll_lock(lpcsdr_device_handle *dev) {
     int value;
     if ((value = read_tuner_bits(dev, PLL_LOCK)) < 0)
         return value;
@@ -429,7 +429,7 @@ int lpcsdr__has_pll_lock(lpcsdr_device_handle *dev) {
 /*
     Create a payload of bytes from the changeset.
  */
-void lpcsdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size)
+void pg2sdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size)
 {
     uint16_t num_entries = 0;
     uint16_t first_entry = TUNER_REG_COUNT;

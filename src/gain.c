@@ -43,13 +43,13 @@ static int generic_set_gain_db(lpcsdr_device_handle *dev, double gain_db, double
 int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
-    return generic_set_gain(dev, gain, lpcsdr__tuner_set_lna);
+    return generic_set_gain(dev, gain, pg2sdr__tuner_set_lna);
 }
 
 int lpcsdr_set_lna_gain_db(lpcsdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
-    return generic_set_gain_db(dev, gain_db, dev->lna_table, lpcsdr__tuner_set_lna);
+    return generic_set_gain_db(dev, gain_db, dev->lna_table, pg2sdr__tuner_set_lna);
 }
 
 /* -- MIX -- */
@@ -57,13 +57,13 @@ int lpcsdr_set_lna_gain_db(lpcsdr_device_handle *dev, double gain_db)
 int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
-    return generic_set_gain(dev, gain, lpcsdr__tuner_set_mix);
+    return generic_set_gain(dev, gain, pg2sdr__tuner_set_mix);
 }
 
 int lpcsdr_set_mix_gain_db(lpcsdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
-    return generic_set_gain_db(dev, gain_db, dev->mix_table, lpcsdr__tuner_set_mix);
+    return generic_set_gain_db(dev, gain_db, dev->mix_table, pg2sdr__tuner_set_mix);
 }
 
 /* -- VGA -- */
@@ -71,13 +71,13 @@ int lpcsdr_set_mix_gain_db(lpcsdr_device_handle *dev, double gain_db)
 int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
-    return generic_set_gain(dev, gain, lpcsdr__tuner_set_vga);
+    return generic_set_gain(dev, gain, pg2sdr__tuner_set_vga);
 }
 
 int lpcsdr_set_vga_gain_db(lpcsdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
-    return generic_set_gain_db(dev, gain_db, dev->vga_table, lpcsdr__tuner_set_vga);
+    return generic_set_gain_db(dev, gain_db, dev->vga_table, pg2sdr__tuner_set_vga);
 }
 
 /* Getters that operate on any/all three stages at once */
@@ -166,7 +166,7 @@ int lpcsdr_set_total_gain_db(lpcsdr_device_handle *dev, double gain_db)
 
     int error = LPCSDR_SUCCESS;
     if (dev->current_gain_entry != nearest) {
-        if ((error = lpcsdr__tuner_set_gains(dev, nearest->lna_gain, nearest->mix_gain, nearest->vga_gain)) < 0)
+        if ((error = pg2sdr__tuner_set_gains(dev, nearest->lna_gain, nearest->mix_gain, nearest->vga_gain)) < 0)
             goto done;
         dev->current_gain_entry = nearest;
     }

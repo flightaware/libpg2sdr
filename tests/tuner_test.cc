@@ -48,7 +48,7 @@ TEST(prepare_tuner_payload_from_change_set, Success) {
     uint16_t first;
     uint8_t payload[TUNER_REG_MAX_PAYLOAD_SIZE]= {};
     uint16_t payload_size;
-    lpcsdr__prepare_tuner_payload_from_change_set(&cs, &first, payload, &payload_size);
+    pg2sdr__prepare_tuner_payload_from_change_set(&cs, &first, payload, &payload_size);
     ASSERT_EQ(first, 16);
     ASSERT_EQ(payload_size, 22);
 
@@ -63,7 +63,7 @@ TEST(Test_find_pll_parameters, Success) {
 
     const double target = 100e6;
 
-    ASSERT_EQ(lpcsdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
 
     // these are very prescriptive white-box tests, needed?
     EXPECT_EQ(p.refdiv, true);
@@ -84,9 +84,9 @@ TEST(tuner_sanity_check, Success)
     lpcsdr_device_handle *h = handle();
 
     tuner_pll_config_t p;
-    ASSERT_EQ(lpcsdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
-    ASSERT_EQ(lpcsdr__start_pll(h, &p), LPCSDR_SUCCESS);
-    ASSERT_EQ(lpcsdr__has_pll_lock(h), 1);
+    ASSERT_EQ(pg2sdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__start_pll(h, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__has_pll_lock(h), 1);
 }
 
 TEST(gain_sanity_check, Success) {
@@ -109,14 +109,14 @@ TEST(filter_sanity_check, Success) {
 
     lpcsdr_device_handle *h = handle();
 
-    auto settings = lpcsdr__select_bandpass_filter(h, 659e3, 3177e3, 0, 4000e3);
+    auto settings = pg2sdr__select_bandpass_filter(h, 659e3, 3177e3, 0, 4000e3);
     ASSERT_NE(settings, nullptr);
     EXPECT_LE(settings->lower_corner, 659e3);
     EXPECT_GE(settings->upper_corner, 3177e3);
     EXPECT_GE(settings->lower_corner, 0);
     EXPECT_LE(settings->upper_corner, 4000e3);
 
-    EXPECT_EQ(lpcsdr__tuner_set_bandpass(h, settings), LPCSDR_SUCCESS);
+    EXPECT_EQ(pg2sdr__tuner_set_bandpass(h, settings), LPCSDR_SUCCESS);
 
     // verify correct settings were written
     EXPECT_EQ(read_tuner_bits(h, IFFILT_HPF_CORNER), settings->hpf_corner);
@@ -133,7 +133,7 @@ TEST_P(Test_find_pll_parameters_for_range, FindParameters) {
 
     double target = GetParam();
     tuner_pll_config_t p = {};
-    ASSERT_EQ(lpcsdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
 
     ASSERT_EQ(p.refdiv, true);
     ASSERT_NEAR(p.actual_frequency, target, target * 1e-6);

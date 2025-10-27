@@ -36,7 +36,7 @@ int lpcsdr_init(lpcsdr_context **ctx) {
     int usb_error;
     if ((usb_error = libusb_init(&newctx->libusb_ctx)) < 0) {
         free(newctx);
-        return lpcsdr__translate_libusb_error(usb_error);
+        return pg2sdr__translate_libusb_error(usb_error);
     }
 
     char *firmware_env = getenv("LPCSDR_FIRMWARE");
@@ -83,7 +83,7 @@ int lpcsdr_exit(lpcsdr_context *ctx)
     return LPCSDR_SUCCESS;
 }
 
-void lpcsdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...)
+void pg2sdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...)
 {
     if (!ctx || !ctx->log_cb)
         return;

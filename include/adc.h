@@ -91,7 +91,7 @@ typedef struct {
  * the returned table is of size `adc_p_i_table_size`
  */
 static const unsigned adc_p_i_table_size = adc_p_max_divisor * 2 * adc_i_max_divisor + 1;
-adc_p_i_tuple_t *lpcsdr__adc_make_p_i_table();
+adc_p_i_tuple_t *pg2sdr__adc_make_p_i_table();
 
 /* Complete configuration settings for a particular ADC clock frequency */
 typedef struct {
@@ -109,7 +109,7 @@ typedef struct {
 } adc_pll_config_t;
 
 /* internal comparator for configuration candidates, exposed for test access */
-int lpcsdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, bool minimize_error, float error_threshold);
+int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_config_t *candidate, bool minimize_error, float error_threshold);
 
 /* Find suitable ADC PLL settings for a sample rate of `target_frequency` Hz
  *
@@ -124,6 +124,6 @@ int lpcsdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
  * Store results in `*divisors` and return LPCSDR_SUCCESS on success;
  * return a negative error code on failure.
  */
-int lpcsdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
+int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
 
 #endif /* LPCSDR_ADC_H */

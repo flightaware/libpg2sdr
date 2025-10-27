@@ -19,12 +19,12 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
 
     pthread_mutexattr_t attrs;
     if (pthread_mutexattr_init(&attrs) < 0 || pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_RECURSIVE) < 0 || pthread_mutex_init(&dev->mutex, &attrs) < 0) {
-        error = lpcsdr__translate_errno(errno);
+        error = pg2sdr__translate_errno(errno);
         goto cleanup_nomutex;
     }
 
     ep0_in_board_status_t status;
-    if ((error = lpcsdr__ctrl_get_status(dev, &status)) < 0)
+    if ((error = pg2sdr__ctrl_get_status(dev, &status)) < 0)
         goto cleanup;
 
     dev->conversion_mode = LPCSDR_MODE_LOWIF_REAL;
@@ -52,19 +52,19 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
     dev->tuner_xtal = status.tuner_xtal;
     dev->buffer_size = 262144; /* default 1MB (complex) */
 
-    if ((error = lpcsdr__init_tuner(dev)) < 0)
+    if ((error = pg2sdr__init_tuner(dev)) < 0)
         goto cleanup;
 
     /* set default gain tables */
     if ((error = lpcsdr_set_gain_tables(dev,
-                                        lpcsdr__default_gain_table, lpcsdr__default_gain_table_size,
-                                        lpcsdr__default_lna_table,
-                                        lpcsdr__default_mix_table,
-                                        lpcsdr__default_vga_table)) < 0)
+                                        pg2sdr__default_gain_table, pg2sdr__default_gain_table_size,
+                                        pg2sdr__default_lna_table,
+                                        pg2sdr__default_mix_table,
+                                        pg2sdr__default_vga_table)) < 0)
         goto cleanup;
 
     /* set default bandpass table */
-    if ((error = lpcsdr_set_bandpass_table(dev, lpcsdr__default_bandpass_table, lpcsdr__default_bandpass_table_size)) < 0)
+    if ((error = lpcsdr_set_bandpass_table(dev, pg2sdr__default_bandpass_table, pg2sdr__default_bandpass_table_size)) < 0)
         goto cleanup;
 
     *out = dev;
@@ -154,7 +154,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
     libusb_device **lu_device_list = NULL;
     ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &lu_device_list);
     if (device_count < 0)
-        return lpcsdr__translate_libusb_error(device_count);
+        return pg2sdr__translate_libusb_error(device_count);
 
     int error = LPCSDR_SUCCESS;
     lpc_device **lpc_devices_to_return;
@@ -171,7 +171,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
         libusb_device *usb_dev = lu_device_list[i];
 
         if ((usb_error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            lpcsdr__log(ctx, LPCSDR_LOG_ERROR, "error getting device descriptor for USB bus %d device %d: %s",
+            pg2sdr__log(ctx, LPCSDR_LOG_ERROR, "error getting device descriptor for USB bus %d device %d: %s",
                         libusb_get_bus_number(usb_dev),
                         libusb_get_port_number(usb_dev),
                         libusb_strerror(usb_error));
@@ -188,7 +188,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
             mode = LPCSDR_DEVICE_MODE_NORMAL;
             if ((usb_error = get_serial(usb_dev, serial, sizeof(serial))) < 0) {
                 /* warn (but still use the device) */
-                lpcsdr__log(ctx, LPCSDR_LOG_ERROR, "error getting serial number for USB bus %d device %d: %s",
+                pg2sdr__log(ctx, LPCSDR_LOG_ERROR, "error getting serial number for USB bus %d device %d: %s",
                             libusb_get_bus_number(usb_dev),
                             libusb_get_port_number(usb_dev),
                             libusb_strerror(usb_error));
@@ -212,7 +212,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
         lpc_devices_to_return[matched]->libusb_device = (void *)libusb_ref_device(usb_dev);
         usb_error = libusb_get_port_numbers(usb_dev, lpc_devices_to_return[matched]->usb_ports, sizeof(lpc_devices_to_return[matched]->usb_ports) - 1);
         if (usb_error < 0) {
-            lpcsdr__log(ctx, LPCSDR_LOG_ERROR, "error getting port path for USB bus %d device %d: %s",
+            pg2sdr__log(ctx, LPCSDR_LOG_ERROR, "error getting port path for USB bus %d device %d: %s",
                         libusb_get_bus_number(usb_dev),
                         libusb_get_port_number(usb_dev),
                         libusb_strerror(usb_error));
@@ -279,13 +279,13 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
     libusb_device_handle *usb_handle = NULL;
 
     if (device->mode == LPCSDR_DEVICE_MODE_DFU_BOOTLOADER) {
-        if ((error = lpcsdr__boot_firmware(ctx, original_dev, &reenumerated_dev)) < 0) {
+        if ((error = pg2sdr__boot_firmware(ctx, original_dev, &reenumerated_dev)) < 0) {
             goto failed;
         }
     }
 
     if ((usb_error = libusb_open(reenumerated_dev ? reenumerated_dev : original_dev, &usb_handle)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
@@ -297,14 +297,14 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
 
     /* set configuration 1 always (this does a soft reset of USB state) */
     if ((usb_error = libusb_set_configuration(usb_handle, 1)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     /* claim interface 0, the main data-streaming interface; only one thing can
      * have that claimed */
     if ((usb_error = libusb_claim_interface(usb_handle, 0)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
@@ -439,7 +439,7 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
         return LPCSDR_ERROR_BUSY;
     }
 
-    int error = lpcsdr__ctrl_set_rf_power(dev, RF_POWER_OFF);
+    int error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_OFF);
     if (error < 0) {
         char buf[1024];
         LOGERROR(dev, "warning: could not disable RF power on device close: %s", lpcsdr_strerror_r(error, buf, sizeof(buf)));
@@ -465,7 +465,7 @@ int lpcsdr_get_serial(lpcsdr_device_handle *dev, char *serial, size_t length)
     pthread_mutex_lock(&dev->mutex);
 
     ep0_in_board_status_t status;
-    int error = lpcsdr__ctrl_get_status(dev, &status);
+    int error = pg2sdr__ctrl_get_status(dev, &status);
     if (error < 0)
         goto done;
 

@@ -63,8 +63,8 @@ def write_c_table(path, entries):
 
 #include "internal.h"
 
-const size_t lpcsdr__default_bandpass_table_size = {len(entries)};
-const lpcsdr_bandpass_table_t lpcsdr__default_bandpass_table[] = {{
+const size_t pg2sdr__default_bandpass_table_size = {len(entries)};
+const lpcsdr_bandpass_table_t pg2sdr__default_bandpass_table[] = {{
 {make_c_array(entries, 1, format_bandpass_entry)}
 }};
 """, file=out)

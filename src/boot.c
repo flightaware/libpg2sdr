@@ -85,16 +85,16 @@ static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
     int fd = open(ctx->firmware_path, O_RDONLY);
     if (fd < 0) {
         char buf[1024];
-        lpcsdr__log(ctx,
+        pg2sdr__log(ctx,
                     LPCSDR_LOG_ERROR,
                     "Could not read firmware image at %s: %s",
                     ctx->firmware_path,
-                    lpcsdr_strerror_r(lpcsdr__translate_errno(errno), buf, sizeof(buf)));
+                    lpcsdr_strerror_r(pg2sdr__translate_errno(errno), buf, sizeof(buf)));
 
         if (errno == ENOENT)
             return LPCSDR_ERROR_FWIMAGE_MISSING;
         else
-            return lpcsdr__translate_errno(errno);
+            return pg2sdr__translate_errno(errno);
     }
     
     uint32_t block = 0;
@@ -107,7 +107,7 @@ static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
         int count = read(fd, buffer, sizeof(buffer));
         if (count < 0) {
             /* read error */
-            error = lpcsdr__translate_errno(errno);
+            error = pg2sdr__translate_errno(errno);
             goto cleanup;
         }
 
@@ -117,12 +117,12 @@ static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
         }
 
         if ((usb_error = dfu_ctrl_download(handle, block, buffer, count)) < 0) {
-            error = lpcsdr__translate_libusb_error(usb_error);
+            error = pg2sdr__translate_libusb_error(usb_error);
             goto cleanup;
         }
 
         if ((usb_error = dfu_ctrl_get_status(handle, &dfu_status)) < 0) {
-            error = lpcsdr__translate_libusb_error(usb_error);
+            error = pg2sdr__translate_libusb_error(usb_error);
             goto cleanup;
         }
         if (dfu_status.bState != DFU_DOWNLOAD_IDLE) {
@@ -135,13 +135,13 @@ static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
 
     /* end of download */
     if ((usb_error = dfu_ctrl_download(handle, block, NULL, 0)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
 
     /* Sending the dfu_get_status to trigger manifestaton phase will get a pipe error response. Even though nothing is wrong. */
     if ((usb_error = dfu_ctrl_get_status(handle, &dfu_status)) < 0 && usb_error != LIBUSB_ERROR_PIPE) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
 
@@ -159,7 +159,7 @@ cleanup:
  *   discover the new LPCSDR device, and put the handle in *reenumerated_dev
  * Return 0 on success, or a negative liblpcsdr error on failure
  */
-int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
+int pg2sdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
 {
     int error;
     int usb_error;
@@ -167,7 +167,7 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
     struct hotplug_callback_state cb_state = {0, NULL};
     libusb_hotplug_callback_handle cb_handle;
 
-    lpcsdr__log(ctx,
+    pg2sdr__log(ctx,
                 LPCSDR_LOG_INFO,
                 "Downloading firmware image to device at bus %u port %u",
                 libusb_get_bus_number(original_dev),
@@ -183,23 +183,23 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
                                                       /* cb_fn */ hotplug_callback,
                                                       /* user_data */ &cb_state,
                                                       /* handle */ &cb_handle)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     /* open and configure the original bootloader device */
     if ((usb_error = libusb_open(original_dev, &handle)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     if ((usb_error = libusb_set_configuration(handle, 1)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
     if ((usb_error = libusb_claim_interface(handle, 0)) < 0) {
-        error = lpcsdr__translate_libusb_error(usb_error);
+        error = pg2sdr__translate_libusb_error(usb_error);
         goto failed;
     }
 
@@ -242,13 +242,13 @@ int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libu
         }
 
         if ((usb_error = libusb_handle_events_timeout_completed(ctx->libusb_ctx, &timeout, &cb_state.completed)) < 0) {
-            error = lpcsdr__translate_libusb_error(usb_error);
+            error = pg2sdr__translate_libusb_error(usb_error);
             goto failed;
         }
     }
 
     /* hotplug callback seen, we have the new device */
-    lpcsdr__log(ctx,
+    pg2sdr__log(ctx,
                 LPCSDR_LOG_INFO,
                 "New LPCSDR device discovered at bus %u port %u",
                 libusb_get_bus_number(cb_state.device),

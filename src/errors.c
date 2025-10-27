@@ -1,6 +1,6 @@
 #include "internal.h"
 
-int lpcsdr__translate_libusb_error(int error)
+int pg2sdr__translate_libusb_error(int error)
 {
     /* handle some cases that map directly to our own error codes */
     switch (error) {
@@ -23,7 +23,7 @@ int lpcsdr__translate_libusb_error(int error)
     return LPCSDR_ERROR_LIBUSB_MIN;
 }
 
-int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
+int pg2sdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
 {
     switch (status) {
     case LIBUSB_TRANSFER_COMPLETED:
@@ -41,7 +41,7 @@ int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
     }
 }
 
-int lpcsdr__translate_errno(int error)
+int pg2sdr__translate_errno(int error)
 {
     switch (error) {
     case 0:

@@ -35,18 +35,18 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define LOGDEBUG(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
-#define LOGINFO(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
-#define LOGERROR(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGDEBUG(dev,fmt,...) pg2sdr__log((dev)->ctx,LPCSDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGINFO(dev,fmt,...) pg2sdr__log((dev)->ctx,LPCSDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGERROR(dev,fmt,...) pg2sdr__log((dev)->ctx,LPCSDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
 
-struct lpcsdr__context {
+struct pg2sdr__context {
     int magic;
     libusb_context *libusb_ctx;
     char *firmware_path;
     lpcsdr_log_callback log_cb;
 };
 
-typedef struct lpcsdr__transfer_state {
+typedef struct pg2sdr__transfer_state {
     lpcsdr_device_handle *dev; /* owning device */
     enum {
         XFER_IDLE,      /* not submitted */
@@ -56,10 +56,10 @@ typedef struct lpcsdr__transfer_state {
 
     struct libusb_transfer *transfer;  /* the associated libusb transfer */
     void *buffer;                      /* the buffer used by the libusb transfer */
-    struct lpcsdr__transfer_state *next; /* next transfer in the list */
-} lpcsdr__transfer_state;
+    struct pg2sdr__transfer_state *next; /* next transfer in the list */
+} pg2sdr__transfer_state;
 
-struct lpcsdr__device_handle {
+struct pg2sdr__device_handle {
     unsigned magic;
     pthread_mutex_t mutex;
     lpcsdr_context *ctx;
@@ -117,12 +117,12 @@ struct lpcsdr__device_handle {
     unsigned post_decimation;             /* number of post-downconversion decimation stages */
 
     /* libusb transfers array */
-    lpcsdr__transfer_state *transfers;
+    pg2sdr__transfer_state *transfers;
     unsigned int transfer_count;  /* size of dev->transfers array */
 
     /* linked list of active transfers */
-    lpcsdr__transfer_state *active_transfers_head;
-    lpcsdr__transfer_state *active_transfers_tail;
+    pg2sdr__transfer_state *active_transfers_head;
+    pg2sdr__transfer_state *active_transfers_tail;
 
     /* completion flag, passed to libusb_handle_events_*, set to true to force wakeup */
     int completion_flag;
@@ -138,42 +138,42 @@ struct lpcsdr__device_handle {
 };
 
 /* context.c */
-void lpcsdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
+void pg2sdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
 
 /* boot.c */
-int lpcsdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
+int pg2sdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
 
 /* errors.c */
-int lpcsdr__translate_libusb_error(int error);
-int lpcsdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
-int lpcsdr__translate_errno(int error);
+int pg2sdr__translate_libusb_error(int error);
+int pg2sdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
+int pg2sdr__translate_errno(int error);
 
 //control transfers
-int lpcsdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
-int lpcsdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode);
-int lpcsdr__ctrl_comms_check(libusb_device_handle *usb_handle);
-int lpcsdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config);
-int lpcsdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
-int lpcsdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int lpcsdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
-int lpcsdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
+int pg2sdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
+int pg2sdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode);
+int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle);
+int pg2sdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config);
+int pg2sdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
+int pg2sdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
+int pg2sdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
+int pg2sdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
 
 /* bandpass.c */
-const lpcsdr_bandpass_table_t *lpcsdr__select_bandpass_filter(lpcsdr_device_handle *dev,
+const lpcsdr_bandpass_table_t *pg2sdr__select_bandpass_filter(lpcsdr_device_handle *dev,
                                                               double low_signal,
                                                               double high_signal,
                                                               double low_nyquist,
                                                               double high_nyquist);
 
 /* gain-tables.gen.c (generated code) */
-extern const double lpcsdr__default_lna_table[16];
-extern const double lpcsdr__default_mix_table[16];
-extern const double lpcsdr__default_vga_table[16];
-extern const size_t lpcsdr__default_gain_table_size;
-extern const lpcsdr_gain_table_t lpcsdr__default_gain_table[];
+extern const double pg2sdr__default_lna_table[16];
+extern const double pg2sdr__default_mix_table[16];
+extern const double pg2sdr__default_vga_table[16];
+extern const size_t pg2sdr__default_gain_table_size;
+extern const lpcsdr_gain_table_t pg2sdr__default_gain_table[];
 
 /* bandpass-table.gen.c (generated code) */
-extern const size_t lpcsdr__default_bandpass_table_size;
-extern const lpcsdr_bandpass_table_t lpcsdr__default_bandpass_table[];
+extern const size_t pg2sdr__default_bandpass_table_size;
+extern const lpcsdr_bandpass_table_t pg2sdr__default_bandpass_table[];
 
 #endif /* INTERNAL_H */
