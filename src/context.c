@@ -16,7 +16,7 @@ static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char
     fprintf(stderr, "liblpcsdr: %s\n", message);
 }
 
-int lpcsdr_init(struct lpcsdr_context **ctx) {
+int lpcsdr_init(lpcsdr_context **ctx) {
 
     if (!ctx)
         return LPCSDR_ERROR_BAD_ARGUMENT;
@@ -53,7 +53,7 @@ int lpcsdr_init(struct lpcsdr_context **ctx) {
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_set_firmware_path(struct lpcsdr_context *ctx, const char *firmware_path) {
+int lpcsdr_set_firmware_path(lpcsdr_context *ctx, const char *firmware_path) {
     CHECK_CTX(ctx);
 
     char *dup_path;

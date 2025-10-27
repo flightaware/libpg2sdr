@@ -14,11 +14,11 @@ static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev);
 
 static int allocate_transfers(lpcsdr_device_handle *dev);
 static void cancel_transfers(lpcsdr_device_handle *dev);
-static void free_transfers(lpcsdr_transfer_state *transfers, unsigned transfer_count);
+static void free_transfers(lpcsdr__transfer_state *transfers, unsigned transfer_count);
 static void free_dev_transfers(lpcsdr_device_handle *dev);
-static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data);
+static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr__transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data);
 static int drain_transfers(lpcsdr_device_handle *dev);
-static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer);
+static int submit_one_transfer(struct lpcsdr__transfer_state *dev_transfer);
 static int submit_transfers(lpcsdr_device_handle *dev);
 static void transfer_callback(struct libusb_transfer *xfer);
 static bool check_any_transfer_busy(lpcsdr_device_handle *dev);
@@ -364,7 +364,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             continue;
         }
 
-        lpcsdr_transfer_state *current = dev->active_transfers_head;
+        lpcsdr__transfer_state *current = dev->active_transfers_head;
 
         if (current->state != XFER_COMPLETED) {
             LOGERROR(dev, "lpcsdr_stream_data: active transfer has state %d", (int)current->state);
@@ -455,7 +455,7 @@ int lpcsdr_stop_streaming(lpcsdr_device_handle *dev)
  */
 static void transfer_callback(struct libusb_transfer *xfer)
 {
-    lpcsdr_transfer_state *dev_transfer = (lpcsdr_transfer_state *)xfer->user_data;
+    lpcsdr__transfer_state *dev_transfer = (lpcsdr__transfer_state *)xfer->user_data;
     dev_transfer->state = XFER_COMPLETED;
     memory_barrier();
     dev_transfer->dev->completion_flag = 1;
@@ -495,7 +495,7 @@ static int allocate_transfers(lpcsdr_device_handle *dev)
              transfer_count,
              transfer_timeout_ms);
 
-    lpcsdr_transfer_state *transfers = calloc(transfer_count, sizeof(lpcsdr_transfer_state));
+    lpcsdr__transfer_state *transfers = calloc(transfer_count, sizeof(lpcsdr__transfer_state));
     if (!transfers) {
         error = LPCSDR_ERROR_NO_MEMORY;
         goto failed;
@@ -550,7 +550,7 @@ failed:
 }
 
 /* free the contents of "transfers", and the array itself */
-static void free_transfers(lpcsdr_transfer_state *transfers, unsigned transfer_count)
+static void free_transfers(lpcsdr__transfer_state *transfers, unsigned transfer_count)
 {
     if (!transfers)
         return;
@@ -576,7 +576,7 @@ static void free_dev_transfers(lpcsdr_device_handle *dev)
 }
 
 /* dispatch one completed USB transfer to user code */
-static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data)
+static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr__transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data)
 {
     unsigned bytelength = dev_transfer->transfer->actual_length;
 
@@ -622,7 +622,7 @@ static int dispatch_transfer(lpcsdr_device_handle *dev, lpcsdr_transfer_state *d
 }
 
 /* submit one currently-idle transfer, link it into the active list */
-static int submit_one_transfer(struct lpcsdr_transfer_state *dev_transfer)
+static int submit_one_transfer(lpcsdr__transfer_state *dev_transfer)
 {
     if (dev_transfer->state != XFER_IDLE)
         return LPCSDR_ERROR_BAD_STATE;
@@ -688,7 +688,7 @@ static int drain_transfers(lpcsdr_device_handle *dev)
         }
     }
 
-    lpcsdr_transfer_state *prev = NULL;
+    lpcsdr__transfer_state *prev = NULL;
     while (dev->active_transfers_head) {
         dev->active_transfers_head->state = XFER_IDLE;
         prev = dev->active_transfers_head;

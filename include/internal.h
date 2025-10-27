@@ -39,14 +39,14 @@
 #define LOGINFO(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
 #define LOGERROR(dev,fmt,...) lpcsdr__log((dev)->ctx,LPCSDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
 
-struct lpcsdr_context {
+struct lpcsdr__context {
     int magic;
     libusb_context *libusb_ctx;
     char *firmware_path;
     lpcsdr_log_callback log_cb;
 };
 
-typedef struct lpcsdr_transfer_state {
+typedef struct lpcsdr__transfer_state {
     lpcsdr_device_handle *dev; /* owning device */
     enum {
         XFER_IDLE,      /* not submitted */
@@ -56,10 +56,10 @@ typedef struct lpcsdr_transfer_state {
 
     struct libusb_transfer *transfer;  /* the associated libusb transfer */
     void *buffer;                      /* the buffer used by the libusb transfer */
-    struct lpcsdr_transfer_state *next; /* next transfer in the list */
-} lpcsdr_transfer_state;
+    struct lpcsdr__transfer_state *next; /* next transfer in the list */
+} lpcsdr__transfer_state;
 
-struct lpcsdr_device_handle {
+struct lpcsdr__device_handle {
     unsigned magic;
     pthread_mutex_t mutex;
     lpcsdr_context *ctx;
@@ -117,12 +117,12 @@ struct lpcsdr_device_handle {
     unsigned post_decimation;             /* number of post-downconversion decimation stages */
 
     /* libusb transfers array */
-    lpcsdr_transfer_state *transfers;
+    lpcsdr__transfer_state *transfers;
     unsigned int transfer_count;  /* size of dev->transfers array */
 
     /* linked list of active transfers */
-    lpcsdr_transfer_state *active_transfers_head;
-    lpcsdr_transfer_state *active_transfers_tail;
+    lpcsdr__transfer_state *active_transfers_head;
+    lpcsdr__transfer_state *active_transfers_tail;
 
     /* completion flag, passed to libusb_handle_events_*, set to true to force wakeup */
     int completion_flag;
