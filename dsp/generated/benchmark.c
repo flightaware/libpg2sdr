@@ -72,13 +72,13 @@ static bool starch_benchmark_flavor_in_list(const char *flavor, const starch_ben
 
 
 /* prototypes for benchmark helpers provided by user code */
-void lpcsdr__starch_fs4_mix_benchmark (void);
-bool lpcsdr__starch_fs4_mix_benchmark_verify ( const int16_t * arg0, uint32_t arg1, cs16_t * arg2 );
+void pg2sdr__starch_fs4_mix_benchmark (void);
+bool pg2sdr__starch_fs4_mix_benchmark_verify ( const int16_t * arg0, uint32_t arg1, cs16_t * arg2 );
 
 /* prototype the benchmarking function so that we can build with -Wmissing-declarations */
-void lpcsdr__starch_fs4_mix_benchmark(void);
+void pg2sdr__starch_fs4_mix_benchmark(void);
 
-static void starch_benchmark_one_fs4_mix( lpcsdr__starch_fs4_mix_regentry * _entry, const int16_t * arg0, uint32_t arg1, cs16_t * arg2 )
+static void starch_benchmark_one_fs4_mix( pg2sdr__starch_fs4_mix_regentry * _entry, const int16_t * arg0, uint32_t arg1, cs16_t * arg2 )
 {
     fprintf(stderr, "  %-40s  ", _entry->name);
 
@@ -108,7 +108,7 @@ static void starch_benchmark_one_fs4_mix( lpcsdr__starch_fs4_mix_regentry * _ent
         _entry->callable ( arg0, arg1, arg2 );
 
     /* verify correctness of the output */
-    if (! lpcsdr__starch_fs4_mix_benchmark_verify ( arg0, arg1, arg2 )) {
+    if (! pg2sdr__starch_fs4_mix_benchmark_verify ( arg0, arg1, arg2 )) {
         fprintf(stderr, "skipped (verification failed)\n");
         starch_benchmark_validation_failed = true;
         return;
@@ -179,18 +179,18 @@ static void starch_benchmark_one_fs4_mix( lpcsdr__starch_fs4_mix_regentry * _ent
 
 static void starch_benchmark_run_fs4_mix( const int16_t * arg0, uint32_t arg1, cs16_t * arg2 )
 {
-    for (lpcsdr__starch_fs4_mix_regentry *_entry = lpcsdr__starch_fs4_mix_registry; _entry->name; ++_entry) {
+    for (pg2sdr__starch_fs4_mix_regentry *_entry = pg2sdr__starch_fs4_mix_registry; _entry->name; ++_entry) {
         starch_benchmark_one_fs4_mix( _entry, arg0, arg1, arg2 );
     }
 }
 
 /* prototypes for benchmark helpers provided by user code */
-void lpcsdr__starch_halfband_decimate_block_benchmark (void);
+void pg2sdr__starch_halfband_decimate_block_benchmark (void);
 
 /* prototype the benchmarking function so that we can build with -Wmissing-declarations */
-void lpcsdr__starch_halfband_decimate_block_benchmark(void);
+void pg2sdr__starch_halfband_decimate_block_benchmark(void);
 
-static void starch_benchmark_one_halfband_decimate_block( lpcsdr__starch_halfband_decimate_block_regentry * _entry, const dsp_halfband_decimate_state_t * arg0, const cs16_t * arg1, uint32_t arg2, cs16_t * arg3 )
+static void starch_benchmark_one_halfband_decimate_block( pg2sdr__starch_halfband_decimate_block_regentry * _entry, const dsp_halfband_decimate_state_t * arg0, const cs16_t * arg1, uint32_t arg2, cs16_t * arg3 )
 {
     fprintf(stderr, "  %-40s  ", _entry->name);
 
@@ -285,15 +285,15 @@ static void starch_benchmark_one_halfband_decimate_block( lpcsdr__starch_halfban
 
 static void starch_benchmark_run_halfband_decimate_block( const dsp_halfband_decimate_state_t * arg0, const cs16_t * arg1, uint32_t arg2, cs16_t * arg3 )
 {
-    for (lpcsdr__starch_halfband_decimate_block_regentry *_entry = lpcsdr__starch_halfband_decimate_block_registry; _entry->name; ++_entry) {
+    for (pg2sdr__starch_halfband_decimate_block_regentry *_entry = pg2sdr__starch_halfband_decimate_block_registry; _entry->name; ++_entry) {
         starch_benchmark_one_halfband_decimate_block( _entry, arg0, arg1, arg2, arg3 );
     }
 }
 
 
-#define STARCH_SYMBOL(_name) lpcsdr__starch_ ## _name ## _benchmark_sym
-#define STARCH_BENCHMARK(_function) lpcsdr__starch_ ## _function ## _benchmark
-#define STARCH_BENCHMARK_VERIFY(_function) lpcsdr__starch_ ## _function ## _benchmark_verify
+#define STARCH_SYMBOL(_name) pg2sdr__starch_ ## _name ## _benchmark_sym
+#define STARCH_BENCHMARK(_function) pg2sdr__starch_ ## _function ## _benchmark
+#define STARCH_BENCHMARK_VERIFY(_function) pg2sdr__starch_ ## _function ## _benchmark_verify
 #define STARCH_BENCHMARK_RUN(_function, ...) starch_benchmark_run_ ## _function ( __VA_ARGS__ )
 
 #include "../impl/fs4_mix.benchmark.c"
@@ -307,12 +307,12 @@ static void starch_benchmark_run_halfband_decimate_block( const dsp_halfband_dec
 static void starch_benchmark_all_fs4_mix(void)
 {
     fprintf(stderr, "==== fs4_mix ===\n");
-    lpcsdr__starch_fs4_mix_benchmark ();
+    pg2sdr__starch_fs4_mix_benchmark ();
 }
 static void starch_benchmark_all_halfband_decimate_block(void)
 {
     fprintf(stderr, "==== halfband_decimate_block ===\n");
-    lpcsdr__starch_halfband_decimate_block_benchmark ();
+    pg2sdr__starch_halfband_decimate_block_benchmark ();
 }
 
 static int starch_benchmark_compare_result(const void *a, const void *b)
@@ -360,13 +360,13 @@ static void starch_benchmark_usage(const char *argv0)
     fprintf(stderr,
             "  %-15s  %s\n",
             "armv7a_simd",
-            lpcsdr__starch_supports_arm_neon() ? "supported" : "not supported");
+            pg2sdr__starch_supports_arm_neon() ? "supported" : "not supported");
 #endif
 #ifdef STARCH_FLAVOR_ARMV8A_SIMD
     fprintf(stderr,
             "  %-15s  %s\n",
             "armv8a_simd",
-            lpcsdr__starch_supports_aarch64_asimd() ? "supported" : "not supported");
+            pg2sdr__starch_supports_aarch64_asimd() ? "supported" : "not supported");
 #endif
 #ifdef STARCH_FLAVOR_DEFAULT
     fprintf(stderr,
@@ -378,13 +378,13 @@ static void starch_benchmark_usage(const char *argv0)
     fprintf(stderr,
             "  %-15s  %s\n",
             "x86_64_avx",
-            lpcsdr__starch_supports_x86_avx() ? "supported" : "not supported");
+            pg2sdr__starch_supports_x86_avx() ? "supported" : "not supported");
 #endif
 #ifdef STARCH_FLAVOR_X86_64_AVX2
     fprintf(stderr,
             "  %-15s  %s\n",
             "x86_64_avx2",
-            lpcsdr__starch_supports_x86_avx2() ? "supported" : "not supported");
+            pg2sdr__starch_supports_x86_avx2() ? "supported" : "not supported");
 #endif
 
       fprintf(stderr,
@@ -416,7 +416,7 @@ int main(int argc, char **argv)
     while ((opt = getopt(argc, argv, "r:o:F:N:i:lhtV")) != -1) {
         switch (opt) {
         case 'r':
-            if (lpcsdr__starch_read_wisdom(optarg) < 0) {
+            if (pg2sdr__starch_read_wisdom(optarg) < 0) {
                 fprintf(stderr, "%s: cannot read %s: %s\n", argv[0], optarg, strerror(errno));
                 return 1;
             }

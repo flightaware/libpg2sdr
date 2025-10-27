@@ -170,7 +170,7 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
 
             if (dev->post_decimation) {
                 /* do downconversion from work_buffer[0] -> work_buffer[1] */
-                count = lpcsdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)dev->work_buffer[1]);
+                count = pg2sdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)dev->work_buffer[1]);
 
                 /* work_buffer[1] now contains complex baseband data, with the signal we want centered at 0Hz,
                  * but at a higher sampling rate than the user requested. Decimate to bring the sampling rate
@@ -181,15 +181,15 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
                 unsigned work_in = 1;
                 for (unsigned i = 0; i < (dev->post_decimation - 1); ++i) {
                     unsigned work_out = !work_in;
-                    count = lpcsdr__dsp_halfband_decimate_process(dev->post_decimators[i], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)dev->work_buffer[work_out]);
+                    count = pg2sdr__dsp_halfband_decimate_process(dev->post_decimators[i], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)dev->work_buffer[work_out]);
                     work_in = work_out;
                 }
 
                 /* do final decimate-by-2 step directly to out */
-                count = lpcsdr__dsp_halfband_decimate_process(dev->post_decimators[dev->post_decimation - 1], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)out);
+                count = pg2sdr__dsp_halfband_decimate_process(dev->post_decimators[dev->post_decimation - 1], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)out);
             } else {
                 /* No extra decimation, do downconversion from work_buffer[0] -> out */
-                count = lpcsdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)out);
+                count = pg2sdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)out);
             }
 
             /* out now contains complex baseband data, with the signal we want centered at 0Hz, at the user's requested sample rate */
@@ -277,8 +277,8 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     /* if we're downconverting, set up the DSP state & work buffers */
     if (dev->conversion_mode == LPCSDR_MODE_BASEBAND) {
-        if (!(dev->downconverter = lpcsdr__dsp_downconvert_create(/* ntaps */ lpcsdr__dsp_default_halfband_ntaps,
-                                                                  /* taps */ lpcsdr__dsp_default_halfband_taps,
+        if (!(dev->downconverter = pg2sdr__dsp_downconvert_create(/* ntaps */ pg2sdr__dsp_default_halfband_ntaps,
+                                                                  /* taps */ pg2sdr__dsp_default_halfband_taps,
                                                                   /* max_in_length */ dev->adc_samples_per_transfer))) {
             LOGDEBUG(dev, "lpcsdr_stream_data: dsp_create_downconvert failed");
             error = LPCSDR_ERROR_NO_MEMORY;
@@ -294,8 +294,8 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         }
 
         for (unsigned i = 0; i < dev->post_decimation; ++i) {
-            if (!(dev->post_decimators[i] = lpcsdr__dsp_halfband_decimate_create(/* ntaps */ lpcsdr__dsp_default_halfband_ntaps,
-                                                                                 /* taps */ lpcsdr__dsp_default_halfband_taps))) {
+            if (!(dev->post_decimators[i] = pg2sdr__dsp_halfband_decimate_create(/* ntaps */ pg2sdr__dsp_default_halfband_ntaps,
+                                                                                 /* taps */ pg2sdr__dsp_default_halfband_taps))) {
                 LOGDEBUG(dev, "lpcsdr_stream_data: dsp_halfband_decimate_create failed");
                 error = LPCSDR_ERROR_NO_MEMORY;
                 goto cleanup;
@@ -403,11 +403,11 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
  cleanup:
     for (unsigned i = 0; i < LPCSDR_DECIMATION_MAX; ++i) {
-        lpcsdr__dsp_halfband_decimate_free(dev->post_decimators[i]);
+        pg2sdr__dsp_halfband_decimate_free(dev->post_decimators[i]);
         dev->post_decimators[i] = NULL;
     }
 
-    lpcsdr__dsp_downconvert_free(dev->downconverter);
+    pg2sdr__dsp_downconvert_free(dev->downconverter);
     dev->downconverter = NULL;
 
     for (unsigned i = 0; i < 2; ++i) {

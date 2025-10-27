@@ -3,8 +3,8 @@
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
 
-int lpcsdr__starch_supports_arm_neon(void);
-int lpcsdr__starch_supports_arm_neon(void)
+int pg2sdr__starch_supports_arm_neon(void);
+int pg2sdr__starch_supports_arm_neon(void)
 {
     long hwcaps = getauxval(AT_HWCAP);
     return (hwcaps & HWCAP_ARM_NEON);
@@ -17,8 +17,8 @@ int lpcsdr__starch_supports_arm_neon(void)
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
 
-int lpcsdr__starch_supports_aarch64_asimd(void);
-int lpcsdr__starch_supports_aarch64_asimd(void)
+int pg2sdr__starch_supports_aarch64_asimd(void);
+int pg2sdr__starch_supports_aarch64_asimd(void)
 {
     long hwcaps = getauxval(AT_HWCAP);
     return (hwcaps & HWCAP_ASIMD);
@@ -31,8 +31,8 @@ int lpcsdr__starch_supports_aarch64_asimd(void)
 #include <cpuid.h>
 #include <stdio.h>
 
-int lpcsdr__starch_supports_x86_avx(void);
-int lpcsdr__starch_supports_x86_avx(void)
+int pg2sdr__starch_supports_x86_avx(void);
+int pg2sdr__starch_supports_x86_avx(void)
 {
     unsigned int maxlevel = __get_cpuid_max (0, 0);
     if (maxlevel < 1)
@@ -46,8 +46,8 @@ int lpcsdr__starch_supports_x86_avx(void)
     return 1;
 }
 
-int lpcsdr__starch_supports_x86_avx2(void);
-int lpcsdr__starch_supports_x86_avx2(void)
+int pg2sdr__starch_supports_x86_avx2(void);
+int pg2sdr__starch_supports_x86_avx2(void)
 {
     unsigned int maxlevel = __get_cpuid_max (0, 0);
     if (maxlevel < 7)

@@ -18,7 +18,7 @@ TEST(DSPDecimateTests, ImpulseResponse)
     // which output sample gets discarded during decimation, put an impulse
     // in the I and Q parts of the input at a 1-sample offset.
 
-    size_t in_len = lpcsdr__dsp_default_halfband_ntaps;
+    size_t in_len = pg2sdr__dsp_default_halfband_ntaps;
     if (in_len % 2 == 1)
         ++in_len;
 
@@ -34,10 +34,10 @@ TEST(DSPDecimateTests, ImpulseResponse)
     size_t out_len = in_len / 2;
     cs16_t *out = new cs16_t[out_len + 2];
 
-    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    dsp_halfband_decimate_state_t *state = pg2sdr__dsp_halfband_decimate_create(pg2sdr__dsp_default_halfband_ntaps, pg2sdr__dsp_default_halfband_taps);
     ASSERT_NE(state, nullptr);
     
-    auto produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
+    auto produced = pg2sdr__dsp_halfband_decimate_process(state, in, in_len, out);
     ASSERT_EQ(produced, out_len);
     auto center_tap_offset = state->ntaps/2;
     auto center_tap_value = state->taps[center_tap_offset];
@@ -49,7 +49,7 @@ TEST(DSPDecimateTests, ImpulseResponse)
         EXPECT_NEAR(out[i].i, ((int32_t)in[0].i * tap_value) >> 15, 1);
     }
 
-    lpcsdr__dsp_halfband_decimate_free(state);
+    pg2sdr__dsp_halfband_decimate_free(state);
     delete[] out;
     delete[] in;
 }
@@ -71,8 +71,8 @@ static std::pair<cs16_t *,uint32_t> decimate(dsp_halfband_decimate_state_t *stat
 {
     uint32_t out_len = in_len/2;
     cs16_t *out = new cs16_t[out_len];
-    lpcsdr__dsp_halfband_decimate_reset(state);
-    uint32_t produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
+    pg2sdr__dsp_halfband_decimate_reset(state);
+    uint32_t produced = pg2sdr__dsp_halfband_decimate_process(state, in, in_len, out);
     assert(produced <= out_len);
     return {out,produced};
 }
@@ -104,7 +104,7 @@ TEST(DSPDecimateTests, LinearResponse)
         in_sum[i].q = in_1[i].q + in_2[i].q;
     }
 
-    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    dsp_halfband_decimate_state_t *state = pg2sdr__dsp_halfband_decimate_create(pg2sdr__dsp_default_halfband_ntaps, pg2sdr__dsp_default_halfband_taps);
     ASSERT_NE(state, nullptr);
 
     auto out_1 = decimate(state, in_1, in_len);
@@ -120,7 +120,7 @@ TEST(DSPDecimateTests, LinearResponse)
         EXPECT_NEAR(out_sum.first[i].q, out_1.first[i].q + out_2.first[i].q, 1) << "at index " << i;
     }
 
-    lpcsdr__dsp_halfband_decimate_free(state);
+    pg2sdr__dsp_halfband_decimate_free(state);
     delete[] in_1;
     delete[] in_2;
     delete[] in_sum;
@@ -134,7 +134,7 @@ TEST(DSPDecimateTests, AvoidOverflow)
     // Build an input vector that, when multiplied by the decimator taps, produces the largest possible output.
     // Verify that the output doesn't overflow an int16.
 
-    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    dsp_halfband_decimate_state_t *state = pg2sdr__dsp_halfband_decimate_create(pg2sdr__dsp_default_halfband_ntaps, pg2sdr__dsp_default_halfband_taps);
     ASSERT_NE(state, nullptr);
 
     size_t in_len = state->ntaps;
@@ -161,7 +161,7 @@ TEST(DSPDecimateTests, AvoidOverflow)
     size_t out_len = in_len / 2;
     cs16_t *out = new cs16_t[out_len];
 
-    uint32_t produced = lpcsdr__dsp_halfband_decimate_process(state, in, in_len, out);
+    uint32_t produced = pg2sdr__dsp_halfband_decimate_process(state, in, in_len, out);
     ASSERT_EQ(produced, out_len);
 
     // Look at the final produced output, which should correspond to when our input
@@ -174,18 +174,18 @@ TEST(DSPDecimateTests, AvoidOverflow)
     
     delete[] out;
     delete[] in;
-    lpcsdr__dsp_halfband_decimate_free(state);
+    pg2sdr__dsp_halfband_decimate_free(state);
 }
 
 static std::pair<cs16_t *,uint32_t> decimate_in_chunks(dsp_halfband_decimate_state_t *state, cs16_t *in, uint32_t in_len, uint32_t chunk_len)
 {
     uint32_t out_len = in_len/2;
     cs16_t *out = new cs16_t[out_len];
-    lpcsdr__dsp_halfband_decimate_reset(state);
+    pg2sdr__dsp_halfband_decimate_reset(state);
 
     uint32_t produced = 0;
     for (uint32_t i = 0; i < in_len; i += chunk_len) {
-        produced += lpcsdr__dsp_halfband_decimate_process(state, in + i, std::min(in_len - i, chunk_len), out + produced);
+        produced += pg2sdr__dsp_halfband_decimate_process(state, in + i, std::min(in_len - i, chunk_len), out + produced);
         assert(produced <= out_len);
     }
 
@@ -203,7 +203,7 @@ TEST(DSPDecimateTests, ChunkProcessing)
     uint32_t in_len = 65536;    
     cs16_t *in = make_random_input(in_len);
 
-    dsp_halfband_decimate_state_t *state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps);
+    dsp_halfband_decimate_state_t *state = pg2sdr__dsp_halfband_decimate_create(pg2sdr__dsp_default_halfband_ntaps, pg2sdr__dsp_default_halfband_taps);
     ASSERT_NE(state, nullptr);
 
     auto out_1 = decimate(state, in, in_len);

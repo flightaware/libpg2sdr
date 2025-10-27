@@ -17,13 +17,13 @@ void STARCH_BENCHMARK(halfband_decimate_block) (void)
         in[i].q = rand() % 65536 - 32768;
     }
 
-    if (!(state = lpcsdr__dsp_halfband_decimate_create(lpcsdr__dsp_default_halfband_ntaps, lpcsdr__dsp_default_halfband_taps)))
+    if (!(state = pg2sdr__dsp_halfband_decimate_create(pg2sdr__dsp_default_halfband_ntaps, pg2sdr__dsp_default_halfband_taps)))
         goto done;
 
     STARCH_BENCHMARK_RUN(halfband_decimate_block, state, in, len, out);
 
  done:
-    lpcsdr__dsp_halfband_decimate_free(state);
+    pg2sdr__dsp_halfband_decimate_free(state);
     free(in);
     free(out);
 }

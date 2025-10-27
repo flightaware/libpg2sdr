@@ -11,7 +11,7 @@ def main():
 
     parser.add_argument('--runtime-dir', help="Base directory for relative paths in generated code", type=str, required=True)
     parser.add_argument('--output-dir', help="Base directory for generated output", type=str, required=True)
-    parser.add_argument('--symbol-prefix', help="Prefix for generated symbols", type=str, default="lpcsdr__starch_")
+    parser.add_argument('--symbol-prefix', help="Prefix for generated symbols", type=str, default="pg2sdr__starch_")
 
     args = parser.parse_args()
 
@@ -34,19 +34,19 @@ def main():
     armv7a_simd = gen.add_flavor(name = 'armv7a_simd',
                                  description = 'ARMv7-A with Advanced SIMD (Neon)',
                                  compile_flags = ['-march=armv7-a+simd'],
-                                 test_function = 'lpcsdr__starch_supports_arm_neon')
+                                 test_function = 'pg2sdr__starch_supports_arm_neon')
     armv8a_simd =  gen.add_flavor(name = 'armv8a_simd',
                                   description = 'ARMv8-A with Advanced SIMD',
                                   compile_flags = [],
-                                  test_function = 'lpcsdr__starch_supports_aarch64_asimd')
+                                  test_function = 'pg2sdr__starch_supports_aarch64_asimd')
     gen.add_flavor(name = 'x86_64_avx',
                    description = 'x86-64 with AVX',
                    compile_flags = ['-mavx', '-ffast-math'],
-                   test_function = 'lpcsdr__starch_supports_x86_avx')
+                   test_function = 'pg2sdr__starch_supports_x86_avx')
     gen.add_flavor(name = 'x86_64_avx2',
                    description = 'x86-64 with AVX2',
                    compile_flags = ['-mavx2', '-ffast-math'],
-                   test_function = 'lpcsdr__starch_supports_x86_avx2')
+                   test_function = 'pg2sdr__starch_supports_x86_avx2')
 
     gen.add_mix(name = 'generic',
                 description = 'Generic build, Compiler defaults only',

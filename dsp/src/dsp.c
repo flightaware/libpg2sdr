@@ -9,18 +9,18 @@
 #define memmove_elements(_dst, _src, _count) memmove((_dst), (_src), (_count) * sizeof((_dst)[0]))
 #define memcpy_elements(_dst, _src, _count) memcpy((_dst), (_src), (_count) * sizeof((_dst)[0]))
 
-const float lpcsdr__dsp_default_halfband_taps[] = {
+const float pg2sdr__dsp_default_halfband_taps[] = {
     -0.00105091, 0, 0.00250767, 0, -0.0048923, 0, 0.00855213, 0, -0.0139827, 0, 0.0220117,  0, -0.0343224, 0, 0.0552597,  0, -0.100878,   0, 0.316537,
     0.5,
     0.316537, 0, -0.100878,   0, 0.0552597,  0, -0.0343224, 0, 0.0220117,  0, -0.0139827, 0, 0.00855213, 0, -0.0048923, 0, 0.00250767, 0, -0.00105091,
 };
 
-const unsigned lpcsdr__dsp_default_halfband_ntaps = sizeof(lpcsdr__dsp_default_halfband_taps) / sizeof(lpcsdr__dsp_default_halfband_taps[0]);
+const unsigned pg2sdr__dsp_default_halfband_ntaps = sizeof(pg2sdr__dsp_default_halfband_taps) / sizeof(pg2sdr__dsp_default_halfband_taps[0]);
 
 
 /* Build the history-processing wrapper */
-#define PROCESS_FN lpcsdr__dsp_halfband_decimate_process
-#define BLOCK_FN lpcsdr__starch_halfband_decimate_block
+#define PROCESS_FN pg2sdr__dsp_halfband_decimate_process
+#define BLOCK_FN pg2sdr__starch_halfband_decimate_block
 #define STATE_TYPE dsp_halfband_decimate_state_t
 #define IN_TYPE cs16_t
 #define OUT_TYPE cs16_t
@@ -33,7 +33,7 @@ const unsigned lpcsdr__dsp_default_halfband_ntaps = sizeof(lpcsdr__dsp_default_h
 #undef OUT_TYPE
 #undef IN_BLOCK_LEN
 
-bool lpcsdr__dsp_halfband_taps_valid(unsigned halfband_ntaps, const float *halfband_taps)
+bool pg2sdr__dsp_halfband_taps_valid(unsigned halfband_ntaps, const float *halfband_taps)
 {
     if (!halfband_taps)
         return false;
@@ -58,9 +58,9 @@ bool lpcsdr__dsp_halfband_taps_valid(unsigned halfband_ntaps, const float *halfb
 }
 
 
-dsp_halfband_decimate_state_t *lpcsdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *halfband_taps)
+dsp_halfband_decimate_state_t *pg2sdr__dsp_halfband_decimate_create(unsigned halfband_ntaps, const float *halfband_taps)
 {
-    if (!lpcsdr__dsp_halfband_taps_valid(halfband_ntaps, halfband_taps))
+    if (!pg2sdr__dsp_halfband_taps_valid(halfband_ntaps, halfband_taps))
         return false;
     
     float center_tap = halfband_taps[(halfband_ntaps - 1) / 2];
@@ -105,15 +105,15 @@ dsp_halfband_decimate_state_t *lpcsdr__dsp_halfband_decimate_create(unsigned hal
             state->taps[i] = 0;
     }
 
-    lpcsdr__dsp_halfband_decimate_reset(state);
+    pg2sdr__dsp_halfband_decimate_reset(state);
     return state;
 
  fail:
-    lpcsdr__dsp_halfband_decimate_free(state);
+    pg2sdr__dsp_halfband_decimate_free(state);
     return NULL;
 }
 
-void lpcsdr__dsp_halfband_decimate_free(dsp_halfband_decimate_state_t *state)
+void pg2sdr__dsp_halfband_decimate_free(dsp_halfband_decimate_state_t *state)
 {
     if (!state)
         return;
@@ -123,7 +123,7 @@ void lpcsdr__dsp_halfband_decimate_free(dsp_halfband_decimate_state_t *state)
     free(state);
 }
 
-void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
+void pg2sdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
 {
     if (!state)
         return;
@@ -132,24 +132,24 @@ void lpcsdr__dsp_halfband_decimate_reset(dsp_halfband_decimate_state_t *state)
     memset_elements(state->history, 0, state->history_len);
 }
 
-uint32_t lpcsdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const int16_t *in, uint32_t in_length, cs16_t *out)
+uint32_t pg2sdr__dsp_downconvert_process(dsp_downconvert_state_t *state, const int16_t *in, uint32_t in_length, cs16_t *out)
 {
     assert (in_length % 4 == 0);
     assert (in_length <= state->max_in_length);
 
-    uint32_t mixed_length = lpcsdr__starch_fs4_mix(in, in_length, state->buffer);
-    uint32_t decimated_length = lpcsdr__dsp_halfband_decimate_process(state->decimate, state->buffer, mixed_length, out);
+    uint32_t mixed_length = pg2sdr__starch_fs4_mix(in, in_length, state->buffer);
+    uint32_t decimated_length = pg2sdr__dsp_halfband_decimate_process(state->decimate, state->buffer, mixed_length, out);
 
     return decimated_length;
 }
 
-dsp_downconvert_state_t *lpcsdr__dsp_downconvert_create(unsigned halfband_ntaps, const float *halfband_taps, uint32_t max_in_length)
+dsp_downconvert_state_t *pg2sdr__dsp_downconvert_create(unsigned halfband_ntaps, const float *halfband_taps, uint32_t max_in_length)
 {
     dsp_downconvert_state_t *state = calloc(1, sizeof(*state));
     if (!state)
         return NULL;
 
-    if (!(state->decimate = lpcsdr__dsp_halfband_decimate_create(halfband_ntaps, halfband_taps)))
+    if (!(state->decimate = pg2sdr__dsp_halfband_decimate_create(halfband_ntaps, halfband_taps)))
         goto fail;
 
     state->max_in_length = max_in_length;
@@ -157,28 +157,28 @@ dsp_downconvert_state_t *lpcsdr__dsp_downconvert_create(unsigned halfband_ntaps,
         goto fail;
     }
 
-    lpcsdr__dsp_downconvert_reset(state);
+    pg2sdr__dsp_downconvert_reset(state);
     return state;
 
  fail:
-    lpcsdr__dsp_downconvert_free(state);
+    pg2sdr__dsp_downconvert_free(state);
     return NULL;
 }
 
-void lpcsdr__dsp_downconvert_free(dsp_downconvert_state_t *state)
+void pg2sdr__dsp_downconvert_free(dsp_downconvert_state_t *state)
 {
     if (!state)
         return;
 
-    lpcsdr__dsp_halfband_decimate_free(state->decimate);
+    pg2sdr__dsp_halfband_decimate_free(state->decimate);
     free(state->buffer);
     free(state);
 }
 
-void lpcsdr__dsp_downconvert_reset(dsp_downconvert_state_t *state)
+void pg2sdr__dsp_downconvert_reset(dsp_downconvert_state_t *state)
 {
     if (!state)
         return;
 
-    lpcsdr__dsp_halfband_decimate_reset(state->decimate);
+    pg2sdr__dsp_halfband_decimate_reset(state->decimate);
 }
