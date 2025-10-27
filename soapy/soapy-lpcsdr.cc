@@ -53,7 +53,7 @@ static inline int ReportLPCSDRError(const char *fname, int error, bool throw_on_
 {
     if (error < 0) {
         std::string message = std::string(fname) + ": " + lpcsdr_strerror_string(error);
-        SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: " + message);
+        SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: " + message);
         if (throw_on_error)
             throw std::runtime_error(message);
     }
@@ -70,7 +70,7 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
 }
 
 #define TRACECALL LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
-#define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s" _format, __func__ __VA_OPT__(,) __VA_ARGS__)
+#define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "PG2SDR: %s" _format, __func__ __VA_OPT__(,) __VA_ARGS__)
 
 #define LIBCALL_DIRECT(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(#fn, fn(__VA_ARGS__), true)
 #define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(#fn, fn(__VA_ARGS__), false)
@@ -92,14 +92,14 @@ static std::string format_ports(uint8_t *ports)
 static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
 {
     SoapySDR::Kwargs entry;
-    entry["driver"] = "lpcsdr";
+    entry["driver"] = "pg2sdr";
     entry["index"] = std::to_string(device->index);
     if (device->serial[0])
         entry["serial"] = device->serial;
     entry["bus"] = std::to_string(device->usb_bus);
     entry["address"] = std::to_string(device->usb_address);
     entry["ports"] = format_ports(device->usb_ports);
-    entry["label"] = "LPCSDR@" + entry["bus"] + ":" + entry["ports"] + " s/n " + device->serial;
+    entry["label"] = "ProStick Gen 2 @ " + entry["bus"] + ":" + entry["ports"] + " s/n " + device->serial;
     return entry;
 }
 
@@ -130,7 +130,7 @@ SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
 {
     // Bail out early on requests that aren't for us
     auto driver = kwargs.find("driver");
-    if (driver != kwargs.end() && driver->second != "lpcsdr")
+    if (driver != kwargs.end() && driver->second != "pg2sdr")
         return {};
 
     TRACECALLF("(\"%s\")", SoapySDR::KwargsToString(kwargs).c_str());
@@ -156,30 +156,30 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
 
     Context ctx = Context::Make();
     if (!ctx)
-        throw std::runtime_error("could not initialize liblpcsdr: " + ctx.Error());
+        throw std::runtime_error("could not initialize libpg2sdr: " + ctx.Error());
 
     auto devices = DeviceList::Enumerate(ctx, false); // this needs to live beyond the match loop
     auto matching = FindDevicesMatching(devices, kwargs);
     if (matching.second.empty())
-        throw std::runtime_error("No LPCSDR device found that matches '" + SoapySDR::KwargsToString(kwargs) + "'");
+        throw std::runtime_error("No PG2SDR device found that matches '" + SoapySDR::KwargsToString(kwargs) + "'");
 
     if (matching.second.size() > 1) {
-        SoapySDR::log(SOAPY_SDR_WARNING, "LPCSDR: more than one LPCSDR device matched '" + SoapySDR::KwargsToString(kwargs) + "'; trying the first one");
+        SoapySDR::log(SOAPY_SDR_WARNING, "PG2SDR: more than one PG2SDR device matched '" + SoapySDR::KwargsToString(kwargs) + "'; trying the first one");
     }
 
     lpcsdr_device_handle *handle;
     LIBCALL_DIRECT(ctx, lpcsdr_open_device, matching.second[0], &handle);
 
     auto dev = new LPCSDRDevice(std::move(ctx), handle);
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: constructed %p with liblpcsdr handle %p", dev, handle);
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: constructed %p with libpg2sdr handle %p", dev, handle);
     return dev;
 }
 
-static SoapySDR::Registry registerLPCSDRDevice("lpcsdr", &LPCSDRDevice::FindDevices, &LPCSDRDevice::MakeDevice, SOAPY_SDR_ABI_VERSION);
+static SoapySDR::Registry registerLPCSDRDevice("pg2sdr", &LPCSDRDevice::FindDevices, &LPCSDRDevice::MakeDevice, SOAPY_SDR_ABI_VERSION);
 
 LPCSDRDevice::~LPCSDRDevice()
 {
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: dtor called for %p", this);
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: dtor called for %p", this);
     if (handle_) {
         if (LIBCALL_DIRECT_NOTHROW(ctx_, lpcsdr_close_device, handle_) < 0) {
             // this can happen if e.g. the underlying device is still busy in another thread
@@ -187,7 +187,7 @@ LPCSDRDevice::~LPCSDRDevice()
             //  (a) we will leak the handle and
             //  (b) we can't safely free the context and must leak it
             // so yell about it a bit
-            Logf(SOAPY_SDR_CRITICAL, "LPCSDR: LPCSDRDevice destructor could not clean up properly - resources leaked");
+            Logf(SOAPY_SDR_CRITICAL, "PG2SDR: LPCSDRDevice destructor could not clean up properly - resources leaked");
             ctx_.Release(); // leak the context to avoid freeing it while still in use
         }
     }
@@ -233,9 +233,9 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle)
     free(gain_table);
 }
 
-std::string LPCSDRDevice::getDriverKey(void) const { return "lpcsdr"; }
+std::string LPCSDRDevice::getDriverKey(void) const { return "pg2sdr"; }
 
-std::string LPCSDRDevice::getHardwareKey(void) const { return "lpcsdr"; }
+std::string LPCSDRDevice::getHardwareKey(void) const { return "pg2sdr"; }
 
 static inline void CheckChannel(const int direction, const size_t channel)
 {
@@ -255,7 +255,7 @@ public:
     PauseStreamGuard(const LPCSDRDevice &dev) : dev_(dev), lock_(dev.mutex_)
     {
         if (dev_.active_stream_) {
-            Logf(SOAPY_SDR_DEBUG, "LPCSDR: pausing stream");
+            Logf(SOAPY_SDR_DEBUG, "PG2SDR: pausing stream");
             dev_.active_stream_->deactivate();
         }
     }
@@ -263,7 +263,7 @@ public:
     ~PauseStreamGuard()
     {
         if (dev_.active_stream_) {
-            Logf(SOAPY_SDR_DEBUG, "LPCSDR: resuming stream");
+            Logf(SOAPY_SDR_DEBUG, "PG2SDR: resuming stream");
             dev_.active_stream_->activate();
         }
     }
@@ -587,7 +587,7 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
     adc_limit.key = setting_adc_limit;
     adc_limit.value = "28.0";
     adc_limit.name = "Maximum ADC sampling rate";
-    adc_limit.description = "Maximum ADC sampling rate that liblpcsdr will use";
+    adc_limit.description = "Maximum ADC sampling rate that libpg2sdr will use";
     adc_limit.type = SoapySDR::ArgInfo::Type::FLOAT;
     adc_limit.units = "MHz";
     adc_limit.range = SoapySDR::Range(0, 80);
@@ -1041,7 +1041,7 @@ int LPCSDRStream::activate()
     expected_timestamp_ = 0;
 
     // start the streaming thread
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: activating the streaming thread");
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: activating the streaming thread");
     thread_.reset(new std::thread(std::bind(&LPCSDRStream::StreamingWorker, this)));
     return 0;
 }
@@ -1053,7 +1053,7 @@ int LPCSDRStream::deactivate()
         return 0;
     }
 
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: deactivating the streaming thread");
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: deactivating the streaming thread");
     // ask the worker thread to stop
     {
         std::unique_lock<std::mutex> lock(queue_mutex_);
@@ -1078,7 +1078,7 @@ int LPCSDRStream::deactivate()
         pending_.reset();
         please_stop_ = false;
     }
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: done with deactivating the streaming thread");
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: done with deactivating the streaming thread");
 
     return 0;
 }
@@ -1125,7 +1125,7 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
         if (received == 0) {
             // Start of output buffer, set the timestamp
             if (expected_timestamp_ != 0 && expected_timestamp_ < timestamp) {
-                Logf(SOAPY_SDR_DEBUG, "LPCSDR: timestamp jumped by %" PRIu64 " (samples dropped)", timestamp - expected_timestamp_);
+                Logf(SOAPY_SDR_DEBUG, "PG2SDR: timestamp jumped by %" PRIu64 " (samples dropped)", timestamp - expected_timestamp_);
             }
 
             timeNs = (unsigned long long)(timestamp * 1e9 / sample_rate_);
@@ -1159,7 +1159,7 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
     if (received > 0) {
         return received;
     } else {
-        Logf(SOAPY_SDR_DEBUG, "LPCSDR: stream read timeout");
+        Logf(SOAPY_SDR_DEBUG, "PG2SDR: stream read timeout");
         return SOAPY_SDR_TIMEOUT;
     }
 }
@@ -1169,9 +1169,9 @@ void LPCSDRStream::StreamingWorker()
     /* pthread_setname_np does not seem to play well with how libc++ wraps the underlying threading library,
      * so just use prctl directly here (ugh)
      */
-    prctl(PR_SET_NAME, (unsigned long) "lpcsdr-stream", 0, 0, 0);
+    prctl(PR_SET_NAME, (unsigned long) "pg2sdr-stream", 0, 0, 0);
 
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: streaming thread started");
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread started");
     // The real work happens in LPCSDRStream::StreamCallback
     int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_stream_data, dev_.handle(), &LPCSDRStream::StreamCallback, (void *)this, 0);
 
@@ -1183,7 +1183,7 @@ void LPCSDRStream::StreamingWorker()
         queue_signal_.notify_all();
     }
 
-    Logf(SOAPY_SDR_DEBUG, "LPCSDR: streaming thread terminated");
+    Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread terminated");
 }
 
 // Bridge C callback API to C++
@@ -1199,14 +1199,14 @@ bool LPCSDRStream::StreamCallback(lpcsdr_sample_buffer *buffer)
     if (please_stop_) {
         // Something wants to stop streaming,
         // make sure that happens
-        Logf(SOAPY_SDR_DEBUG, "LPCSDR: streaming thread saw a stop flag");
+        Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread saw a stop flag");
         (void) lpcsdr_stop_streaming(buffer->dev);
     }
 
     auto new_size = queue_size_ + buffer->count;
     if (new_size > queue_limit_) {
         // Our queue is too large. Drop new data.
-        Logf(SOAPY_SDR_DEBUG, "LPCSDR: queue full, buffer dropped");
+        Logf(SOAPY_SDR_DEBUG, "PG2SDR: queue full, buffer dropped");
         return true; // caller can free the buffer
     }
 

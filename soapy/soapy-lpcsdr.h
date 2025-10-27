@@ -67,7 +67,7 @@ class Context
             break;
         }
 
-        SoapySDR::logf(ll, "liblpcsdr: %s", message);
+        SoapySDR::logf(ll, "libpg2sdr: %s", message);
     }
 
     void Release() { ctx_ = nullptr; }
@@ -126,7 +126,7 @@ class DeviceList
         lpc_device **newlist;
 
         if ((error = lpcsdr_discover_devices(ctx, &newlist, allow_bootloader)) < 0) {
-            SoapySDR::log(SOAPY_SDR_ERROR, "LPCSDR: could not enumerate LPCSDR devices: " + lpcsdr_strerror_string(error));
+            SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: could not enumerate PG2SDR devices: " + lpcsdr_strerror_string(error));
             return DeviceList(nullptr);
         }
 
