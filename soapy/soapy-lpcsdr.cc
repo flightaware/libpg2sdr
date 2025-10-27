@@ -17,7 +17,7 @@
 
 #include <sys/prctl.h>
 
-namespace LPCSDR {
+namespace PG2SDR {
 
 // Some settings constants
 
@@ -49,7 +49,7 @@ static std::string setting_adc_limit = "adc_limit";
 // This only exists for the __attribute__ annotation, so gcc will check the format strings against arguments
 static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 
-static inline int ReportLPCSDRError(const char *fname, int error, bool throw_on_error)
+static inline int ReportPG2SDRError(const char *fname, int error, bool throw_on_error)
 {
     if (error < 0) {
         std::string message = std::string(fname) + ": " + pg2sdr_strerror_string(error);
@@ -69,11 +69,11 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
     va_end(ap);
 }
 
-#define TRACECALL LPCSDR::Logf(SOAPY_SDR_DEBUG, "LPCSDR: %s()", __func__)
-#define TRACECALLF(_format, ...) LPCSDR::Logf(SOAPY_SDR_DEBUG, "PG2SDR: %s" _format, __func__ __VA_OPT__(,) __VA_ARGS__)
+#define TRACECALL PG2SDR::Logf(SOAPY_SDR_DEBUG, "PG2SDR: %s()", __func__)
+#define TRACECALLF(_format, ...) PG2SDR::Logf(SOAPY_SDR_DEBUG, "PG2SDR: %s" _format, __func__ __VA_OPT__(,) __VA_ARGS__)
 
-#define LIBCALL_DIRECT(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(#fn, fn(__VA_ARGS__), true)
-#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) LPCSDR::ReportLPCSDRError(#fn, fn(__VA_ARGS__), false)
+#define LIBCALL_DIRECT(_ctx, fn, ...) PG2SDR::ReportPG2SDRError(#fn, fn(__VA_ARGS__), true)
+#define LIBCALL_DIRECT_NOTHROW(_ctx, fn, ...) PG2SDR::ReportPG2SDRError(#fn, fn(__VA_ARGS__), false)
 
 #define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 #define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
@@ -126,7 +126,7 @@ static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMat
     return std::make_pair(result_args, result_devices);
 }
 
-SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
+SoapySDR::KwargsList PG2SDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
 {
     // Bail out early on requests that aren't for us
     auto driver = kwargs.find("driver");
@@ -150,7 +150,7 @@ SoapySDR::KwargsList LPCSDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
     return matching.first;
 }
 
-SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
+SoapySDR::Device *PG2SDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
 {
     TRACECALLF("(\"%s\")", SoapySDR::KwargsToString(kwargs).c_str());
 
@@ -170,14 +170,14 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     pg2sdr_device_handle *handle;
     LIBCALL_DIRECT(ctx, pg2sdr_open_device, matching.second[0], &handle);
 
-    auto dev = new LPCSDRDevice(std::move(ctx), handle);
+    auto dev = new PG2SDRDevice(std::move(ctx), handle);
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: constructed %p with libpg2sdr handle %p", dev, handle);
     return dev;
 }
 
-static SoapySDR::Registry registerLPCSDRDevice("pg2sdr", &LPCSDRDevice::FindDevices, &LPCSDRDevice::MakeDevice, SOAPY_SDR_ABI_VERSION);
+static SoapySDR::Registry registerPG2SDRDevice("pg2sdr", &PG2SDRDevice::FindDevices, &PG2SDRDevice::MakeDevice, SOAPY_SDR_ABI_VERSION);
 
-LPCSDRDevice::~LPCSDRDevice()
+PG2SDRDevice::~PG2SDRDevice()
 {
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: dtor called for %p", this);
     if (handle_) {
@@ -187,7 +187,7 @@ LPCSDRDevice::~LPCSDRDevice()
             //  (a) we will leak the handle and
             //  (b) we can't safely free the context and must leak it
             // so yell about it a bit
-            Logf(SOAPY_SDR_CRITICAL, "PG2SDR: LPCSDRDevice destructor could not clean up properly - resources leaked");
+            Logf(SOAPY_SDR_CRITICAL, "PG2SDR: PG2SDRDevice destructor could not clean up properly - resources leaked");
             ctx_.Release(); // leak the context to avoid freeing it while still in use
         }
     }
@@ -199,7 +199,7 @@ static SoapySDR::Range simple_gain_range(double *table)
     return SoapySDR::Range(*range.first, *range.second);
 }
 
-LPCSDRDevice::LPCSDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
+PG2SDRDevice::PG2SDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
     : ctx_(std::move(ctx)),
       handle_(handle),
       gain_element_mode_(GainElementMode::BOTH),
@@ -233,9 +233,9 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
     free(gain_table);
 }
 
-std::string LPCSDRDevice::getDriverKey(void) const { return "pg2sdr"; }
+std::string PG2SDRDevice::getDriverKey(void) const { return "pg2sdr"; }
 
-std::string LPCSDRDevice::getHardwareKey(void) const { return "pg2sdr"; }
+std::string PG2SDRDevice::getHardwareKey(void) const { return "pg2sdr"; }
 
 static inline void CheckChannel(const int direction, const size_t channel)
 {
@@ -252,7 +252,7 @@ static inline void CheckChannel(const int direction, const size_t channel)
 class PauseStreamGuard
 {
 public:
-    PauseStreamGuard(const LPCSDRDevice &dev) : dev_(dev), lock_(dev.mutex_)
+    PauseStreamGuard(const PG2SDRDevice &dev) : dev_(dev), lock_(dev.mutex_)
     {
         if (dev_.active_stream_) {
             Logf(SOAPY_SDR_DEBUG, "PG2SDR: pausing stream");
@@ -269,11 +269,11 @@ public:
     }
 
 private:
-    const LPCSDRDevice &dev_;
+    const PG2SDRDevice &dev_;
     std::unique_lock<std::mutex> lock_;
 };
 
-void LPCSDRDevice::tryApplyChanges() const
+void PG2SDRDevice::tryApplyChanges() const
 {
     // It's possible that changes will fail to apply for a couple of reasons:
     //
@@ -296,15 +296,15 @@ void LPCSDRDevice::tryApplyChanges() const
         return;
     }
 
-    LPCSDR::ReportLPCSDRError("pg2sdr_apply_changes", error, true);
+    PG2SDR::ReportPG2SDRError("pg2sdr_apply_changes", error, true);
 }
 
-void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
+void PG2SDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
 {
     setFrequency(direction, channel, "RF", frequency, args);
 }
 
-void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args)
+void PG2SDRDevice::setFrequency(const int direction, const size_t channel, const std::string &name, const double frequency, const SoapySDR::Kwargs &args)
 {
     TRACECALLF("(%d,%zu,\"%s\",%.0f,\"%s\")", direction, channel, name.c_str(), frequency, SoapySDR::KwargsToString(args).c_str());
     CheckChannel(direction, channel);
@@ -335,12 +335,12 @@ void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const
     tryApplyChanges();
 }
 
-double LPCSDRDevice::getFrequency(const int direction, const size_t channel) const
+double PG2SDRDevice::getFrequency(const int direction, const size_t channel) const
 {
     return getFrequency(direction, channel, "RF");
 }
 
-double LPCSDRDevice::getFrequency(const int direction, const size_t channel, const std::string &name) const
+double PG2SDRDevice::getFrequency(const int direction, const size_t channel, const std::string &name) const
 {
     TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
     CheckChannel(direction, channel);
@@ -356,7 +356,7 @@ double LPCSDRDevice::getFrequency(const int direction, const size_t channel, con
     return freq;
 }
 
-std::vector<std::string> LPCSDRDevice::listFrequencies(const int direction, const size_t channel) const
+std::vector<std::string> PG2SDRDevice::listFrequencies(const int direction, const size_t channel) const
 {
     CheckChannel(direction, channel);
 
@@ -364,13 +364,13 @@ std::vector<std::string> LPCSDRDevice::listFrequencies(const int direction, cons
     return { "RF" };
 }
 
-SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const size_t channel) const
+SoapySDR::RangeList PG2SDRDevice::getFrequencyRange(const int direction, const size_t channel) const
 {
     CheckChannel(direction, channel);
     return getFrequencyRange(direction, channel, "RF");
 }
 
-SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const size_t channel, const std::string &name) const
+SoapySDR::RangeList PG2SDRDevice::getFrequencyRange(const int direction, const size_t channel, const std::string &name) const
 {
     TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
     CheckChannel(direction, channel);
@@ -382,7 +382,7 @@ SoapySDR::RangeList LPCSDRDevice::getFrequencyRange(const int direction, const s
     return result;
 }
 
-void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, const double rate)
+void PG2SDRDevice::setSampleRate(const int direction, const size_t channel, const double rate)
 {
     TRACECALLF("(%d,%zu,%.0f)", direction, channel, rate);
     CheckChannel(direction, channel);
@@ -397,7 +397,7 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     }
 }
 
-double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) const
+double PG2SDRDevice::getSampleRate(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -411,7 +411,7 @@ double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) co
     return rate;
 }
 
-std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const size_t channel) const
+std::vector<double> PG2SDRDevice::listSampleRates(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -425,7 +425,7 @@ std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const siz
     return result;
 }
 
-SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const size_t channel) const
+SoapySDR::RangeList PG2SDRDevice::getSampleRateRange(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -438,7 +438,7 @@ SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const 
     return ranges;
 }
 
-void LPCSDRDevice::setBandwidth(const int direction, const size_t channel, const double bw)
+void PG2SDRDevice::setBandwidth(const int direction, const size_t channel, const double bw)
 {
     TRACECALLF("(%d,%zu,%.3fMHz)", direction, channel, bw/1e6);
     CheckChannel(direction, channel);
@@ -451,7 +451,7 @@ void LPCSDRDevice::setBandwidth(const int direction, const size_t channel, const
     bandwidth_ = bw;
 }
 
-double LPCSDRDevice::getBandwidth(const int direction, const size_t channel) const
+double PG2SDRDevice::getBandwidth(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -469,7 +469,7 @@ double LPCSDRDevice::getBandwidth(const int direction, const size_t channel) con
     return bw;
 }
 
-std::vector<double> LPCSDRDevice::listBandwidths(const int direction, const size_t channel) const
+std::vector<double> PG2SDRDevice::listBandwidths(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -480,7 +480,7 @@ std::vector<double> LPCSDRDevice::listBandwidths(const int direction, const size
     return result;
 }
 
-SoapySDR::RangeList LPCSDRDevice::getBandwidthRange(const int direction, const size_t channel) const
+SoapySDR::RangeList PG2SDRDevice::getBandwidthRange(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -490,7 +490,7 @@ SoapySDR::RangeList LPCSDRDevice::getBandwidthRange(const int direction, const s
     return ranges;
 }
 
-SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
+SoapySDR::ArgInfoList PG2SDRDevice::getSettingInfo(void) const
 {
     SoapySDR::ArgInfoList args;
 
@@ -597,7 +597,7 @@ SoapySDR::ArgInfoList LPCSDRDevice::getSettingInfo(void) const
     return args;
 }
 
-void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value)
+void PG2SDRDevice::writeSetting(const std::string &key, const std::string &value)
 {
     TRACECALLF("(\"%s\",\"%s\")", key.c_str(), value.c_str());
 
@@ -672,7 +672,7 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
     }
 }
 
-std::string LPCSDRDevice::readSetting(const std::string &key) const
+std::string PG2SDRDevice::readSetting(const std::string &key) const
 {
     TRACECALLF("(\"%s\")", key.c_str());
     if (key == setting_buffer_size) {
@@ -727,7 +727,7 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
 
 // CubicSDR unfortunately calls the gain-getter APIs a _lot_, so tracing of those calls is disabled
 
-std::vector<std::string> LPCSDRDevice::listGains(const int direction, const size_t channel) const
+std::vector<std::string> PG2SDRDevice::listGains(const int direction, const size_t channel) const
 {
     /* this means "get gain elements" */
 
@@ -745,14 +745,14 @@ std::vector<std::string> LPCSDRDevice::listGains(const int direction, const size
     }
 }
 
-void LPCSDRDevice::setGain(const int direction, const size_t channel, const double value)
+void PG2SDRDevice::setGain(const int direction, const size_t channel, const double value)
 {
     TRACECALLF("(%d,%zu,%.1f)", direction, channel, value);
     CheckChannel(direction, channel);
     LIBCALL(pg2sdr_set_total_gain_db, value);
 }
 
-void LPCSDRDevice::setGain(const int direction, const size_t channel, const std::string &name, const double value)
+void PG2SDRDevice::setGain(const int direction, const size_t channel, const std::string &name, const double value)
 {
     TRACECALLF("(%d,%zu,\"%s\",%.1f)", direction, channel, name.c_str(), value);
     CheckChannel(direction, channel);
@@ -770,7 +770,7 @@ void LPCSDRDevice::setGain(const int direction, const size_t channel, const std:
     }
 }
 
-double LPCSDRDevice::getGain(const int direction, const size_t channel) const
+double PG2SDRDevice::getGain(const int direction, const size_t channel) const
 {
     //TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -780,7 +780,7 @@ double LPCSDRDevice::getGain(const int direction, const size_t channel) const
     return total;
 }
 
-double LPCSDRDevice::getGain(const int direction, const size_t channel, const std::string &name) const
+double PG2SDRDevice::getGain(const int direction, const size_t channel, const std::string &name) const
 {
     //TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
     CheckChannel(direction, channel);
@@ -804,14 +804,14 @@ double LPCSDRDevice::getGain(const int direction, const size_t channel, const st
     }
 }
 
-SoapySDR::Range LPCSDRDevice::getGainRange(const int direction, const size_t channel) const
+SoapySDR::Range PG2SDRDevice::getGainRange(const int direction, const size_t channel) const
 {
     //TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
     return total_gain_range_;
 }
 
-SoapySDR::Range LPCSDRDevice::getGainRange(const int direction, const size_t channel, const std::string &name) const
+SoapySDR::Range PG2SDRDevice::getGainRange(const int direction, const size_t channel, const std::string &name) const
 {
     //TRACECALLF("(%d,%zu,\"%s\")", direction, channel, name.c_str());
     CheckChannel(direction, channel);
@@ -834,7 +834,7 @@ SoapySDR::Range LPCSDRDevice::getGainRange(const int direction, const size_t cha
 // STREAMING
 //
 
-size_t LPCSDRDevice::getNumChannels(const int direction) const
+size_t PG2SDRDevice::getNumChannels(const int direction) const
 {
     TRACECALL;
 
@@ -844,14 +844,14 @@ size_t LPCSDRDevice::getNumChannels(const int direction) const
     return 1;
 }
 
-std::vector<std::string> LPCSDRDevice::getStreamFormats(const int direction, const size_t channel) const
+std::vector<std::string> PG2SDRDevice::getStreamFormats(const int direction, const size_t channel) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
     return {SOAPY_SDR_CS16, SOAPY_SDR_CF32};
 }
 
-std::string LPCSDRDevice::getNativeStreamFormat(const int direction, const size_t channel, double &fullScale) const
+std::string PG2SDRDevice::getNativeStreamFormat(const int direction, const size_t channel, double &fullScale) const
 {
     TRACECALLF("(%d,%zu)", direction, channel);
     CheckChannel(direction, channel);
@@ -859,7 +859,7 @@ std::string LPCSDRDevice::getNativeStreamFormat(const int direction, const size_
     return SOAPY_SDR_CS16;
 }
 
-SoapySDR::Stream *LPCSDRDevice::setupStream(const int direction, const std::string &format, const std::vector<size_t> &channels, const SoapySDR::Kwargs &args)
+SoapySDR::Stream *PG2SDRDevice::setupStream(const int direction, const std::string &format, const std::vector<size_t> &channels, const SoapySDR::Kwargs &args)
 {
     TRACECALLF("(%d,%s,[%zu items],\"%s\")", direction, format.c_str(), channels.size(), SoapySDR::KwargsToString(args).c_str());
     if (channels.size() == 1)
@@ -867,26 +867,26 @@ SoapySDR::Stream *LPCSDRDevice::setupStream(const int direction, const std::stri
     else if (channels.size() > 1)
         throw std::invalid_argument("unexpected number of channels");
 
-    auto stream = reinterpret_cast<SoapySDR::Stream *>(new LPCSDRStream(*this, format, 20'000'000));
+    auto stream = reinterpret_cast<SoapySDR::Stream *>(new PG2SDRStream(*this, format, 20'000'000));
     Logf(SOAPY_SDR_DEBUG, " = %p", stream);
     return stream;
 }
 
-void LPCSDRDevice::closeStream(SoapySDR::Stream *stream)
+void PG2SDRDevice::closeStream(SoapySDR::Stream *stream)
 {
     TRACECALLF("(%p)", stream);
-    auto s = reinterpret_cast<LPCSDRStream *>(stream);
+    auto s = reinterpret_cast<PG2SDRStream *>(stream);
 
     deactivateStream(stream, 0, 0); /* if it's still active, stop it */
 
     delete s;
 }
 
-int LPCSDRDevice::activateStream(SoapySDR::Stream *stream, const int flags, const long long timeNs, const size_t numElems)
+int PG2SDRDevice::activateStream(SoapySDR::Stream *stream, const int flags, const long long timeNs, const size_t numElems)
 {
     TRACECALLF("(%p,%d,%lld,%zu)", stream, flags, timeNs, numElems);
 
-    auto s = reinterpret_cast<LPCSDRStream *>(stream);
+    auto s = reinterpret_cast<PG2SDRStream *>(stream);
     if (s == nullptr)
         return SOAPY_SDR_STREAM_ERROR; /* bad arg */
         
@@ -914,11 +914,11 @@ int LPCSDRDevice::activateStream(SoapySDR::Stream *stream, const int flags, cons
     }
 }
 
-int LPCSDRDevice::deactivateStream(SoapySDR::Stream *stream, const int flags, const long long timeNs)
+int PG2SDRDevice::deactivateStream(SoapySDR::Stream *stream, const int flags, const long long timeNs)
 {
     TRACECALLF("(%p,%d,%lld)", stream, flags, timeNs);
 
-    auto s = reinterpret_cast<LPCSDRStream *>(stream);
+    auto s = reinterpret_cast<PG2SDRStream *>(stream);
     if (s == nullptr)
         return SOAPY_SDR_STREAM_ERROR; /* bad arg */
         
@@ -940,20 +940,20 @@ int LPCSDRDevice::deactivateStream(SoapySDR::Stream *stream, const int flags, co
     }
 }
 
-std::size_t LPCSDRDevice::getStreamMTU(SoapySDR::Stream *stream) const
+std::size_t PG2SDRDevice::getStreamMTU(SoapySDR::Stream *stream) const
 {
     TRACECALLF("(%p)", stream);
-    auto s = reinterpret_cast<LPCSDRStream *>(stream);
+    auto s = reinterpret_cast<PG2SDRStream *>(stream);
     if (s == nullptr)
         return SOAPY_SDR_STREAM_ERROR; /* bad arg */
 
     return s->getMTU();
 }
 
-int LPCSDRDevice::readStream(SoapySDR::Stream *stream, void *const *buffs, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs)
+int PG2SDRDevice::readStream(SoapySDR::Stream *stream, void *const *buffs, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs)
 {
     // This is too busy to trace
-    auto s = reinterpret_cast<LPCSDRStream *>(stream);
+    auto s = reinterpret_cast<PG2SDRStream *>(stream);
     if (s == nullptr) {
         return SOAPY_SDR_STREAM_ERROR; /* bad arg */
     }
@@ -965,7 +965,7 @@ int LPCSDRDevice::readStream(SoapySDR::Stream *stream, void *const *buffs, const
 }
 
 //
-// LPCSDRStream
+// PG2SDRStream
 //
 
 static void copy_cs16_to_cs16(void *out, const void *in, std::size_t samples)
@@ -985,7 +985,7 @@ static void copy_cs16_to_cf32(void *out, const void *in, std::size_t samples)
 }
 
 
-LPCSDRStream::LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::size_t queue_limit)
+PG2SDRStream::PG2SDRStream(PG2SDRDevice &dev, const std::string &format, std::size_t queue_limit)
     : dev_(dev), sample_rate_(0), queue_limit_(queue_limit), queue_size_(0),   please_stop_(false), expected_timestamp_(0)
 {
     if (format == SOAPY_SDR_CS16) {
@@ -999,7 +999,7 @@ LPCSDRStream::LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::si
     bytes_per_sample_ = SoapySDR::formatToSize(format);
 }
 
-LPCSDRStream::~LPCSDRStream()
+PG2SDRStream::~PG2SDRStream()
 {
     if (thread_) {
         // Being destroyed while streaming is active
@@ -1013,14 +1013,14 @@ LPCSDRStream::~LPCSDRStream()
     }
 }
 
-size_t LPCSDRStream::getMTU() const
+size_t PG2SDRStream::getMTU() const
 {
     size_t size;    
     LIBCALL_DIRECT(dev_.context(), pg2sdr_get_buffer_size, dev_.handle(), &size);
     return size;
 }
 
-int LPCSDRStream::activate()
+int PG2SDRStream::activate()
 {
     if (thread_) {
         // nothing to do
@@ -1042,11 +1042,11 @@ int LPCSDRStream::activate()
 
     // start the streaming thread
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: activating the streaming thread");
-    thread_.reset(new std::thread(std::bind(&LPCSDRStream::StreamingWorker, this)));
+    thread_.reset(new std::thread(std::bind(&PG2SDRStream::StreamingWorker, this)));
     return 0;
 }
 
-int LPCSDRStream::deactivate()
+int PG2SDRStream::deactivate()
 {
     if (!thread_) {
         // nothing to do
@@ -1083,7 +1083,7 @@ int LPCSDRStream::deactivate()
     return 0;
 }
 
-int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs)
+int PG2SDRStream::read(void * const buf, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs)
 {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::microseconds(timeoutUs);
     int received = 0;
@@ -1164,7 +1164,7 @@ int LPCSDRStream::read(void * const buf, const size_t numElems, int &flags, long
     }
 }
 
-void LPCSDRStream::StreamingWorker()
+void PG2SDRStream::StreamingWorker()
 {
     /* pthread_setname_np does not seem to play well with how libc++ wraps the underlying threading library,
      * so just use prctl directly here (ugh)
@@ -1172,8 +1172,8 @@ void LPCSDRStream::StreamingWorker()
     prctl(PR_SET_NAME, (unsigned long) "pg2sdr-stream", 0, 0, 0);
 
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread started");
-    // The real work happens in LPCSDRStream::StreamCallback
-    int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stream_data, dev_.handle(), &LPCSDRStream::StreamCallback, (void *)this, 0);
+    // The real work happens in PG2SDRStream::StreamCallback
+    int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stream_data, dev_.handle(), &PG2SDRStream::StreamCallback, (void *)this, 0);
 
     // Enqueue any errors as a final queue item
     if (error < 0)
@@ -1187,12 +1187,12 @@ void LPCSDRStream::StreamingWorker()
 }
 
 // Bridge C callback API to C++
-bool LPCSDRStream::StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data)
+bool PG2SDRStream::StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data)
 {
-    return reinterpret_cast<LPCSDRStream *>(user_data)->StreamCallback(buffer);
+    return reinterpret_cast<PG2SDRStream *>(user_data)->StreamCallback(buffer);
 }
 
-bool LPCSDRStream::StreamCallback(pg2sdr_sample_buffer *buffer)
+bool PG2SDRStream::StreamCallback(pg2sdr_sample_buffer *buffer)
 {
     std::lock_guard<std::mutex> lock(queue_mutex_);
 
@@ -1217,4 +1217,4 @@ bool LPCSDRStream::StreamCallback(pg2sdr_sample_buffer *buffer)
 }
 
 
-}; // namespace LPCSDR
+}; // namespace PG2SDR

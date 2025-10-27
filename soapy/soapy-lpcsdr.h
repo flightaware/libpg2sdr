@@ -18,7 +18,7 @@
 #include <optional>
 #include <cstddef>
 
-namespace LPCSDR {
+namespace PG2SDR {
 
 static inline std::string pg2sdr_strerror_string(int error) {
     char buf[1024];
@@ -162,20 +162,20 @@ class DeviceList
     size_t size_;
 };
 
-class LPCSDRStream;
+class PG2SDRStream;
 
-class LPCSDRDevice : public SoapySDR::Device
+class PG2SDRDevice : public SoapySDR::Device
 {
   public:
     /* discovery */
     static SoapySDR::KwargsList FindDevices(const SoapySDR::Kwargs &kwargs);
     static SoapySDR::Device *MakeDevice(const SoapySDR::Kwargs &kwargs);
 
-    LPCSDRDevice(LPCSDRDevice &&from);
-    virtual ~LPCSDRDevice();
+    PG2SDRDevice(PG2SDRDevice &&from);
+    virtual ~PG2SDRDevice();
 
-    LPCSDRDevice(const LPCSDRDevice &) = delete;
-    LPCSDRDevice &operator=(const LPCSDRDevice &) = delete;
+    PG2SDRDevice(const PG2SDRDevice &) = delete;
+    PG2SDRDevice &operator=(const PG2SDRDevice &) = delete;
 
     /* identification */
     std::string getDriverKey(void) const override;
@@ -231,7 +231,7 @@ class LPCSDRDevice : public SoapySDR::Device
     pg2sdr_device_handle *handle() { return handle_; }
 
   private:
-    LPCSDRDevice(Context &&ctx, pg2sdr_device_handle *handle);
+    PG2SDRDevice(Context &&ctx, pg2sdr_device_handle *handle);
 
     void tryApplyChanges() const;
 
@@ -239,7 +239,7 @@ class LPCSDRDevice : public SoapySDR::Device
     enum class SidebandMode { LOWER, UPPER, AUTO };
 
     mutable std::mutex mutex_;                      // protects active_stream_
-    mutable LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
+    mutable PG2SDRStream *active_stream_ = nullptr; // currently activated PG2SDRStream
 
     mutable Context ctx_;
     mutable pg2sdr_device_handle *handle_;
@@ -263,15 +263,15 @@ class LPCSDRDevice : public SoapySDR::Device
 };
 
 /* The implementation hiding behind our opaque Stream* handle */
-class LPCSDRStream
+class PG2SDRStream
 {
 public:
-    LPCSDRStream(LPCSDRDevice &dev, const std::string &format, std::size_t queue_limit);
-    ~LPCSDRStream();
+    PG2SDRStream(PG2SDRDevice &dev, const std::string &format, std::size_t queue_limit);
+    ~PG2SDRStream();
 
     // not copyable
-    LPCSDRStream(const LPCSDRDevice &) = delete;
-    LPCSDRStream &operator=(const LPCSDRDevice &) = delete;
+    PG2SDRStream(const PG2SDRDevice &) = delete;
+    PG2SDRStream &operator=(const PG2SDRDevice &) = delete;
 
     size_t getMTU() const;
     int activate();
@@ -298,10 +298,10 @@ private:
     void StreamingWorker();
 
     // Callback implementation for pg2sdr_stream_data
-    static bool StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning LPCSDRStream
+    static bool StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning PG2SDRStream
     bool StreamCallback(pg2sdr_sample_buffer *buffer);
 
-    LPCSDRDevice &dev_;
+    PG2SDRDevice &dev_;
 
     void (*convert_)(void *, const void *, std::size_t);   // converter for provided int16_t samples -> requested format
     std::size_t bytes_per_sample_;         // sizeof(requested format)
@@ -322,6 +322,6 @@ private:
     std::uint64_t expected_timestamp_;
 };
 
-}; // namespace LPCSDR
+}; // namespace PG2SDR
 
 #endif /* SOAPY_PG2SDR_H */
