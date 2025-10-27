@@ -33,18 +33,18 @@ add_custom_command(
     ${CMAKE_SOURCE_DIR}/bandpass/generate-bandpass-table.py
     ${BANDPASS_METRICS})
 
-add_library(lpcsdr STATIC
+add_library(pg2sdr STATIC
   errors.c boot.c context.c device.c control.c adc.c stream.c tuner.c config.c gain.c bandpass.c
   ${CMAKE_CURRENT_BINARY_DIR}/gain-tables.gen.c
   ${CMAKE_CURRENT_BINARY_DIR}/bandpass-table.gen.c)
 
-target_compile_options(lpcsdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE)
-target_include_directories(lpcsdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_include_directories(lpcsdr PRIVATE ${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
-target_link_libraries(lpcsdr lpcsdr_dsp)
-set_target_properties(lpcsdr PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_compile_options(pg2sdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE)
+target_include_directories(pg2sdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(pg2sdr PRIVATE ${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
+target_link_libraries(pg2sdr pg2sdr_dsp)
+set_target_properties(pg2sdr PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 
-target_include_directories(lpcsdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
-target_compile_options(lpcsdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
-target_link_libraries(lpcsdr ${LIBUSB_LIBRARIES})
+target_include_directories(pg2sdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
+target_compile_options(pg2sdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
+target_link_libraries(pg2sdr ${LIBUSB_LIBRARIES})
