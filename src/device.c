@@ -6,11 +6,11 @@
 
 #include "internal.h"
 
-static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handle, lpcsdr_device_handle **out)
+static int build_lpc_device(pg2sdr_context *ctx, libusb_device_handle *usb_handle, pg2sdr_device_handle **out)
 {
     int error;
 
-    lpcsdr_device_handle *dev = calloc(1, sizeof(lpcsdr_device_handle));
+    pg2sdr_device_handle *dev = calloc(1, sizeof(pg2sdr_device_handle));
     if (!dev)
         return LPCSDR_ERROR_NO_MEMORY;
     dev->usb_handle = usb_handle;
@@ -56,7 +56,7 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
         goto cleanup;
 
     /* set default gain tables */
-    if ((error = lpcsdr_set_gain_tables(dev,
+    if ((error = pg2sdr_set_gain_tables(dev,
                                         pg2sdr__default_gain_table, pg2sdr__default_gain_table_size,
                                         pg2sdr__default_lna_table,
                                         pg2sdr__default_mix_table,
@@ -64,7 +64,7 @@ static int build_lpc_device(lpcsdr_context *ctx, libusb_device_handle *usb_handl
         goto cleanup;
 
     /* set default bandpass table */
-    if ((error = lpcsdr_set_bandpass_table(dev, pg2sdr__default_bandpass_table, pg2sdr__default_bandpass_table_size)) < 0)
+    if ((error = pg2sdr_set_bandpass_table(dev, pg2sdr__default_bandpass_table, pg2sdr__default_bandpass_table_size)) < 0)
         goto cleanup;
 
     *out = dev;
@@ -81,7 +81,7 @@ cleanup_nomutex:
     return error;
 }
 
-void lpcsdr_free_device_list(lpc_device **device_list)
+void pg2sdr_free_device_list(lpc_device **device_list)
 {
     if (!device_list)
         return;
@@ -149,7 +149,7 @@ static int get_serial(libusb_device *usb_dev, unsigned char *serial, size_t leng
     return usb_error;
 }
 
-ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
+ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader)
 {
     libusb_device **lu_device_list = NULL;
     ssize_t device_count = libusb_get_device_list(ctx->libusb_ctx, &lu_device_list);
@@ -167,7 +167,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
     for (ssize_t i = 0; i < device_count; ++i) {
         int usb_error;
         struct libusb_device_descriptor desc;
-        lpcsdr_device_mode mode;
+        pg2sdr_device_mode mode;
         libusb_device *usb_dev = lu_device_list[i];
 
         if ((usb_error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
@@ -232,17 +232,17 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
     return matched;
 
 failed:
-    lpcsdr_free_device_list(lpc_devices_to_return);
+    pg2sdr_free_device_list(lpc_devices_to_return);
     libusb_free_device_list(lu_device_list, /* unref devices */ 1);
     return error;
 }
 
-int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device_handle)
+int pg2sdr_open_single_device(pg2sdr_context *ctx, pg2sdr_device_handle **device_handle)
 {
     int error = LPCSDR_SUCCESS;
     lpc_device **devices;
     
-    int device_count = lpcsdr_discover_devices(ctx, &devices, true);
+    int device_count = pg2sdr_discover_devices(ctx, &devices, true);
     if (device_count < 0)
       return device_count;
     
@@ -256,24 +256,24 @@ int lpcsdr_open_single_device(lpcsdr_context *ctx, lpcsdr_device_handle **device
         goto cleanup;
     }
 
-    if ((error = lpcsdr_open_device(devices[0], device_handle)) < 0)
+    if ((error = pg2sdr_open_device(devices[0], device_handle)) < 0)
         goto cleanup;
 
     return error;
 
 cleanup:
-    lpcsdr_free_device_list(devices);
+    pg2sdr_free_device_list(devices);
     return error;
 }
 
-int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
+int pg2sdr_open_device(lpc_device *device, pg2sdr_device_handle **device_handle)
 {
     if (!device || !device_handle)
         return LPCSDR_ERROR_BAD_ARGUMENT;
 
     int error, usb_error;
 
-    lpcsdr_context *ctx = device->context;
+    pg2sdr_context *ctx = device->context;
     libusb_device *original_dev = (libusb_device *) device->libusb_device;
     libusb_device *reenumerated_dev = NULL;
     libusb_device_handle *usb_handle = NULL;
@@ -309,8 +309,8 @@ int lpcsdr_open_device(lpc_device *device, lpcsdr_device_handle **device_handle)
     }
 
 
-    //build lpcsdr_device_handle
-    lpcsdr_device_handle *handle = NULL;
+    //build pg2sdr_device_handle
+    pg2sdr_device_handle *handle = NULL;
     if ((error = build_lpc_device(ctx, usb_handle, &handle)) < 0) {
         goto failed;
     }
@@ -356,15 +356,15 @@ static int generic_match(lpc_device *dev, void *arg)
     return 1;
 }
 
-static int generic_open_by(lpcsdr_context *ctx, struct match_tuple *match, lpcsdr_device_handle **device)
+static int generic_open_by(pg2sdr_context *ctx, struct match_tuple *match, pg2sdr_device_handle **device)
 {
     CHECK_CTX(ctx);
     if (!device)
         return LPCSDR_ERROR_BAD_ARGUMENT;
-    return lpcsdr_open_by_callback(ctx, generic_match, (void *)match, device);
+    return pg2sdr_open_by_callback(ctx, generic_match, (void *)match, device);
 }
 
-int lpcsdr_open_by_serial(lpcsdr_context *ctx, const char *serial, lpcsdr_device_handle **device)
+int pg2sdr_open_by_serial(pg2sdr_context *ctx, const char *serial, pg2sdr_device_handle **device)
 {
     struct match_tuple match = {
         .serial = serial,
@@ -376,7 +376,7 @@ int lpcsdr_open_by_serial(lpcsdr_context *ctx, const char *serial, lpcsdr_device
     return generic_open_by(ctx, &match, device);
 }
 
-int lpcsdr_open_by_address(lpcsdr_context *ctx, uint8_t bus, uint8_t address, lpcsdr_device_handle **device)
+int pg2sdr_open_by_address(pg2sdr_context *ctx, uint8_t bus, uint8_t address, pg2sdr_device_handle **device)
 {
     struct match_tuple match = {
         .serial = NULL,
@@ -388,7 +388,7 @@ int lpcsdr_open_by_address(lpcsdr_context *ctx, uint8_t bus, uint8_t address, lp
     return generic_open_by(ctx, &match, device);
 }
 
-int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_handle **device)
+int pg2sdr_open_by_index(pg2sdr_context *ctx, unsigned index, pg2sdr_device_handle **device)
 {
     struct match_tuple match = {
         .serial = NULL,
@@ -400,14 +400,14 @@ int lpcsdr_open_by_index(lpcsdr_context *ctx, unsigned index, lpcsdr_device_hand
     return generic_open_by(ctx, &match, device);
 }
 
-int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, lpcsdr_device_handle **device)
+int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, pg2sdr_device_handle **device)
 {
     CHECK_CTX(ctx);
     if (!callback || !device)
         return LPCSDR_ERROR_BAD_ARGUMENT;
 
     lpc_device **device_list;
-    int count = lpcsdr_discover_devices(ctx, &device_list, true); /* include ROM bootloader always, the callback can filter */
+    int count = pg2sdr_discover_devices(ctx, &device_list, true); /* include ROM bootloader always, the callback can filter */
     if (count < 0)
         return count;
 
@@ -423,13 +423,13 @@ int lpcsdr_open_by_callback(lpcsdr_context *ctx, int (*callback)(lpc_device*, vo
     if (!match)
         error = LPCSDR_ERROR_NOT_FOUND;
     else
-        error = lpcsdr_open_device(match, device);
+        error = pg2sdr_open_device(match, device);
 
-    lpcsdr_free_device_list(device_list);
+    pg2sdr_free_device_list(device_list);
     return error;
 }
 
-int lpcsdr_close_device(lpcsdr_device_handle *dev)
+int pg2sdr_close_device(pg2sdr_device_handle *dev)
 {
     CHECK_DEV(dev);
 
@@ -442,7 +442,7 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
     int error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_OFF);
     if (error < 0) {
         char buf[1024];
-        LOGERROR(dev, "warning: could not disable RF power on device close: %s", lpcsdr_strerror_r(error, buf, sizeof(buf)));
+        LOGERROR(dev, "warning: could not disable RF power on device close: %s", pg2sdr_strerror_r(error, buf, sizeof(buf)));
         /* continue anyway */
     }
 
@@ -459,7 +459,7 @@ int lpcsdr_close_device(lpcsdr_device_handle *dev)
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_get_serial(lpcsdr_device_handle *dev, char *serial, size_t length)
+int pg2sdr_get_serial(pg2sdr_device_handle *dev, char *serial, size_t length)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);

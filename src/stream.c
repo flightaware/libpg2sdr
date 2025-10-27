@@ -7,23 +7,23 @@
 #define memory_barrier() atomic_thread_fence(memory_order_acq_rel)
 
 static void unpack_raw_adc_data(const uint32_t *in, uint32_t words, int16_t *out);
-static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data, size_t length, int16_t *out);
-static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t *data, size_t length, lpcsdr_stream_callback callback, void *user_data);
+static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data, size_t length, int16_t *out);
+static void dispatch_contiguous_blocks(pg2sdr_device_handle *dev, const uint8_t *data, size_t length, pg2sdr_stream_callback callback, void *user_data);
 
-static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev);
+static pg2sdr_sample_buffer *get_buffer(pg2sdr_device_handle *dev);
 
-static int allocate_transfers(lpcsdr_device_handle *dev);
-static void cancel_transfers(lpcsdr_device_handle *dev);
+static int allocate_transfers(pg2sdr_device_handle *dev);
+static void cancel_transfers(pg2sdr_device_handle *dev);
 static void free_transfers(pg2sdr__transfer_state *transfers, unsigned transfer_count);
-static void free_dev_transfers(lpcsdr_device_handle *dev);
-static int dispatch_transfer(lpcsdr_device_handle *dev, pg2sdr__transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data);
-static int drain_transfers(lpcsdr_device_handle *dev);
+static void free_dev_transfers(pg2sdr_device_handle *dev);
+static int dispatch_transfer(pg2sdr_device_handle *dev, pg2sdr__transfer_state *dev_transfer, pg2sdr_stream_callback callback, void *user_data);
+static int drain_transfers(pg2sdr_device_handle *dev);
 static int submit_one_transfer(struct pg2sdr__transfer_state *dev_transfer);
-static int submit_transfers(lpcsdr_device_handle *dev);
+static int submit_transfers(pg2sdr_device_handle *dev);
 static void transfer_callback(struct libusb_transfer *xfer);
-static bool check_any_transfer_busy(lpcsdr_device_handle *dev);
+static bool check_any_transfer_busy(pg2sdr_device_handle *dev);
 
-static size_t user_sample_size(lpcsdr_device_handle *dev)
+static size_t user_sample_size(pg2sdr_device_handle *dev)
 {
     return (dev->conversion_mode == LPCSDR_MODE_BASEBAND ? sizeof(cs16_t) : sizeof(int16_t));
 }
@@ -97,13 +97,13 @@ static void unpack_raw_adc_data_invert(const uint32_t *in, uint32_t words, int16
     }
 }
 
-/* Get a fresh lpcsdr_sample_buffer that can be used to fill with data and pass to user code */
-static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev)
+/* Get a fresh pg2sdr_sample_buffer that can be used to fill with data and pass to user code */
+static pg2sdr_sample_buffer *get_buffer(pg2sdr_device_handle *dev)
 {
     /* For now, we just allocate on demand and let libc's malloc implementation deal with it.
      * Later, may be worth revisiting to do our own free-list if malloc doesn't perform well.
      */
-    lpcsdr_sample_buffer *buf = malloc(sizeof(lpcsdr_sample_buffer) + dev->buffer_size * user_sample_size(dev));
+    pg2sdr_sample_buffer *buf = malloc(sizeof(pg2sdr_sample_buffer) + dev->buffer_size * user_sample_size(dev));
 
     buf->dev = dev;
     buf->samples = (int16_t*) (buf + 1); /* sample data immediately follows the header */
@@ -113,8 +113,8 @@ static lpcsdr_sample_buffer *get_buffer(lpcsdr_device_handle *dev)
     return buf;
 }
 
-/* Release a lpcsdr_sample_buffer that is no longer used by user code */
-void lpcsdr_release_buffer(lpcsdr_sample_buffer *buf)
+/* Release a pg2sdr_sample_buffer that is no longer used by user code */
+void pg2sdr_release_buffer(pg2sdr_sample_buffer *buf)
 {
     free(buf);
 }
@@ -128,7 +128,7 @@ void lpcsdr_release_buffer(lpcsdr_sample_buffer *buf)
  *
  * Returns the total number of output samples produced
  */
-static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data, size_t length, int16_t *out)
+static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data, size_t length, int16_t *out)
 {
     assert (length % dev->usb_bytes_per_block == 0);
 
@@ -210,7 +210,7 @@ static size_t convert_adc_blocks(lpcsdr_device_handle *dev, const uint8_t *data,
  *  the ADC blocks have contiguous sequence numbers (i.e. only a single user callback with a single starting timestamp needs to be made)
  *  the total converted data length produced will fit into a sample buffer
  */
-static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t *data, size_t length, lpcsdr_stream_callback callback, void *user_data)
+static void dispatch_contiguous_blocks(pg2sdr_device_handle *dev, const uint8_t *data, size_t length, pg2sdr_stream_callback callback, void *user_data)
 {
     assert (length % dev->usb_bytes_per_block == 0);
 
@@ -219,7 +219,7 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
     const unsigned user_samples = adc_samples / dev->adc_samples_per_user_sample;
     assert (user_samples <= dev->buffer_size);
 
-    lpcsdr_sample_buffer *buffer = get_buffer(dev);
+    pg2sdr_sample_buffer *buffer = get_buffer(dev);
     if (!buffer)
         return; /* no buffers available, drop this data on the floor */
 
@@ -234,17 +234,17 @@ static void dispatch_contiguous_blocks(lpcsdr_device_handle *dev, const uint8_t 
 
     bool result = callback(buffer, user_data);
     if (result) {
-        lpcsdr_release_buffer(buffer);
+        pg2sdr_release_buffer(buffer);
     }
 }
 
-int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callback, void *user_data, unsigned timeout_ms)
+int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callback, void *user_data, unsigned timeout_ms)
 {
     CHECK_DEV(dev);
 
     pthread_mutex_lock(&dev->mutex);
     if (dev->streaming) {
-        LOGDEBUG(dev, "lpcsdr_stream_data: already streaming");
+        LOGDEBUG(dev, "pg2sdr_stream_data: already streaming");
         pthread_mutex_unlock(&dev->mutex);
         return LPCSDR_ERROR_BAD_STATE;
     }
@@ -252,14 +252,14 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     int error, usb_error;
 
     /* ensure tuner/ADC configuration is up to date */
-    if ((error = lpcsdr_apply_changes(dev)) < 0) {
-        LOGDEBUG(dev, "lpcsdr_stream_data: apply_changes failed");
+    if ((error = pg2sdr_apply_changes(dev)) < 0) {
+        LOGDEBUG(dev, "pg2sdr_stream_data: apply_changes failed");
         goto done;
     }
 
     if (!dev->adc_pll_config.valid) {
         /* sample rate not set */
-        LOGDEBUG(dev, "lpcsdr_stream_data: sample rate not set");
+        LOGDEBUG(dev, "pg2sdr_stream_data: sample rate not set");
         error = LPCSDR_ERROR_BAD_STATE;
         goto done;
     }
@@ -271,7 +271,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     }
 
     if ((error = allocate_transfers(dev)) < 0) {
-        LOGDEBUG(dev, "lpcsdr_stream_data: allocate_transfers failed");
+        LOGDEBUG(dev, "pg2sdr_stream_data: allocate_transfers failed");
         goto done;
     }
 
@@ -280,14 +280,14 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         if (!(dev->downconverter = pg2sdr__dsp_downconvert_create(/* ntaps */ pg2sdr__dsp_default_halfband_ntaps,
                                                                   /* taps */ pg2sdr__dsp_default_halfband_taps,
                                                                   /* max_in_length */ dev->adc_samples_per_transfer))) {
-            LOGDEBUG(dev, "lpcsdr_stream_data: dsp_create_downconvert failed");
+            LOGDEBUG(dev, "pg2sdr_stream_data: dsp_create_downconvert failed");
             error = LPCSDR_ERROR_NO_MEMORY;
             goto cleanup;
         }
 
         for (unsigned i = 0; i < 2; ++i) {
             if (!(dev->work_buffer[i] = malloc(dev->adc_samples_per_transfer * sizeof(int16_t)))) {
-                LOGDEBUG(dev, "lpcsdr_stream_data: work buffer allocation failed");
+                LOGDEBUG(dev, "pg2sdr_stream_data: work buffer allocation failed");
                 error = LPCSDR_ERROR_NO_MEMORY;
                 goto cleanup;
             }
@@ -296,7 +296,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         for (unsigned i = 0; i < dev->post_decimation; ++i) {
             if (!(dev->post_decimators[i] = pg2sdr__dsp_halfband_decimate_create(/* ntaps */ pg2sdr__dsp_default_halfband_ntaps,
                                                                                  /* taps */ pg2sdr__dsp_default_halfband_taps))) {
-                LOGDEBUG(dev, "lpcsdr_stream_data: dsp_halfband_decimate_create failed");
+                LOGDEBUG(dev, "pg2sdr_stream_data: dsp_halfband_decimate_create failed");
                 error = LPCSDR_ERROR_NO_MEMORY;
                 goto cleanup;
             }
@@ -307,7 +307,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
 
     /* clear any endpoint halt first */
     if ((usb_error = libusb_clear_halt(dev->usb_handle, 0x81)) < 0) {
-        LOGDEBUG(dev, "lpcsdr_stream_data: libusb_clear_halt failed");
+        LOGDEBUG(dev, "pg2sdr_stream_data: libusb_clear_halt failed");
         error = pg2sdr__translate_libusb_error(usb_error);
         goto cleanup;
     }
@@ -328,12 +328,12 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
              dev->adc_pll_config.actual_frequency / 1e6);
 
     if ((error = pg2sdr__ctrl_start_transfer(dev, &dev->adc_pll_config)) < 0) {        
-        LOGDEBUG(dev, "lpcsdr_stream_data: start_transfer failed");
+        LOGDEBUG(dev, "pg2sdr_stream_data: start_transfer failed");
         goto cleanup;
     }
 
     if ((error = submit_transfers(dev)) < 0) {
-        LOGDEBUG(dev, "lpcsdr_stream_data: submit_transfers failed");        
+        LOGDEBUG(dev, "pg2sdr_stream_data: submit_transfers failed");        
         goto drain;
     }
 
@@ -344,7 +344,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         memory_barrier();
 
         if (dev->draining) {
-            LOGDEBUG(dev, "lpcsdr_stream_data: something set the draining flag, stopping");
+            LOGDEBUG(dev, "pg2sdr_stream_data: something set the draining flag, stopping");
             break;
         }
 
@@ -357,7 +357,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
             usb_error = libusb_handle_events_timeout_completed(dev->ctx->libusb_ctx, &timeout, &dev->completion_flag);
             pthread_mutex_lock(&dev->mutex);
             if (usb_error < 0 && usb_error != LIBUSB_ERROR_INTERRUPTED) {
-                LOGDEBUG(dev, "lpcsdr_stream_data: got a libusb error in the main loop: %s", libusb_strerror(usb_error));
+                LOGDEBUG(dev, "pg2sdr_stream_data: got a libusb error in the main loop: %s", libusb_strerror(usb_error));
                 error = pg2sdr__translate_libusb_error(usb_error);
                 goto drain;
             }
@@ -367,13 +367,13 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
         pg2sdr__transfer_state *current = dev->active_transfers_head;
 
         if (current->state != XFER_COMPLETED) {
-            LOGERROR(dev, "lpcsdr_stream_data: active transfer has state %d", (int)current->state);
+            LOGERROR(dev, "pg2sdr_stream_data: active transfer has state %d", (int)current->state);
             error = LPCSDR_ERROR_BAD_STATE;
             goto drain;
         }
 
         if (current->transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-            LOGERROR(dev, "lpcsdr_stream_data: bulk transfer failed with status %d", (int)current->transfer->status);
+            LOGERROR(dev, "pg2sdr_stream_data: bulk transfer failed with status %d", (int)current->transfer->status);
             error = pg2sdr__translate_libusb_transfer_status(current->transfer->status);
             goto drain;
         }
@@ -425,7 +425,7 @@ int lpcsdr_stream_data(lpcsdr_device_handle *dev, lpcsdr_stream_callback callbac
     return error;
 }
 
-int lpcsdr_stop_streaming(lpcsdr_device_handle *dev)
+int pg2sdr_stop_streaming(pg2sdr_device_handle *dev)
 {
     CHECK_DEV(dev);
 
@@ -462,7 +462,7 @@ static void transfer_callback(struct libusb_transfer *xfer)
 }
 
 /* (re)allocate libusb transfers and associated buffers for the current buffer size */
-static int allocate_transfers(lpcsdr_device_handle *dev)
+static int allocate_transfers(pg2sdr_device_handle *dev)
 {
     free_dev_transfers(dev);
 
@@ -567,7 +567,7 @@ static void free_transfers(pg2sdr__transfer_state *transfers, unsigned transfer_
 }
 
 /* free any transfers currently allocated by "dev" */
-static void free_dev_transfers(lpcsdr_device_handle *dev)
+static void free_dev_transfers(pg2sdr_device_handle *dev)
 {
     free_transfers(dev->transfers, dev->transfer_count);
 
@@ -576,7 +576,7 @@ static void free_dev_transfers(lpcsdr_device_handle *dev)
 }
 
 /* dispatch one completed USB transfer to user code */
-static int dispatch_transfer(lpcsdr_device_handle *dev, pg2sdr__transfer_state *dev_transfer, lpcsdr_stream_callback callback, void *user_data)
+static int dispatch_transfer(pg2sdr_device_handle *dev, pg2sdr__transfer_state *dev_transfer, pg2sdr_stream_callback callback, void *user_data)
 {
     unsigned bytelength = dev_transfer->transfer->actual_length;
 
@@ -627,7 +627,7 @@ static int submit_one_transfer(pg2sdr__transfer_state *dev_transfer)
     if (dev_transfer->state != XFER_IDLE)
         return LPCSDR_ERROR_BAD_STATE;
 
-    lpcsdr_device_handle *dev = dev_transfer->dev;
+    pg2sdr_device_handle *dev = dev_transfer->dev;
 
     dev_transfer->state = XFER_BUSY;
     int usb_error = libusb_submit_transfer(dev_transfer->transfer);
@@ -650,7 +650,7 @@ static int submit_one_transfer(pg2sdr__transfer_state *dev_transfer)
 }
 
 /* submit all idle transfers */
-static int submit_transfers(lpcsdr_device_handle *dev)
+static int submit_transfers(pg2sdr_device_handle *dev)
 {
     for (unsigned i = 0; i < dev->transfer_count; ++i) {
         if (dev->transfers[i].state == XFER_IDLE) {
@@ -664,7 +664,7 @@ static int submit_transfers(lpcsdr_device_handle *dev)
 }
 
 /* cancel all submitted transfers; wait for all submitted transfers to complete */
-static int drain_transfers(lpcsdr_device_handle *dev)
+static int drain_transfers(pg2sdr_device_handle *dev)
 {
     int error = LPCSDR_SUCCESS;
     dev->draining = true; /* ensure that blocks returned by the user are not resubmitted */
@@ -703,7 +703,7 @@ cleanup:
 }
 
 /* cancel all outstanding transfers */
-static void cancel_transfers(lpcsdr_device_handle *dev)
+static void cancel_transfers(pg2sdr_device_handle *dev)
 {
     for (unsigned i = 0; i < dev->transfer_count; ++i) {
         if (dev->transfers[i].state == XFER_BUSY) {
@@ -715,7 +715,7 @@ static void cancel_transfers(lpcsdr_device_handle *dev)
 /* return true if we have any submitted transfers that are still busy
  * (i.e. they are still owned by libusb and can't be freed yet)
  */
-static bool check_any_transfer_busy(lpcsdr_device_handle *dev)
+static bool check_any_transfer_busy(pg2sdr_device_handle *dev)
 {
     for (unsigned i = 0; i < dev->transfer_count; ++i) {
         if (dev->transfers[i].state == XFER_BUSY)

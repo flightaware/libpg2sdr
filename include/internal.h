@@ -43,11 +43,11 @@ struct pg2sdr__context {
     int magic;
     libusb_context *libusb_ctx;
     char *firmware_path;
-    lpcsdr_log_callback log_cb;
+    pg2sdr_log_callback log_cb;
 };
 
 typedef struct pg2sdr__transfer_state {
-    lpcsdr_device_handle *dev; /* owning device */
+    pg2sdr_device_handle *dev; /* owning device */
     enum {
         XFER_IDLE,      /* not submitted */
         XFER_BUSY,      /* submitted and waiting for a result */
@@ -62,17 +62,17 @@ typedef struct pg2sdr__transfer_state {
 struct pg2sdr__device_handle {
     unsigned magic;
     pthread_mutex_t mutex;
-    lpcsdr_context *ctx;
+    pg2sdr_context *ctx;
 
     uint32_t usb_samples_per_block;
     uint32_t usb_bytes_per_block;
 
     libusb_device_handle *usb_handle;
 
-    bool streaming; /* true when lpcsdr_stream_data is active */
+    bool streaming; /* true when pg2sdr_stream_data is active */
     bool draining;  /* true when we are waiting to drain all active transfers */
 
-    lpcsdr_conversion_mode_t conversion_mode;
+    pg2sdr_conversion_mode_t conversion_mode;
 
     double adc_limit;                     /* maximum ADC sample rate allowed, Hz */
 
@@ -99,17 +99,17 @@ struct pg2sdr__device_handle {
     unsigned mix_gain;
     unsigned vga_gain;
 
-    lpcsdr_gain_table_t *gain_table;      /* current total-gain table */
+    pg2sdr_gain_table_t *gain_table;      /* current total-gain table */
     size_t gain_table_size;               /* # of entries in gain_table */
     double lna_table[16];                 /* LNA gain-step-to-dB lookup */
     double mix_table[16];                 /* MIX gain-step-to-dB lookup */
     double vga_table[16];                 /* VGA gain-step-to-dB lookup */
 
-    const lpcsdr_gain_table_t *current_gain_entry; /* if gain was last set via lpcsdr_set_total_gain_db, pointer to the entry we used, otherwise NULL */
+    const pg2sdr_gain_table_t *current_gain_entry; /* if gain was last set via pg2sdr_set_total_gain_db, pointer to the entry we used, otherwise NULL */
 
-    lpcsdr_bandpass_table_t *bandpass_table;               /* available bandpass filters */
+    pg2sdr_bandpass_table_t *bandpass_table;               /* available bandpass filters */
     size_t bandpass_table_size;                            /* # of entries in bandpass_table */
-    const lpcsdr_bandpass_table_t *current_bandpass_entry; /* currently selected bandpass filter (pointer into bandpass_table) */
+    const pg2sdr_bandpass_table_t *current_bandpass_entry; /* currently selected bandpass filter (pointer into bandpass_table) */
 
     unsigned usb_transfer_size;           /* transfer size we decided on */
     unsigned adc_samples_per_transfer;    /* ADC samples per USB transfer */
@@ -138,10 +138,10 @@ struct pg2sdr__device_handle {
 };
 
 /* context.c */
-void pg2sdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
+void pg2sdr__log(pg2sdr_context *ctx, pg2sdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
 
 /* boot.c */
-int pg2sdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
+int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);
 
 /* errors.c */
 int pg2sdr__translate_libusb_error(int error);
@@ -149,17 +149,17 @@ int pg2sdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
 int pg2sdr__translate_errno(int error);
 
 //control transfers
-int pg2sdr__ctrl_get_status(lpcsdr_device_handle *dev, ep0_in_board_status_t *status);
-int pg2sdr__ctrl_set_rf_power(lpcsdr_device_handle *dev, rf_power_mode_t mode);
+int pg2sdr__ctrl_get_status(pg2sdr_device_handle *dev, ep0_in_board_status_t *status);
+int pg2sdr__ctrl_set_rf_power(pg2sdr_device_handle *dev, rf_power_mode_t mode);
 int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle);
-int pg2sdr__ctrl_start_transfer(lpcsdr_device_handle *dev, const adc_pll_config_t *config);
-int pg2sdr__ctrl_stop_transfer(lpcsdr_device_handle *dev);
-int pg2sdr__ctrl_tuner_update(lpcsdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int pg2sdr__ctrl_read_tuner_register(lpcsdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
-int pg2sdr__ctrl_update_tuner_lock(lpcsdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
+int pg2sdr__ctrl_start_transfer(pg2sdr_device_handle *dev, const adc_pll_config_t *config);
+int pg2sdr__ctrl_stop_transfer(pg2sdr_device_handle *dev);
+int pg2sdr__ctrl_tuner_update(pg2sdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
+int pg2sdr__ctrl_read_tuner_register(pg2sdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
+int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
 
 /* bandpass.c */
-const lpcsdr_bandpass_table_t *pg2sdr__select_bandpass_filter(lpcsdr_device_handle *dev,
+const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device_handle *dev,
                                                               double low_signal,
                                                               double high_signal,
                                                               double low_nyquist,
@@ -170,10 +170,10 @@ extern const double pg2sdr__default_lna_table[16];
 extern const double pg2sdr__default_mix_table[16];
 extern const double pg2sdr__default_vga_table[16];
 extern const size_t pg2sdr__default_gain_table_size;
-extern const lpcsdr_gain_table_t pg2sdr__default_gain_table[];
+extern const pg2sdr_gain_table_t pg2sdr__default_gain_table[];
 
 /* bandpass-table.gen.c (generated code) */
 extern const size_t pg2sdr__default_bandpass_table_size;
-extern const lpcsdr_bandpass_table_t pg2sdr__default_bandpass_table[];
+extern const pg2sdr_bandpass_table_t pg2sdr__default_bandpass_table[];
 
 #endif /* PG2SDR_INTERNAL_H */

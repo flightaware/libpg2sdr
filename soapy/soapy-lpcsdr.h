@@ -20,9 +20,9 @@
 
 namespace LPCSDR {
 
-static inline std::string lpcsdr_strerror_string(int error) {
+static inline std::string pg2sdr_strerror_string(int error) {
     char buf[1024];
-    return std::string(lpcsdr_strerror_r(error, buf, sizeof(buf)));
+    return std::string(pg2sdr_strerror_r(error, buf, sizeof(buf)));
 }
 
 // RAII helper around pxsdr_context
@@ -38,7 +38,7 @@ class Context
     ~Context()
     {
         if (ctx_)
-            lpcsdr_exit(ctx_);
+            pg2sdr_exit(ctx_);
     }
 
     Context(const Context &) = delete;
@@ -46,11 +46,11 @@ class Context
 
     operator bool() { return (ctx_ != nullptr); }
 
-    operator lpcsdr_context *() { return ctx_; }
+    operator pg2sdr_context *() { return ctx_; }
 
     const std::string &Error() const { return error_; }
 
-    static void Log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message)
+    static void Log(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
     {
         (void) ctx; /* unused */
 
@@ -74,17 +74,17 @@ class Context
 
     static Context Make()
     {
-        lpcsdr_context *newctx;
+        pg2sdr_context *newctx;
         int error;
 
-        if ((error = lpcsdr_init(&newctx)) < 0) {
+        if ((error = pg2sdr_init(&newctx)) < 0) {
             
-            return Context("lpcsdr_init: " + lpcsdr_strerror_string(error));
+            return Context("pg2sdr_init: " + pg2sdr_strerror_string(error));
         }
 
-        if ((error = lpcsdr_set_log_callback(newctx, &Context::Log)) < 0) {
-            auto errormsg = "lpcsdr_set_log_callback: " + lpcsdr_strerror_string(error);
-            lpcsdr_exit(newctx);
+        if ((error = pg2sdr_set_log_callback(newctx, &Context::Log)) < 0) {
+            auto errormsg = "pg2sdr_set_log_callback: " + pg2sdr_strerror_string(error);
+            pg2sdr_exit(newctx);
             return Context(errormsg);
         }
 
@@ -94,9 +94,9 @@ class Context
   private:
     Context(std::string error) : ctx_(nullptr), error_(error) {}
 
-    Context(lpcsdr_context *ctx) : ctx_(ctx), error_() {}
+    Context(pg2sdr_context *ctx) : ctx_(ctx), error_() {}
 
-    lpcsdr_context *ctx_;
+    pg2sdr_context *ctx_;
     std::string error_;
 };
 
@@ -114,7 +114,7 @@ class DeviceList
     ~DeviceList()
     {
         if (list_)
-            lpcsdr_free_device_list(list_);
+            pg2sdr_free_device_list(list_);
     }
 
     DeviceList(const Context &) = delete;
@@ -125,8 +125,8 @@ class DeviceList
         int error;
         lpc_device **newlist;
 
-        if ((error = lpcsdr_discover_devices(ctx, &newlist, allow_bootloader)) < 0) {
-            SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: could not enumerate PG2SDR devices: " + lpcsdr_strerror_string(error));
+        if ((error = pg2sdr_discover_devices(ctx, &newlist, allow_bootloader)) < 0) {
+            SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: could not enumerate PG2SDR devices: " + pg2sdr_strerror_string(error));
             return DeviceList(nullptr);
         }
 
@@ -228,10 +228,10 @@ class LPCSDRDevice : public SoapySDR::Device
     SoapySDR::RangeList getBandwidthRange(const int direction, const size_t channel) const override;
 
     Context &context() { return ctx_; }
-    lpcsdr_device_handle *handle() { return handle_; }
+    pg2sdr_device_handle *handle() { return handle_; }
 
   private:
-    LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle);
+    LPCSDRDevice(Context &&ctx, pg2sdr_device_handle *handle);
 
     void tryApplyChanges() const;
 
@@ -242,7 +242,7 @@ class LPCSDRDevice : public SoapySDR::Device
     mutable LPCSDRStream *active_stream_ = nullptr; // currently activated LPCSDRStream
 
     mutable Context ctx_;
-    mutable lpcsdr_device_handle *handle_;
+    mutable pg2sdr_device_handle *handle_;
 
     // how are we advertising gain stages?
     GainElementMode gain_element_mode_;
@@ -279,8 +279,8 @@ public:
     int read(void *out, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs);
 
 private:
-    // A unique_ptr for lpcsdr_sample_buffer that frees buffers via the liblpcsdr API
-    typedef std::unique_ptr<lpcsdr_sample_buffer, decltype(&lpcsdr_release_buffer)> BufferPtr;
+    // A unique_ptr for pg2sdr_sample_buffer that frees buffers via the liblpcsdr API
+    typedef std::unique_ptr<pg2sdr_sample_buffer, decltype(&pg2sdr_release_buffer)> BufferPtr;
 
     // Items contained in queue_ and pending_
     struct QueueItem {
@@ -290,16 +290,16 @@ private:
 
         unsigned size() const { return buffer ? buffer->count : 0; }
 
-        QueueItem(lpcsdr_sample_buffer *buf) : buffer(buf, &lpcsdr_release_buffer), offset(0), error(0) {}
-        QueueItem(int err) : buffer(nullptr, &lpcsdr_release_buffer), offset(0), error(err) {}
+        QueueItem(pg2sdr_sample_buffer *buf) : buffer(buf, &pg2sdr_release_buffer), offset(0), error(0) {}
+        QueueItem(int err) : buffer(nullptr, &pg2sdr_release_buffer), offset(0), error(err) {}
     };
 
     // Streaming thread entry point
     void StreamingWorker();
 
-    // Callback implementation for lpcsdr_stream_data
-    static bool StreamCallback(lpcsdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning LPCSDRStream
-    bool StreamCallback(lpcsdr_sample_buffer *buffer);
+    // Callback implementation for pg2sdr_stream_data
+    static bool StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning LPCSDRStream
+    bool StreamCallback(pg2sdr_sample_buffer *buffer);
 
     LPCSDRDevice &dev_;
 

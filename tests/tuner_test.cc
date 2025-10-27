@@ -81,7 +81,7 @@ TEST(tuner_sanity_check, Success)
 {
     Context ctx;
     DeviceHandle handle(ctx);
-    lpcsdr_device_handle *h = handle();
+    pg2sdr_device_handle *h = handle();
 
     tuner_pll_config_t p;
     ASSERT_EQ(pg2sdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
@@ -93,10 +93,10 @@ TEST(gain_sanity_check, Success) {
     Context ctx;
     DeviceHandle handle(ctx);
 
-    lpcsdr_device_handle *h = handle();
-    ASSERT_EQ(lpcsdr_set_lna_gain(h, 1), LPCSDR_SUCCESS);
-    ASSERT_EQ(lpcsdr_set_mix_gain(h, 2), LPCSDR_SUCCESS);
-    ASSERT_EQ(lpcsdr_set_vga_gain(h, 3), LPCSDR_SUCCESS);
+    pg2sdr_device_handle *h = handle();
+    ASSERT_EQ(pg2sdr_set_lna_gain(h, 1), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr_set_mix_gain(h, 2), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr_set_vga_gain(h, 3), LPCSDR_SUCCESS);
 
     EXPECT_EQ(read_tuner_bits(h, LNA_GAIN), 1);
     EXPECT_EQ(read_tuner_bits(h, MIX_GAIN), 2);
@@ -107,7 +107,7 @@ TEST(filter_sanity_check, Success) {
     Context ctx;
     DeviceHandle handle(ctx);
 
-    lpcsdr_device_handle *h = handle();
+    pg2sdr_device_handle *h = handle();
 
     auto settings = pg2sdr__select_bandpass_filter(h, 659e3, 3177e3, 0, 4000e3);
     ASSERT_NE(settings, nullptr);

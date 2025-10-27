@@ -76,13 +76,13 @@ static char *wrap_strerror(int errnum, char *buf, size_t buflen)
 }
 #endif
 
-const char *lpcsdr_strerror(int error)
+const char *pg2sdr_strerror(int error)
 {
     static char buf[1024];
-    return lpcsdr_strerror_r(error, buf, sizeof(buf));
+    return pg2sdr_strerror_r(error, buf, sizeof(buf));
 }
 
-const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
+const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen)
 {
     if (error > LPCSDR_ERROR_SYSTEM_MIN && error <= LPCSDR_ERROR_SYSTEM_MAX) {
         int sys_error = error - LPCSDR_ERROR_SYSTEM_MIN;
@@ -97,7 +97,7 @@ const char *lpcsdr_strerror_r(int error, char *buf, size_t buflen)
         return buf;
     }
 
-    switch ((enum lpcsdr_error)error) {
+    switch ((enum pg2sdr_error)error) {
     case LPCSDR_SUCCESS:
         return "no error";
 

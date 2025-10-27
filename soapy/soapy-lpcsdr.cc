@@ -52,7 +52,7 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...) __att
 static inline int ReportLPCSDRError(const char *fname, int error, bool throw_on_error)
 {
     if (error < 0) {
-        std::string message = std::string(fname) + ": " + lpcsdr_strerror_string(error);
+        std::string message = std::string(fname) + ": " + pg2sdr_strerror_string(error);
         SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: " + message);
         if (throw_on_error)
             throw std::runtime_error(message);
@@ -167,8 +167,8 @@ SoapySDR::Device *LPCSDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
         SoapySDR::log(SOAPY_SDR_WARNING, "PG2SDR: more than one PG2SDR device matched '" + SoapySDR::KwargsToString(kwargs) + "'; trying the first one");
     }
 
-    lpcsdr_device_handle *handle;
-    LIBCALL_DIRECT(ctx, lpcsdr_open_device, matching.second[0], &handle);
+    pg2sdr_device_handle *handle;
+    LIBCALL_DIRECT(ctx, pg2sdr_open_device, matching.second[0], &handle);
 
     auto dev = new LPCSDRDevice(std::move(ctx), handle);
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: constructed %p with libpg2sdr handle %p", dev, handle);
@@ -181,7 +181,7 @@ LPCSDRDevice::~LPCSDRDevice()
 {
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: dtor called for %p", this);
     if (handle_) {
-        if (LIBCALL_DIRECT_NOTHROW(ctx_, lpcsdr_close_device, handle_) < 0) {
+        if (LIBCALL_DIRECT_NOTHROW(ctx_, pg2sdr_close_device, handle_) < 0) {
             // this can happen if e.g. the underlying device is still busy in another thread
             // this is bad, because
             //  (a) we will leak the handle and
@@ -199,23 +199,23 @@ static SoapySDR::Range simple_gain_range(double *table)
     return SoapySDR::Range(*range.first, *range.second);
 }
 
-LPCSDRDevice::LPCSDRDevice(Context &&ctx, lpcsdr_device_handle *handle)
+LPCSDRDevice::LPCSDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
     : ctx_(std::move(ctx)),
       handle_(handle),
       gain_element_mode_(GainElementMode::BOTH),
       bandwidth_(-1),
       sideband_mode_(SidebandMode::AUTO)
 {
-    LIBCALL(lpcsdr_set_buffer_size, 128*1024);
-    LIBCALL(lpcsdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
+    LIBCALL(pg2sdr_set_buffer_size, 128*1024);
+    LIBCALL(pg2sdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
 
     // Collect info on gain ranges
 
     double lna[16], mix[16], vga[16];
-    lpcsdr_gain_table_t *gain_table;
+    pg2sdr_gain_table_t *gain_table;
     size_t gain_table_size;
 
-    LIBCALL(lpcsdr_get_gain_tables, &gain_table, &gain_table_size, lna, mix, vga);
+    LIBCALL(pg2sdr_get_gain_tables, &gain_table, &gain_table_size, lna, mix, vga);
 
     // stage gain tables are not sorted, so do a full scan
     lna_range_ = simple_gain_range(lna);
@@ -286,17 +286,17 @@ void LPCSDRDevice::tryApplyChanges() const
     // but for (1), we can retry with the stream paused
 
     // Don't use LIBCALL initially, we don't want to log scary bad-state errors at ERROR level here
-    int error = lpcsdr_apply_changes(handle_);
+    int error = pg2sdr_apply_changes(handle_);
     if (!error)
         return;
     if (error == LPCSDR_ERROR_BAD_STATE) {
         // Retry with the stream paused
         PauseStreamGuard pause_stream(*this);
-        LIBCALL(lpcsdr_apply_changes);
+        LIBCALL(pg2sdr_apply_changes);
         return;
     }
 
-    LPCSDR::ReportLPCSDRError("lpcsdr_apply_changes", error, true);
+    LPCSDR::ReportLPCSDRError("pg2sdr_apply_changes", error, true);
 }
 
 void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args)
@@ -330,8 +330,8 @@ void LPCSDRDevice::setFrequency(const int direction, const size_t channel, const
         throw std::runtime_error("bad sideband_mode_ value");
     }
 
-    LIBCALL(lpcsdr_set_sideband, sideband);
-    LIBCALL(lpcsdr_set_frequency, frequency);
+    LIBCALL(pg2sdr_set_sideband, sideband);
+    LIBCALL(pg2sdr_set_frequency, frequency);
     tryApplyChanges();
 }
 
@@ -349,7 +349,7 @@ double LPCSDRDevice::getFrequency(const int direction, const size_t channel, con
 
     double req, actual;
     tryApplyChanges(); // ensure actual frequency is up to date before querying
-    LIBCALL(lpcsdr_get_frequency, &req, &actual);
+    LIBCALL(pg2sdr_get_frequency, &req, &actual);
 
     double freq = actual ? actual : req;
     Logf(SOAPY_SDR_DEBUG, " = %.3fMHz", freq/1e6);
@@ -390,10 +390,10 @@ void LPCSDRDevice::setSampleRate(const int direction, const size_t channel, cons
     // We know that changing sample rate is not safe when streaming
     {
         PauseStreamGuard pause_stream(*this);
-        LIBCALL(lpcsdr_set_sample_rate, rate);
+        LIBCALL(pg2sdr_set_sample_rate, rate);
         if (bandwidth_ < 0) // bandwidth not set, default to full bandwidth
-            LIBCALL(lpcsdr_set_bandpass, -rate/2.0, rate/2.0);
-        LIBCALL(lpcsdr_apply_changes);
+            LIBCALL(pg2sdr_set_bandpass, -rate/2.0, rate/2.0);
+        LIBCALL(pg2sdr_apply_changes);
     }
 }
 
@@ -404,7 +404,7 @@ double LPCSDRDevice::getSampleRate(const int direction, const size_t channel) co
 
     double req, actual;
     tryApplyChanges(); // ensure actual rate is up to date before querying
-    LIBCALL(lpcsdr_get_sample_rate, &req, &actual);
+    LIBCALL(pg2sdr_get_sample_rate, &req, &actual);
 
     double rate = actual ? actual : req;
     Logf(SOAPY_SDR_DEBUG, " = %.3fMHz", rate/1e6);
@@ -417,7 +417,7 @@ std::vector<double> LPCSDRDevice::listSampleRates(const int direction, const siz
     CheckChannel(direction, channel);
 
     double adc_limit;
-    LIBCALL(lpcsdr_get_adc_limit, &adc_limit);
+    LIBCALL(pg2sdr_get_adc_limit, &adc_limit);
 
     std::vector<double> result;
     for (auto i = 1; i <= adc_limit / 0.5e6 / 2.0; ++i)
@@ -431,7 +431,7 @@ SoapySDR::RangeList LPCSDRDevice::getSampleRateRange(const int direction, const 
     CheckChannel(direction, channel);
 
     double adc_limit;
-    LIBCALL(lpcsdr_get_adc_limit, &adc_limit);
+    LIBCALL(pg2sdr_get_adc_limit, &adc_limit);
 
     SoapySDR::RangeList ranges;
     ranges.push_back(SoapySDR::Range(1, adc_limit / 2.0));
@@ -446,7 +446,7 @@ void LPCSDRDevice::setBandwidth(const int direction, const size_t channel, const
     if (bw < 0)
         throw std::invalid_argument("bandwidth cannot be negative");
 
-    LIBCALL(lpcsdr_set_bandpass, -bw/2.0, bw/2.0);
+    LIBCALL(pg2sdr_set_bandpass, -bw/2.0, bw/2.0);
     tryApplyChanges();
     bandwidth_ = bw;
 }
@@ -458,7 +458,7 @@ double LPCSDRDevice::getBandwidth(const int direction, const size_t channel) con
 
     double low, high, actual_low, actual_high;
     tryApplyChanges();
-    LIBCALL(lpcsdr_get_bandpass, &low, &high, &actual_low, &actual_high);
+    LIBCALL(pg2sdr_get_bandpass, &low, &high, &actual_low, &actual_high);
     if (actual_low)
         low = actual_low;
     if (actual_high)
@@ -606,7 +606,7 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
         
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(lpcsdr_set_buffer_size, size);
+            LIBCALL(pg2sdr_set_buffer_size, size);
         }
     } else if (key == setting_decimation) {
         int mode;
@@ -619,7 +619,7 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
 
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(lpcsdr_set_decimation_mode, mode);
+            LIBCALL(pg2sdr_set_decimation_mode, mode);
         }
     } else if (key == setting_gain_config) {
         if (value == setting_gain_config_individual) {
@@ -636,7 +636,7 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
 
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(lpcsdr_set_undersampling_mode, mode);
+            LIBCALL(pg2sdr_set_undersampling_mode, mode);
         }
     } else if (key == setting_sideband) {
         bool sideband;
@@ -650,7 +650,7 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
             sideband_mode_ = SidebandMode::AUTO;
 
             double freq;
-            LIBCALL(lpcsdr_get_frequency, &freq, NULL);
+            LIBCALL(pg2sdr_get_frequency, &freq, NULL);
             sideband = (freq > 1e9);
         } else {
             throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
@@ -658,14 +658,14 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
 
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(lpcsdr_set_sideband, sideband);
+            LIBCALL(pg2sdr_set_sideband, sideband);
         }
     } else if (key == setting_adc_limit) {
         double limit = std::stod(value) * 1e6;
 
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(lpcsdr_set_adc_limit, limit);
+            LIBCALL(pg2sdr_set_adc_limit, limit);
         }
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
@@ -677,11 +677,11 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
     TRACECALLF("(\"%s\")", key.c_str());
     if (key == setting_buffer_size) {
         size_t size;
-        LIBCALL(lpcsdr_get_buffer_size, &size);
+        LIBCALL(pg2sdr_get_buffer_size, &size);
         return std::to_string(size);
     } else if (key == setting_decimation) {
         int mode;
-        LIBCALL(lpcsdr_get_decimation_mode, &mode);
+        LIBCALL(pg2sdr_get_decimation_mode, &mode);
         if (mode >= 0)
             return std::to_string(mode);
         else if (mode == LPCSDR_DECIMATION_AUTO)
@@ -703,7 +703,7 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
         }
     } else if (key == setting_undersampling) {
         int mode;
-        LIBCALL(lpcsdr_get_undersampling_mode, &mode);
+        LIBCALL(pg2sdr_get_undersampling_mode, &mode);
         return std::to_string(mode);
     } else if (key == setting_sideband) {
         switch (sideband_mode_) {
@@ -718,7 +718,7 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
         }
     } else if (key == setting_adc_limit) {
         double limit;
-        LIBCALL(lpcsdr_get_adc_limit, &limit);
+        LIBCALL(pg2sdr_get_adc_limit, &limit);
         return std::to_string(limit / 1e6);
     } else {
         throw std::invalid_argument("unrecognized setting " + key);
@@ -749,7 +749,7 @@ void LPCSDRDevice::setGain(const int direction, const size_t channel, const doub
 {
     TRACECALLF("(%d,%zu,%.1f)", direction, channel, value);
     CheckChannel(direction, channel);
-    LIBCALL(lpcsdr_set_total_gain_db, value);
+    LIBCALL(pg2sdr_set_total_gain_db, value);
 }
 
 void LPCSDRDevice::setGain(const int direction, const size_t channel, const std::string &name, const double value)
@@ -758,13 +758,13 @@ void LPCSDRDevice::setGain(const int direction, const size_t channel, const std:
     CheckChannel(direction, channel);
     
     if (name == gain_element_LNA) {
-        LIBCALL(lpcsdr_set_lna_gain_db, value);
+        LIBCALL(pg2sdr_set_lna_gain_db, value);
     } else if (name == gain_element_MIX) {
-        LIBCALL(lpcsdr_set_mix_gain_db, value);
+        LIBCALL(pg2sdr_set_mix_gain_db, value);
     } else if (name == gain_element_VGA) {
-        LIBCALL(lpcsdr_set_vga_gain_db, value);
+        LIBCALL(pg2sdr_set_vga_gain_db, value);
     } else if (name == gain_element_ALL) {
-        LIBCALL(lpcsdr_set_total_gain_db, value);
+        LIBCALL(pg2sdr_set_total_gain_db, value);
     } else {
         throw std::invalid_argument("unrecognized amplification element: " + name);
     }
@@ -776,7 +776,7 @@ double LPCSDRDevice::getGain(const int direction, const size_t channel) const
     CheckChannel(direction, channel);
 
     double total;
-    LIBCALL(lpcsdr_get_total_gain_db, &total);
+    LIBCALL(pg2sdr_get_total_gain_db, &total);
     return total;
 }
 
@@ -787,12 +787,12 @@ double LPCSDRDevice::getGain(const int direction, const size_t channel, const st
 
     if (name == gain_element_ALL) {
         double total;
-        LIBCALL(lpcsdr_get_total_gain_db, &total);
+        LIBCALL(pg2sdr_get_total_gain_db, &total);
         return total;
     }
 
     double lna, mix, vga;
-    LIBCALL(lpcsdr_get_stage_gains_db, &lna, &mix, &vga);
+    LIBCALL(pg2sdr_get_stage_gains_db, &lna, &mix, &vga);
     if (name == gain_element_LNA) {
         return lna;
     } else if (name == gain_element_MIX) {
@@ -1005,7 +1005,7 @@ LPCSDRStream::~LPCSDRStream()
         // Being destroyed while streaming is active
         // We must stop the streaming thread right now to avoid touching object state after
         // it has been destroyed
-        (void)LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_stop_streaming, dev_.handle());
+        (void)LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stop_streaming, dev_.handle());
 
         // wait for the streaming thread to stop
         thread_->join();
@@ -1016,7 +1016,7 @@ LPCSDRStream::~LPCSDRStream()
 size_t LPCSDRStream::getMTU() const
 {
     size_t size;    
-    LIBCALL_DIRECT(dev_.context(), lpcsdr_get_buffer_size, dev_.handle(), &size);
+    LIBCALL_DIRECT(dev_.context(), pg2sdr_get_buffer_size, dev_.handle(), &size);
     return size;
 }
 
@@ -1030,12 +1030,12 @@ int LPCSDRStream::activate()
     // first, ensure we can apply all pending changes, so the direct caller can notice
     // errors (otherwise, they might only be noticed in the streaming worker thread
     // where it's harder to propagate them back to a useful place)
-    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_apply_changes, dev_.handle()) < 0)
+    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_apply_changes, dev_.handle()) < 0)
         return SOAPY_SDR_STREAM_ERROR;
 
     // record sampling rate at start of streaming,
     // so we can compute timestamps appropriately
-    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_get_sample_rate, dev_.handle(), &sample_rate_, NULL) < 0)
+    if (LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_get_sample_rate, dev_.handle(), &sample_rate_, NULL) < 0)
         return SOAPY_SDR_STREAM_ERROR;
 
     expected_timestamp_ = 0;
@@ -1060,10 +1060,10 @@ int LPCSDRStream::deactivate()
         please_stop_ = true;
     }
 
-    // the worker thread will call lpcsdr_stop_streaming from the buffer callback
+    // the worker thread will call pg2sdr_stop_streaming from the buffer callback
     // when that callback next happens, but it doesn't hurt to also call it here
-    // to try to make lpcsdr_stream_data bail out faster
-    (void) lpcsdr_stop_streaming(dev_.handle());
+    // to try to make pg2sdr_stream_data bail out faster
+    (void) pg2sdr_stop_streaming(dev_.handle());
 
     // wait for the streaming thread to stop (this should happen promptly)
     thread_->join();
@@ -1173,7 +1173,7 @@ void LPCSDRStream::StreamingWorker()
 
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread started");
     // The real work happens in LPCSDRStream::StreamCallback
-    int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), lpcsdr_stream_data, dev_.handle(), &LPCSDRStream::StreamCallback, (void *)this, 0);
+    int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stream_data, dev_.handle(), &LPCSDRStream::StreamCallback, (void *)this, 0);
 
     // Enqueue any errors as a final queue item
     if (error < 0)
@@ -1187,12 +1187,12 @@ void LPCSDRStream::StreamingWorker()
 }
 
 // Bridge C callback API to C++
-bool LPCSDRStream::StreamCallback(lpcsdr_sample_buffer *buffer, void *user_data)
+bool LPCSDRStream::StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data)
 {
     return reinterpret_cast<LPCSDRStream *>(user_data)->StreamCallback(buffer);
 }
 
-bool LPCSDRStream::StreamCallback(lpcsdr_sample_buffer *buffer)
+bool LPCSDRStream::StreamCallback(pg2sdr_sample_buffer *buffer)
 {
     std::lock_guard<std::mutex> lock(queue_mutex_);
 
@@ -1200,7 +1200,7 @@ bool LPCSDRStream::StreamCallback(lpcsdr_sample_buffer *buffer)
         // Something wants to stop streaming,
         // make sure that happens
         Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread saw a stop flag");
-        (void) lpcsdr_stop_streaming(buffer->dev);
+        (void) pg2sdr_stop_streaming(buffer->dev);
     }
 
     auto new_size = queue_size_ + buffer->count;

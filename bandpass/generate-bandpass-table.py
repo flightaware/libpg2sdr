@@ -55,7 +55,7 @@ def format_bandpass_entry(entry):
     return f"{{ {entry.low_corner_freq:.0f}, {entry.high_corner_freq:.0f}, {entry.passband_ripple_db:.1f}, {entry.hpf_corner}, {entry.lpf_narrow}, {entry.lpf_coarse}, {entry.lpf_fine}, {entry.lpf_q} }}"
 
 def write_c_table(path, entries):
-    # Emit generated code for liblpcsdr with the given table
+    # Emit generated code for libpg2sdr with the given table
 
     with open(path, 'w') as out:
         print(f"""
@@ -64,7 +64,7 @@ def write_c_table(path, entries):
 #include "internal.h"
 
 const size_t pg2sdr__default_bandpass_table_size = {len(entries)};
-const lpcsdr_bandpass_table_t pg2sdr__default_bandpass_table[] = {{
+const pg2sdr_bandpass_table_t pg2sdr__default_bandpass_table[] = {{
 {make_c_array(entries, 1, format_bandpass_entry)}
 }};
 """, file=out)

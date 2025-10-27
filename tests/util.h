@@ -14,23 +14,23 @@ class Context {
 public:
     Context() : ctx(nullptr) {
         int error;
-        if ((error = lpcsdr_init(&ctx)) < 0)
-            throw std::runtime_error(std::string("context init failed: lpcsdr_init: ") + lpcsdr_strerror(error));
+        if ((error = pg2sdr_init(&ctx)) < 0)
+            throw std::runtime_error(std::string("context init failed: pg2sdr_init: ") + pg2sdr_strerror(error));
     }
 
     Context(const Context&) = delete;
     Context& operator= (const Context&) = delete;
 
     ~Context() {
-        lpcsdr_exit(ctx);
+        pg2sdr_exit(ctx);
     }
 
-    lpcsdr_context *operator()(void) {
+    pg2sdr_context *operator()(void) {
         return ctx;
     }
 
 private:
-    lpcsdr_context *ctx;
+    pg2sdr_context *ctx;
 };
 
 class DeviceHandle {
@@ -39,28 +39,28 @@ public:
         int error;
 
         if (::getenv("LPCSDR_FIRMWARE_PATH") == nullptr) {
-            if ((error = lpcsdr_set_firmware_path(ctx(), "/media/psf/soapy_shared_folder/liblpcsdr/lpcsdr_firmware/images/lpcsdr.bin")) < 0) {
-                throw std::runtime_error(std::string("device setup failed: lpcsdr_set_firmware_path: ") + lpcsdr_strerror(error));
+            if ((error = pg2sdr_set_firmware_path(ctx(), "/media/psf/soapy_shared_folder/liblpcsdr/pg2sdr_firmware/images/lpcsdr.bin")) < 0) {
+                throw std::runtime_error(std::string("device setup failed: pg2sdr_set_firmware_path: ") + pg2sdr_strerror(error));
             }
         }
 
-        if ((error = lpcsdr_open_single_device(ctx(), &handle)) < 0)
-            throw std::runtime_error(std::string("device setup failed: lpcsdr_open_single_device: ") + lpcsdr_strerror(error));
+        if ((error = pg2sdr_open_single_device(ctx(), &handle)) < 0)
+            throw std::runtime_error(std::string("device setup failed: pg2sdr_open_single_device: ") + pg2sdr_strerror(error));
     }
 
     DeviceHandle(const DeviceHandle&) = delete;
     DeviceHandle& operator= (const DeviceHandle&) = delete;
 
     ~DeviceHandle() {
-        lpcsdr_close_device(handle);
+        pg2sdr_close_device(handle);
     }
 
-    lpcsdr_device_handle *operator()(void) {
+    pg2sdr_device_handle *operator()(void) {
         return handle;
     }
 
 private:
-    lpcsdr_device_handle  *handle;
+    pg2sdr_device_handle  *handle;
 };
 
 #endif

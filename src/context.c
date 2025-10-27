@@ -5,23 +5,23 @@
 
 #include "internal.h"
 
-static void default_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message)
+static void default_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
 {
     if (level >= LPCSDR_LOG_INFO)
         fprintf(stderr, "liblpcsdr: %s\n", message);
 }
 
-static void debug_logger(lpcsdr_context *ctx, lpcsdr_log_level level, const char *message)
+static void debug_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
 {
     fprintf(stderr, "liblpcsdr: %s\n", message);
 }
 
-int lpcsdr_init(lpcsdr_context **ctx) {
+int pg2sdr_init(pg2sdr_context **ctx) {
 
     if (!ctx)
         return LPCSDR_ERROR_BAD_ARGUMENT;
 
-    lpcsdr_context *newctx;
+    pg2sdr_context *newctx;
     if (!(newctx = malloc(sizeof(*newctx))))
         return LPCSDR_ERROR_NO_MEMORY;
 
@@ -41,7 +41,7 @@ int lpcsdr_init(lpcsdr_context **ctx) {
 
     char *firmware_env = getenv("LPCSDR_FIRMWARE");
     if (firmware_env) {
-        int error = lpcsdr_set_firmware_path(newctx, firmware_env);
+        int error = pg2sdr_set_firmware_path(newctx, firmware_env);
         if (error < 0) {
             free(newctx->firmware_path);
             free(newctx);
@@ -53,7 +53,7 @@ int lpcsdr_init(lpcsdr_context **ctx) {
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_set_firmware_path(lpcsdr_context *ctx, const char *firmware_path) {
+int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path) {
     CHECK_CTX(ctx);
 
     char *dup_path;
@@ -64,7 +64,7 @@ int lpcsdr_set_firmware_path(lpcsdr_context *ctx, const char *firmware_path) {
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_set_log_callback(lpcsdr_context *ctx, lpcsdr_log_callback callback)
+int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback)
 {
     CHECK_CTX(ctx);
     ctx->log_cb = callback;
@@ -72,7 +72,7 @@ int lpcsdr_set_log_callback(lpcsdr_context *ctx, lpcsdr_log_callback callback)
 }
 
 
-int lpcsdr_exit(lpcsdr_context *ctx)
+int pg2sdr_exit(pg2sdr_context *ctx)
 {
     CHECK_CTX(ctx);
 
@@ -83,7 +83,7 @@ int lpcsdr_exit(lpcsdr_context *ctx)
     return LPCSDR_SUCCESS;
 }
 
-void pg2sdr__log(lpcsdr_context *ctx, lpcsdr_log_level level, const char *format, ...)
+void pg2sdr__log(pg2sdr_context *ctx, pg2sdr_log_level level, const char *format, ...)
 {
     if (!ctx || !ctx->log_cb)
         return;

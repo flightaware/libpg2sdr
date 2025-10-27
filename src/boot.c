@@ -75,7 +75,7 @@ static int dfu_ctrl_download(libusb_device_handle *handle, int block, const uint
  *
  * Return 0 on success, or a negative liblpcsdr error code on failure
  */
-static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
+static int dfu_download_image(pg2sdr_context *ctx, libusb_device_handle *handle)
 {
     if (!ctx->firmware_path) {
         /* We want to upload firmware, but no path has been configured */
@@ -89,7 +89,7 @@ static int dfu_download_image(lpcsdr_context *ctx, libusb_device_handle *handle)
                     LPCSDR_LOG_ERROR,
                     "Could not read firmware image at %s: %s",
                     ctx->firmware_path,
-                    lpcsdr_strerror_r(pg2sdr__translate_errno(errno), buf, sizeof(buf)));
+                    pg2sdr_strerror_r(pg2sdr__translate_errno(errno), buf, sizeof(buf)));
 
         if (errno == ENOENT)
             return LPCSDR_ERROR_FWIMAGE_MISSING;
@@ -159,7 +159,7 @@ cleanup:
  *   discover the new LPCSDR device, and put the handle in *reenumerated_dev
  * Return 0 on success, or a negative liblpcsdr error on failure
  */
-int pg2sdr__boot_firmware(lpcsdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
+int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev)
 {
     int error;
     int usb_error;

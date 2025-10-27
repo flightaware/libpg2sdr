@@ -44,7 +44,7 @@ def format_gain_entry(entry):
     return f"{{ {entry.gain_db:5.2f}, {entry.lna:2d}, {entry.mix:2d}, {entry.vga:2d} }}"
 
 def write_c_tables(path, lna_table, mix_table, vga_table, gain_curve):
-    # Emit generated code for liblpcsdr with the given tables
+    # Emit generated code for libpg2sdr with the given tables
 
     with open(path, 'w') as out:
         print(f"""
@@ -65,7 +65,7 @@ const double pg2sdr__default_vga_table[16] = {{
 }};
 
 const size_t pg2sdr__default_gain_table_size = {len(gain_curve)};
-const lpcsdr_gain_table_t pg2sdr__default_gain_table[] = {{
+const pg2sdr_gain_table_t pg2sdr__default_gain_table[] = {{
 {make_c_array(gain_curve, 1, format_gain_entry)}
 }};
 """, file=out)

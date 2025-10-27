@@ -4,8 +4,8 @@
 
 /* -- Bandpass table access -- */
 
-int lpcsdr_set_bandpass_table(lpcsdr_device_handle *dev,
-                              const lpcsdr_bandpass_table_t *bandpass_table, size_t bandpass_table_size)
+int pg2sdr_set_bandpass_table(pg2sdr_device_handle *dev,
+                              const pg2sdr_bandpass_table_t *bandpass_table, size_t bandpass_table_size)
 {
     CHECK_DEV(dev);
     if (bandpass_table == NULL || bandpass_table_size == 0)
@@ -15,12 +15,12 @@ int lpcsdr_set_bandpass_table(lpcsdr_device_handle *dev,
     pthread_mutex_lock(&dev->mutex);
 
     /* take a copy of the provided data */
-    lpcsdr_bandpass_table_t *new_table;
-    if (!(new_table = calloc(bandpass_table_size, sizeof(lpcsdr_bandpass_table_t)))) {
+    pg2sdr_bandpass_table_t *new_table;
+    if (!(new_table = calloc(bandpass_table_size, sizeof(pg2sdr_bandpass_table_t)))) {
         error = LPCSDR_ERROR_NO_MEMORY;
         goto done;
     }
-    memcpy(new_table, bandpass_table, bandpass_table_size * sizeof(lpcsdr_bandpass_table_t));
+    memcpy(new_table, bandpass_table, bandpass_table_size * sizeof(pg2sdr_bandpass_table_t));
 
     /* swap in the new copy */
     free(dev->bandpass_table);
@@ -33,8 +33,8 @@ int lpcsdr_set_bandpass_table(lpcsdr_device_handle *dev,
     return error;
 }
 
-int lpcsdr_get_bandpass_table(lpcsdr_device_handle *dev,
-                              lpcsdr_bandpass_table_t **bandpass_table,
+int pg2sdr_get_bandpass_table(pg2sdr_device_handle *dev,
+                              pg2sdr_bandpass_table_t **bandpass_table,
                               size_t *bandpass_table_size)
 {
     CHECK_DEV(dev);
@@ -48,16 +48,16 @@ int lpcsdr_get_bandpass_table(lpcsdr_device_handle *dev,
      * to free() this memory when they are done with it.
      *
      * (we do this mostly to avoid complications caused if we returned a
-     * pointer to the internal table, which can be reallocated if lpcsdr_set_bandpass_tables()
+     * pointer to the internal table, which can be reallocated if pg2sdr_set_bandpass_tables()
      * is called, perhaps even from a separate thread)
      */
-    lpcsdr_bandpass_table_t *clone;
-    if (!(clone = calloc(dev->bandpass_table_size, sizeof(lpcsdr_bandpass_table_t)))) {
+    pg2sdr_bandpass_table_t *clone;
+    if (!(clone = calloc(dev->bandpass_table_size, sizeof(pg2sdr_bandpass_table_t)))) {
         error = LPCSDR_ERROR_NO_MEMORY;
         goto done;
     }
 
-    memcpy(clone, dev->bandpass_table, dev->bandpass_table_size * sizeof(lpcsdr_bandpass_table_t));
+    memcpy(clone, dev->bandpass_table, dev->bandpass_table_size * sizeof(pg2sdr_bandpass_table_t));
     *bandpass_table = clone;
     *bandpass_table_size = dev->bandpass_table_size;
 
@@ -66,7 +66,7 @@ int lpcsdr_get_bandpass_table(lpcsdr_device_handle *dev,
     return error;
 }
 
-static double filter_penalty(const lpcsdr_bandpass_table_t *entry,
+static double filter_penalty(const pg2sdr_bandpass_table_t *entry,
                              double low_signal,
                              double high_signal,
                              double low_nyquist,
@@ -113,7 +113,7 @@ static double filter_penalty(const lpcsdr_bandpass_table_t *entry,
     return penalty;
 }
 
-const lpcsdr_bandpass_table_t *pg2sdr__select_bandpass_filter(lpcsdr_device_handle *dev,
+const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device_handle *dev,
                                                               double low_signal,
                                                               double high_signal,
                                                               double low_nyquist,
@@ -129,10 +129,10 @@ const lpcsdr_bandpass_table_t *pg2sdr__select_bandpass_filter(lpcsdr_device_hand
         high_signal = hh;
     }
 
-    const lpcsdr_bandpass_table_t *best = &dev->bandpass_table[0];
+    const pg2sdr_bandpass_table_t *best = &dev->bandpass_table[0];
     double best_penalty = filter_penalty(best, low_signal, high_signal, low_nyquist, high_nyquist);
     for (size_t i = 1; i < dev->bandpass_table_size; ++i) {
-        const lpcsdr_bandpass_table_t *candidate = &dev->bandpass_table[i];
+        const pg2sdr_bandpass_table_t *candidate = &dev->bandpass_table[i];
         double candidate_penalty = filter_penalty(candidate, low_signal, high_signal, low_nyquist, high_nyquist);
         if (candidate_penalty < best_penalty) {
             best = candidate;

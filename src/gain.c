@@ -4,7 +4,7 @@
 
 /* Generic helpers, to reduce duplication needed for code that's the same shape for lna/mix/vga */
 
-static int generic_set_gain(lpcsdr_device_handle *dev, unsigned gain, int (*tuner_set_gain)(lpcsdr_device_handle *, unsigned))
+static int generic_set_gain(pg2sdr_device_handle *dev, unsigned gain, int (*tuner_set_gain)(pg2sdr_device_handle *, unsigned))
 {
     int error = LPCSDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
@@ -17,7 +17,7 @@ static int generic_set_gain(lpcsdr_device_handle *dev, unsigned gain, int (*tune
     return error;
 }
 
-static int generic_set_gain_db(lpcsdr_device_handle *dev, double gain_db, double *table, int (*tuner_set_gain)(lpcsdr_device_handle *, unsigned))
+static int generic_set_gain_db(pg2sdr_device_handle *dev, double gain_db, double *table, int (*tuner_set_gain)(pg2sdr_device_handle *, unsigned))
 {
     int error = LPCSDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
@@ -40,13 +40,13 @@ static int generic_set_gain_db(lpcsdr_device_handle *dev, double gain_db, double
 
 /* -- LNA -- */
 
-int lpcsdr_set_lna_gain(lpcsdr_device_handle *dev, unsigned gain)
+int pg2sdr_set_lna_gain(pg2sdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
     return generic_set_gain(dev, gain, pg2sdr__tuner_set_lna);
 }
 
-int lpcsdr_set_lna_gain_db(lpcsdr_device_handle *dev, double gain_db)
+int pg2sdr_set_lna_gain_db(pg2sdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
     return generic_set_gain_db(dev, gain_db, dev->lna_table, pg2sdr__tuner_set_lna);
@@ -54,13 +54,13 @@ int lpcsdr_set_lna_gain_db(lpcsdr_device_handle *dev, double gain_db)
 
 /* -- MIX -- */
 
-int lpcsdr_set_mix_gain(lpcsdr_device_handle *dev, unsigned gain)
+int pg2sdr_set_mix_gain(pg2sdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
     return generic_set_gain(dev, gain, pg2sdr__tuner_set_mix);
 }
 
-int lpcsdr_set_mix_gain_db(lpcsdr_device_handle *dev, double gain_db)
+int pg2sdr_set_mix_gain_db(pg2sdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
     return generic_set_gain_db(dev, gain_db, dev->mix_table, pg2sdr__tuner_set_mix);
@@ -68,13 +68,13 @@ int lpcsdr_set_mix_gain_db(lpcsdr_device_handle *dev, double gain_db)
 
 /* -- VGA -- */
 
-int lpcsdr_set_vga_gain(lpcsdr_device_handle *dev, unsigned gain)
+int pg2sdr_set_vga_gain(pg2sdr_device_handle *dev, unsigned gain)
 {
     CHECK_DEV(dev);
     return generic_set_gain(dev, gain, pg2sdr__tuner_set_vga);
 }
 
-int lpcsdr_set_vga_gain_db(lpcsdr_device_handle *dev, double gain_db)
+int pg2sdr_set_vga_gain_db(pg2sdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
     return generic_set_gain_db(dev, gain_db, dev->vga_table, pg2sdr__tuner_set_vga);
@@ -82,7 +82,7 @@ int lpcsdr_set_vga_gain_db(lpcsdr_device_handle *dev, double gain_db)
 
 /* Getters that operate on any/all three stages at once */
 
-int lpcsdr_get_stage_gains(lpcsdr_device_handle *dev, unsigned *lna, unsigned *mix, unsigned *vga)
+int pg2sdr_get_stage_gains(pg2sdr_device_handle *dev, unsigned *lna, unsigned *mix, unsigned *vga)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -96,7 +96,7 @@ int lpcsdr_get_stage_gains(lpcsdr_device_handle *dev, unsigned *lna, unsigned *m
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_get_stage_gains_db(lpcsdr_device_handle *dev, double *lna_db, double *mix_db, double *vga_db)
+int pg2sdr_get_stage_gains_db(pg2sdr_device_handle *dev, double *lna_db, double *mix_db, double *vga_db)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -114,8 +114,8 @@ int lpcsdr_get_stage_gains_db(lpcsdr_device_handle *dev, double *lna_db, double 
 
 static int compare_gain_entry(const void *left, const void *right)
 {
-    const lpcsdr_gain_table_t *left_entry = (const lpcsdr_gain_table_t *) left;
-    const lpcsdr_gain_table_t *right_entry = (const lpcsdr_gain_table_t *) right;
+    const pg2sdr_gain_table_t *left_entry = (const pg2sdr_gain_table_t *) left;
+    const pg2sdr_gain_table_t *right_entry = (const pg2sdr_gain_table_t *) right;
 
     if (left_entry->gain_db < right_entry->gain_db)
         return -1;
@@ -124,7 +124,7 @@ static int compare_gain_entry(const void *left, const void *right)
     return 0;
 }
 
-int lpcsdr_get_total_gain_db(lpcsdr_device_handle *dev, double *gain_db)
+int pg2sdr_get_total_gain_db(pg2sdr_device_handle *dev, double *gain_db)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -144,7 +144,7 @@ int lpcsdr_get_total_gain_db(lpcsdr_device_handle *dev, double *gain_db)
     return LPCSDR_SUCCESS;
 }
 
-int lpcsdr_set_total_gain_db(lpcsdr_device_handle *dev, double gain_db)
+int pg2sdr_set_total_gain_db(pg2sdr_device_handle *dev, double gain_db)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -152,7 +152,7 @@ int lpcsdr_set_total_gain_db(lpcsdr_device_handle *dev, double gain_db)
     /* could do a binary search here, but that's a lot of code to write to search a small table
      * (libc bsearch doesn't help here, because we want an inexact match)
      */
-    lpcsdr_gain_table_t *nearest = &dev->gain_table[0];
+    pg2sdr_gain_table_t *nearest = &dev->gain_table[0];
     for (size_t i = 1; i < dev->gain_table_size; ++i) {
         if (fabs(dev->gain_table[i].gain_db - gain_db) < fabs(nearest->gain_db - gain_db)) {
             /* entry i is nearer than our old attempt */
@@ -178,8 +178,8 @@ int lpcsdr_set_total_gain_db(lpcsdr_device_handle *dev, double gain_db)
 
 /* -- Gain table access -- */
 
-int lpcsdr_set_gain_tables(lpcsdr_device_handle *dev,
-                           const lpcsdr_gain_table_t *gain_table, size_t gain_table_size,
+int pg2sdr_set_gain_tables(pg2sdr_device_handle *dev,
+                           const pg2sdr_gain_table_t *gain_table, size_t gain_table_size,
                            const double *lna_table,
                            const double *mix_table,
                            const double *vga_table)
@@ -201,14 +201,14 @@ int lpcsdr_set_gain_tables(lpcsdr_device_handle *dev,
     if (gain_table) {
         /* take a copy of the provided data, sort it, use the sorted copy */
 
-        lpcsdr_gain_table_t *new_table;
-        if (!(new_table = calloc(gain_table_size, sizeof(lpcsdr_gain_table_t)))) {
+        pg2sdr_gain_table_t *new_table;
+        if (!(new_table = calloc(gain_table_size, sizeof(pg2sdr_gain_table_t)))) {
             error = LPCSDR_ERROR_NO_MEMORY;
             goto done;
         }
 
-        memcpy(new_table, gain_table, gain_table_size * sizeof(lpcsdr_gain_table_t));
-        qsort(new_table, gain_table_size, sizeof(lpcsdr_gain_table_t), compare_gain_entry);
+        memcpy(new_table, gain_table, gain_table_size * sizeof(pg2sdr_gain_table_t));
+        qsort(new_table, gain_table_size, sizeof(pg2sdr_gain_table_t), compare_gain_entry);
 
         /* swap in the new copy */
         free(dev->gain_table);
@@ -222,8 +222,8 @@ int lpcsdr_set_gain_tables(lpcsdr_device_handle *dev,
     return error;
 }
 
-int lpcsdr_get_gain_tables(lpcsdr_device_handle *dev,
-                           lpcsdr_gain_table_t **gain_table,
+int pg2sdr_get_gain_tables(pg2sdr_device_handle *dev,
+                           pg2sdr_gain_table_t **gain_table,
                            size_t *gain_table_size,
                            double *lna_table,
                            double *mix_table,
@@ -241,16 +241,16 @@ int lpcsdr_get_gain_tables(lpcsdr_device_handle *dev,
          * to free() this memory when they are done with it.
          *
          * (we do this mostly to avoid complications caused if we returned a
-         * pointer to the internal table, which can be reallocated if lpcsdr_set_gain_tables()
+         * pointer to the internal table, which can be reallocated if pg2sdr_set_gain_tables()
          * is called, perhaps even from a separate thread)
          */
-        lpcsdr_gain_table_t *clone;
-        if (!(clone = calloc(dev->gain_table_size, sizeof(lpcsdr_gain_table_t)))) {
+        pg2sdr_gain_table_t *clone;
+        if (!(clone = calloc(dev->gain_table_size, sizeof(pg2sdr_gain_table_t)))) {
             error = LPCSDR_ERROR_NO_MEMORY;
             goto done;
         }
 
-        memcpy(clone, dev->gain_table, dev->gain_table_size * sizeof(lpcsdr_gain_table_t));
+        memcpy(clone, dev->gain_table, dev->gain_table_size * sizeof(pg2sdr_gain_table_t));
         *gain_table = clone;
         *gain_table_size = dev->gain_table_size;
     }
