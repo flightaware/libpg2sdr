@@ -40,7 +40,7 @@ add_library(pg2sdr STATIC
 
 target_compile_options(pg2sdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE)
 target_include_directories(pg2sdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_include_directories(pg2sdr PRIVATE ${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
+target_include_directories(pg2sdr PRIVATE ${CMAKE_SOURCE_DIR}/firmware/include)
 target_link_libraries(pg2sdr pg2sdr_dsp)
 set_target_properties(pg2sdr PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 

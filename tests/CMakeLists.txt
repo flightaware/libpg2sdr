@@ -1,6 +1,6 @@
 # Include subdirectories
 include_directories(${GTEST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include)
-include_directories(${GTEST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/lpcsdr_firmware/include)
+include_directories(${GTEST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/firmware/include)
 add_compile_options(-Wno-psabi)
 
 ## Set the binary directory as a macro
