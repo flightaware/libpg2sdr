@@ -1,5 +1,5 @@
-#ifndef INTERNAL_H
-#define INTERNAL_H
+#ifndef PG2SDR_INTERNAL_H
+#define PG2SDR_INTERNAL_H
 
 #include "lpcsdr.h"
 #include "lpcsdr_protocol.h"
@@ -13,8 +13,8 @@
 #define VID_ROM 0x1fc9
 #define PID_ROM 0x000c
 
-#define VID_LPCSDR 0xDEAD
-#define PID_LPCSDR 0xBEEF
+#define VID_PG2SDR 0xDEAD
+#define PID_PG2SDR 0xBEEF
 
 #define CHECK_CTX(ctx)                       \
     do {                                     \
@@ -176,4 +176,4 @@ extern const lpcsdr_gain_table_t pg2sdr__default_gain_table[];
 extern const size_t pg2sdr__default_bandpass_table_size;
 extern const lpcsdr_bandpass_table_t pg2sdr__default_bandpass_table[];
 
-#endif /* INTERNAL_H */
+#endif /* PG2SDR_INTERNAL_H */

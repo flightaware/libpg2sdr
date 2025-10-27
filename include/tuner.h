@@ -1,5 +1,5 @@
-#ifndef LPCSDR_TUNER_H
-#define LPCSDR_TUNER_H
+#ifndef PG2SDR_TUNER_H
+#define PG2SDR_TUNER_H
 
 typedef struct {
     bool valid;
@@ -26,4 +26,4 @@ int pg2sdr__tuner_set_gains(lpcsdr_device_handle *dev, int lna, int mix, int vga
 
 int pg2sdr__tuner_set_bandpass(lpcsdr_device_handle *dev, const lpcsdr_bandpass_table_t *settings);
 
-#endif
+#endif /* PG2SDR_TUNER_H */

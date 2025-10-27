@@ -1,10 +1,10 @@
-#ifndef LPCSDR_ADC_H
-#define LPCSDR_ADC_H
+#ifndef PG2SDR_ADC_H
+#define PG2SDR_ADC_H
 
 #include <stdint.h>
 #include <assert.h>
 
-/* LPCSDR internal header, ADC module */
+/* PG2SDR internal header, ADC module */
 
 /* valid range of CCO frequencies for PLL0AUDIO */
 static const uint32_t adc_min_fcco = 275e6;
@@ -126,4 +126,4 @@ int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
  */
 int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
 
-#endif /* LPCSDR_ADC_H */
+#endif /* PG2SDR_ADC_H */

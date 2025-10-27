@@ -183,7 +183,7 @@ ssize_t lpcsdr_discover_devices(lpcsdr_context *ctx, lpc_device ***lpc_device_li
             /* DFU bootloader */
             mode = LPCSDR_DEVICE_MODE_DFU_BOOTLOADER;
             memset(serial, 0, sizeof(serial));
-        } else if (desc.idVendor == VID_LPCSDR && desc.idProduct == PID_LPCSDR) {
+        } else if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
             /* LPCSDR firmware */
             mode = LPCSDR_DEVICE_MODE_NORMAL;
             if ((usb_error = get_serial(usb_dev, serial, sizeof(serial))) < 0) {

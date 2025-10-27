@@ -1,5 +1,5 @@
-#ifndef LPCSDR_TUNER_REGS_H
-#define LPCSDR_TUNER_REGS_H
+#ifndef PG2SDR_TUNER_REGS_H
+#define PG2SDR_TUNER_REGS_H
 
 #if defined(__cplusplus)
 extern "C" {
@@ -208,4 +208,4 @@ REG_BITS(31, RING_ATT,            1, 0);
 }
 #endif
 
-#endif /* LPCSDR_TUNER_REGS_H */
+#endif /* PG2SDR_TUNER_REGS_H */
