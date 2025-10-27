@@ -12,7 +12,7 @@ static int build_lpc_device(pg2sdr_context *ctx, libusb_device_handle *usb_handl
 
     pg2sdr_device_handle *dev = calloc(1, sizeof(pg2sdr_device_handle));
     if (!dev)
-        return LPCSDR_ERROR_NO_MEMORY;
+        return PG2SDR_ERROR_NO_MEMORY;
     dev->usb_handle = usb_handle;
     dev->magic = MAGIC_DEV;
     dev->ctx = ctx;
@@ -27,7 +27,7 @@ static int build_lpc_device(pg2sdr_context *ctx, libusb_device_handle *usb_handl
     if ((error = pg2sdr__ctrl_get_status(dev, &status)) < 0)
         goto cleanup;
 
-    dev->conversion_mode = LPCSDR_MODE_LOWIF_REAL;
+    dev->conversion_mode = PG2SDR_MODE_LOWIF_REAL;
 
     dev->adc_limit = 28e6;
 
@@ -44,7 +44,7 @@ static int build_lpc_device(pg2sdr_context *ctx, libusb_device_handle *usb_handl
     dev->requested_bandpass_high = 100e6;
     dev->changing_bandpass = false;
 
-    dev->decimation_mode = LPCSDR_DECIMATION_AUTO;
+    dev->decimation_mode = PG2SDR_DECIMATION_AUTO;
     dev->undersampling_mode = 1;
 
     dev->usb_bytes_per_block = status.usb_bytes_per_block;
@@ -68,7 +68,7 @@ static int build_lpc_device(pg2sdr_context *ctx, libusb_device_handle *usb_handl
         goto cleanup;
 
     *out = dev;
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 
 cleanup:
     free(dev->bandpass_table);
@@ -156,10 +156,10 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_li
     if (device_count < 0)
         return pg2sdr__translate_libusb_error(device_count);
 
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     lpc_device **lpc_devices_to_return;
     if (!(lpc_devices_to_return = calloc(device_count + 1, sizeof(*lpc_devices_to_return)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
+        error = PG2SDR_ERROR_NO_MEMORY;
         goto failed;
     }
 
@@ -171,7 +171,7 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_li
         libusb_device *usb_dev = lu_device_list[i];
 
         if ((usb_error = libusb_get_device_descriptor(usb_dev, &desc)) < 0) {
-            pg2sdr__log(ctx, LPCSDR_LOG_ERROR, "error getting device descriptor for USB bus %d device %d: %s",
+            pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "error getting device descriptor for USB bus %d device %d: %s",
                         libusb_get_bus_number(usb_dev),
                         libusb_get_port_number(usb_dev),
                         libusb_strerror(usb_error));
@@ -181,14 +181,14 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_li
         unsigned char serial[17];
         if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM && allow_rom_bootloader) {
             /* DFU bootloader */
-            mode = LPCSDR_DEVICE_MODE_DFU_BOOTLOADER;
+            mode = PG2SDR_DEVICE_MODE_DFU_BOOTLOADER;
             memset(serial, 0, sizeof(serial));
         } else if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
             /* LPCSDR firmware */
-            mode = LPCSDR_DEVICE_MODE_NORMAL;
+            mode = PG2SDR_DEVICE_MODE_NORMAL;
             if ((usb_error = get_serial(usb_dev, serial, sizeof(serial))) < 0) {
                 /* warn (but still use the device) */
-                pg2sdr__log(ctx, LPCSDR_LOG_ERROR, "error getting serial number for USB bus %d device %d: %s",
+                pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "error getting serial number for USB bus %d device %d: %s",
                             libusb_get_bus_number(usb_dev),
                             libusb_get_port_number(usb_dev),
                             libusb_strerror(usb_error));
@@ -199,7 +199,7 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_li
         }
 
         if (!(lpc_devices_to_return[matched] = calloc(sizeof(lpc_device), 1))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
+            error = PG2SDR_ERROR_NO_MEMORY;
             goto failed;
         }
 
@@ -212,7 +212,7 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_li
         lpc_devices_to_return[matched]->libusb_device = (void *)libusb_ref_device(usb_dev);
         usb_error = libusb_get_port_numbers(usb_dev, lpc_devices_to_return[matched]->usb_ports, sizeof(lpc_devices_to_return[matched]->usb_ports) - 1);
         if (usb_error < 0) {
-            pg2sdr__log(ctx, LPCSDR_LOG_ERROR, "error getting port path for USB bus %d device %d: %s",
+            pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "error getting port path for USB bus %d device %d: %s",
                         libusb_get_bus_number(usb_dev),
                         libusb_get_port_number(usb_dev),
                         libusb_strerror(usb_error));
@@ -239,7 +239,7 @@ failed:
 
 int pg2sdr_open_single_device(pg2sdr_context *ctx, pg2sdr_device_handle **device_handle)
 {
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     lpc_device **devices;
     
     int device_count = pg2sdr_discover_devices(ctx, &devices, true);
@@ -247,12 +247,12 @@ int pg2sdr_open_single_device(pg2sdr_context *ctx, pg2sdr_device_handle **device
       return device_count;
     
     if (device_count == 0) {
-        error = LPCSDR_ERROR_NOT_FOUND;
+        error = PG2SDR_ERROR_NOT_FOUND;
         goto cleanup;
     }
 
     if (device_count > 1) {
-        error = LPCSDR_ERROR_MULTIPLE_DEVICES;
+        error = PG2SDR_ERROR_MULTIPLE_DEVICES;
         goto cleanup;
     }
 
@@ -269,7 +269,7 @@ cleanup:
 int pg2sdr_open_device(lpc_device *device, pg2sdr_device_handle **device_handle)
 {
     if (!device || !device_handle)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
     int error, usb_error;
 
@@ -278,7 +278,7 @@ int pg2sdr_open_device(lpc_device *device, pg2sdr_device_handle **device_handle)
     libusb_device *reenumerated_dev = NULL;
     libusb_device_handle *usb_handle = NULL;
 
-    if (device->mode == LPCSDR_DEVICE_MODE_DFU_BOOTLOADER) {
+    if (device->mode == PG2SDR_DEVICE_MODE_DFU_BOOTLOADER) {
         if ((error = pg2sdr__boot_firmware(ctx, original_dev, &reenumerated_dev)) < 0) {
             goto failed;
         }
@@ -316,7 +316,7 @@ int pg2sdr_open_device(lpc_device *device, pg2sdr_device_handle **device_handle)
     }
 
     *device_handle = handle;
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 
 failed:
     if (usb_handle) {
@@ -360,7 +360,7 @@ static int generic_open_by(pg2sdr_context *ctx, struct match_tuple *match, pg2sd
 {
     CHECK_CTX(ctx);
     if (!device)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr_open_by_callback(ctx, generic_match, (void *)match, device);
 }
 
@@ -404,7 +404,7 @@ int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, vo
 {
     CHECK_CTX(ctx);
     if (!callback || !device)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
     lpc_device **device_list;
     int count = pg2sdr_discover_devices(ctx, &device_list, true); /* include ROM bootloader always, the callback can filter */
@@ -421,7 +421,7 @@ int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, vo
 
     int error;
     if (!match)
-        error = LPCSDR_ERROR_NOT_FOUND;
+        error = PG2SDR_ERROR_NOT_FOUND;
     else
         error = pg2sdr_open_device(match, device);
 
@@ -436,7 +436,7 @@ int pg2sdr_close_device(pg2sdr_device_handle *dev)
     pthread_mutex_lock(&dev->mutex);
     if (dev->streaming) {
         pthread_mutex_unlock(&dev->mutex);
-        return LPCSDR_ERROR_BUSY;
+        return PG2SDR_ERROR_BUSY;
     }
 
     int error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_OFF);
@@ -456,7 +456,7 @@ int pg2sdr_close_device(pg2sdr_device_handle *dev)
 
     free(dev);
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr_get_serial(pg2sdr_device_handle *dev, char *serial, size_t length)
@@ -470,7 +470,7 @@ int pg2sdr_get_serial(pg2sdr_device_handle *dev, char *serial, size_t length)
         goto done;
 
     snprintf(serial, length, "%" PRIX64, status.serial_number);
-    error = LPCSDR_SUCCESS;
+    error = PG2SDR_SUCCESS;
 
  done:
     pthread_mutex_unlock(&dev->mutex);

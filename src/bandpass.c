@@ -9,15 +9,15 @@ int pg2sdr_set_bandpass_table(pg2sdr_device_handle *dev,
 {
     CHECK_DEV(dev);
     if (bandpass_table == NULL || bandpass_table_size == 0)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
 
     /* take a copy of the provided data */
     pg2sdr_bandpass_table_t *new_table;
     if (!(new_table = calloc(bandpass_table_size, sizeof(pg2sdr_bandpass_table_t)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
+        error = PG2SDR_ERROR_NO_MEMORY;
         goto done;
     }
     memcpy(new_table, bandpass_table, bandpass_table_size * sizeof(pg2sdr_bandpass_table_t));
@@ -39,9 +39,9 @@ int pg2sdr_get_bandpass_table(pg2sdr_device_handle *dev,
 {
     CHECK_DEV(dev);
     if (!bandpass_table || !bandpass_table_size)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
 
     /* allocate a copy of the table, return a pointer; it is the caller's responsibility
@@ -53,7 +53,7 @@ int pg2sdr_get_bandpass_table(pg2sdr_device_handle *dev,
      */
     pg2sdr_bandpass_table_t *clone;
     if (!(clone = calloc(dev->bandpass_table_size, sizeof(pg2sdr_bandpass_table_t)))) {
-        error = LPCSDR_ERROR_NO_MEMORY;
+        error = PG2SDR_ERROR_NO_MEMORY;
         goto done;
     }
 

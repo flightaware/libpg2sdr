@@ -79,27 +79,27 @@ static int dfu_download_image(pg2sdr_context *ctx, libusb_device_handle *handle)
 {
     if (!ctx->firmware_path) {
         /* We want to upload firmware, but no path has been configured */
-        return LPCSDR_ERROR_FWIMAGE_MISSING;
+        return PG2SDR_ERROR_FWIMAGE_MISSING;
     }
 
     int fd = open(ctx->firmware_path, O_RDONLY);
     if (fd < 0) {
         char buf[1024];
         pg2sdr__log(ctx,
-                    LPCSDR_LOG_ERROR,
+                    PG2SDR_LOG_ERROR,
                     "Could not read firmware image at %s: %s",
                     ctx->firmware_path,
                     pg2sdr_strerror_r(pg2sdr__translate_errno(errno), buf, sizeof(buf)));
 
         if (errno == ENOENT)
-            return LPCSDR_ERROR_FWIMAGE_MISSING;
+            return PG2SDR_ERROR_FWIMAGE_MISSING;
         else
             return pg2sdr__translate_errno(errno);
     }
     
     uint32_t block = 0;
     dfu_status_t dfu_status;
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     int usb_error;
     
     while (true) {
@@ -126,7 +126,7 @@ static int dfu_download_image(pg2sdr_context *ctx, libusb_device_handle *handle)
             goto cleanup;
         }
         if (dfu_status.bState != DFU_DOWNLOAD_IDLE) {
-            error = LPCSDR_ERROR_FWIMAGE_UPLOAD;
+            error = PG2SDR_ERROR_FWIMAGE_UPLOAD;
             goto cleanup;
         }
 
@@ -168,7 +168,7 @@ int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libu
     libusb_hotplug_callback_handle cb_handle;
 
     pg2sdr__log(ctx,
-                LPCSDR_LOG_INFO,
+                PG2SDR_LOG_INFO,
                 "Downloading firmware image to device at bus %u port %u",
                 libusb_get_bus_number(original_dev),
                 libusb_get_port_number(original_dev));
@@ -227,7 +227,7 @@ int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libu
 
         if (now.tv_sec > deadline.tv_sec || (now.tv_sec == deadline.tv_sec && now.tv_usec >= deadline.tv_usec)) {
             /* timed out */
-            error = LPCSDR_ERROR_TIMEOUT;
+            error = PG2SDR_ERROR_TIMEOUT;
             goto failed;
         }
 
@@ -249,13 +249,13 @@ int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libu
 
     /* hotplug callback seen, we have the new device */
     pg2sdr__log(ctx,
-                LPCSDR_LOG_INFO,
+                PG2SDR_LOG_INFO,
                 "New LPCSDR device discovered at bus %u port %u",
                 libusb_get_bus_number(cb_state.device),
                 libusb_get_port_number(cb_state.device));
     libusb_hotplug_deregister_callback(ctx->libusb_ctx, cb_handle);
     *reenumerated_dev = cb_state.device; /* caller should unref this when done */
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 
 failed:
     if (cb_handle)

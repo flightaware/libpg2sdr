@@ -25,7 +25,7 @@ static bool check_any_transfer_busy(pg2sdr_device_handle *dev);
 
 static size_t user_sample_size(pg2sdr_device_handle *dev)
 {
-    return (dev->conversion_mode == LPCSDR_MODE_BASEBAND ? sizeof(cs16_t) : sizeof(int16_t));
+    return (dev->conversion_mode == PG2SDR_MODE_BASEBAND ? sizeof(cs16_t) : sizeof(int16_t));
 }
 
 /* Unpack (and byteswap if needed) a block header at "in"
@@ -145,7 +145,7 @@ static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data,
     const bool inverted_spectrum = (!dev->upper_sideband) ^ ((dev->undersampling_mode & 1) == 0);
 
     switch(dev->conversion_mode) {
-    case LPCSDR_MODE_LOWIF_REAL:
+    case PG2SDR_MODE_LOWIF_REAL:
         {
             /* unpack ADC data into out directly */
             unsigned count = 0;
@@ -154,7 +154,7 @@ static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data,
             return count;
         }
 
-    case LPCSDR_MODE_BASEBAND:
+    case PG2SDR_MODE_BASEBAND:
         {
             /* unpack ADC data into work_buffer[0] */
             unsigned count = 0;
@@ -214,7 +214,7 @@ static void dispatch_contiguous_blocks(pg2sdr_device_handle *dev, const uint8_t 
 {
     assert (length % dev->usb_bytes_per_block == 0);
 
-    /* todo: this is only true for LPCSDR_MODE_LOWIF_REAL with int16, update once we support other versions */
+    /* todo: this is only true for PG2SDR_MODE_LOWIF_REAL with int16, update once we support other versions */
     const unsigned adc_samples = length / dev->usb_bytes_per_block * dev->usb_samples_per_block;
     const unsigned user_samples = adc_samples / dev->adc_samples_per_user_sample;
     assert (user_samples <= dev->buffer_size);
@@ -246,7 +246,7 @@ int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callbac
     if (dev->streaming) {
         LOGDEBUG(dev, "pg2sdr_stream_data: already streaming");
         pthread_mutex_unlock(&dev->mutex);
-        return LPCSDR_ERROR_BAD_STATE;
+        return PG2SDR_ERROR_BAD_STATE;
     }
 
     int error, usb_error;
@@ -260,7 +260,7 @@ int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callbac
     if (!dev->adc_pll_config.valid) {
         /* sample rate not set */
         LOGDEBUG(dev, "pg2sdr_stream_data: sample rate not set");
-        error = LPCSDR_ERROR_BAD_STATE;
+        error = PG2SDR_ERROR_BAD_STATE;
         goto done;
     }
 
@@ -276,19 +276,19 @@ int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callbac
     }
 
     /* if we're downconverting, set up the DSP state & work buffers */
-    if (dev->conversion_mode == LPCSDR_MODE_BASEBAND) {
+    if (dev->conversion_mode == PG2SDR_MODE_BASEBAND) {
         if (!(dev->downconverter = pg2sdr__dsp_downconvert_create(/* ntaps */ pg2sdr__dsp_default_halfband_ntaps,
                                                                   /* taps */ pg2sdr__dsp_default_halfband_taps,
                                                                   /* max_in_length */ dev->adc_samples_per_transfer))) {
             LOGDEBUG(dev, "pg2sdr_stream_data: dsp_create_downconvert failed");
-            error = LPCSDR_ERROR_NO_MEMORY;
+            error = PG2SDR_ERROR_NO_MEMORY;
             goto cleanup;
         }
 
         for (unsigned i = 0; i < 2; ++i) {
             if (!(dev->work_buffer[i] = malloc(dev->adc_samples_per_transfer * sizeof(int16_t)))) {
                 LOGDEBUG(dev, "pg2sdr_stream_data: work buffer allocation failed");
-                error = LPCSDR_ERROR_NO_MEMORY;
+                error = PG2SDR_ERROR_NO_MEMORY;
                 goto cleanup;
             }
         }
@@ -297,7 +297,7 @@ int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callbac
             if (!(dev->post_decimators[i] = pg2sdr__dsp_halfband_decimate_create(/* ntaps */ pg2sdr__dsp_default_halfband_ntaps,
                                                                                  /* taps */ pg2sdr__dsp_default_halfband_taps))) {
                 LOGDEBUG(dev, "pg2sdr_stream_data: dsp_halfband_decimate_create failed");
-                error = LPCSDR_ERROR_NO_MEMORY;
+                error = PG2SDR_ERROR_NO_MEMORY;
                 goto cleanup;
             }
         }
@@ -368,7 +368,7 @@ int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callbac
 
         if (current->state != XFER_COMPLETED) {
             LOGERROR(dev, "pg2sdr_stream_data: active transfer has state %d", (int)current->state);
-            error = LPCSDR_ERROR_BAD_STATE;
+            error = PG2SDR_ERROR_BAD_STATE;
             goto drain;
         }
 
@@ -402,7 +402,7 @@ int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callbac
     }
 
  cleanup:
-    for (unsigned i = 0; i < LPCSDR_DECIMATION_MAX; ++i) {
+    for (unsigned i = 0; i < PG2SDR_DECIMATION_MAX; ++i) {
         pg2sdr__dsp_halfband_decimate_free(dev->post_decimators[i]);
         dev->post_decimators[i] = NULL;
     }
@@ -432,7 +432,7 @@ int pg2sdr_stop_streaming(pg2sdr_device_handle *dev)
     pthread_mutex_lock(&dev->mutex);
     if (!dev->streaming) {
         pthread_mutex_unlock(&dev->mutex);
-        return LPCSDR_ERROR_BAD_STATE;
+        return PG2SDR_ERROR_BAD_STATE;
     }
 
     dev->draining = true;
@@ -443,7 +443,7 @@ int pg2sdr_stop_streaming(pg2sdr_device_handle *dev)
     libusb_interrupt_event_handler(dev->ctx->libusb_ctx);
 
     pthread_mutex_unlock(&dev->mutex);
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 //Transfers
@@ -497,7 +497,7 @@ static int allocate_transfers(pg2sdr_device_handle *dev)
 
     pg2sdr__transfer_state *transfers = calloc(transfer_count, sizeof(pg2sdr__transfer_state));
     if (!transfers) {
-        error = LPCSDR_ERROR_NO_MEMORY;
+        error = PG2SDR_ERROR_NO_MEMORY;
         goto failed;
     }
 
@@ -511,7 +511,7 @@ static int allocate_transfers(pg2sdr_device_handle *dev)
          *    (cf. how dump1090 has to use bounce buffers to get reasonable performance)
          */
         if (!(transfers[i].buffer = malloc(dev->usb_transfer_size))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
+            error = PG2SDR_ERROR_NO_MEMORY;
             goto failed;
         }
     }
@@ -519,7 +519,7 @@ static int allocate_transfers(pg2sdr_device_handle *dev)
     for (unsigned i = 0; i < transfer_count; ++i) {
         /* set up the transfer */
         if (!(transfers[i].transfer = libusb_alloc_transfer(0))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
+            error = PG2SDR_ERROR_NO_MEMORY;
             goto failed;
         }
 
@@ -542,7 +542,7 @@ static int allocate_transfers(pg2sdr_device_handle *dev)
     dev->transfers = transfers;
     dev->transfer_count = transfer_count;
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 
 failed:
     free_transfers(transfers, transfer_count);
@@ -581,7 +581,7 @@ static int dispatch_transfer(pg2sdr_device_handle *dev, pg2sdr__transfer_state *
     unsigned bytelength = dev_transfer->transfer->actual_length;
 
     if (bytelength % dev->usb_bytes_per_block != 0) {
-        return LPCSDR_ERROR_TRANSFER_FORMAT;
+        return PG2SDR_ERROR_TRANSFER_FORMAT;
     }
 
     /* scan through the received data, validating headers and looking for sequence discontinuities.
@@ -596,7 +596,7 @@ static int dispatch_transfer(pg2sdr_device_handle *dev, pg2sdr__transfer_state *
         unpack_header(dev_transfer->buffer + offset, &h);
 
         if (h.magic != BLOCK_MAGIC || h.block_len != dev->usb_bytes_per_block || h.samples != dev->usb_samples_per_block)
-            return LPCSDR_ERROR_TRANSFER_FORMAT;
+            return PG2SDR_ERROR_TRANSFER_FORMAT;
 
         if (h.status & BLOCK_STATUS_ADC_OVERRUN)
             LOGDEBUG(dev, "ADC overrun");
@@ -618,14 +618,14 @@ static int dispatch_transfer(pg2sdr_device_handle *dev, pg2sdr__transfer_state *
 
     /* Dispatch final block range (in the normal case, this will be the whole transfer) */
     dispatch_contiguous_blocks(dev, dev_transfer->buffer + start, bytelength - start, callback, user_data);
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 /* submit one currently-idle transfer, link it into the active list */
 static int submit_one_transfer(pg2sdr__transfer_state *dev_transfer)
 {
     if (dev_transfer->state != XFER_IDLE)
-        return LPCSDR_ERROR_BAD_STATE;
+        return PG2SDR_ERROR_BAD_STATE;
 
     pg2sdr_device_handle *dev = dev_transfer->dev;
 
@@ -646,7 +646,7 @@ static int submit_one_transfer(pg2sdr__transfer_state *dev_transfer)
     }
     dev->active_transfers_tail = dev_transfer;
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 /* submit all idle transfers */
@@ -660,13 +660,13 @@ static int submit_transfers(pg2sdr_device_handle *dev)
         }
     }
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 /* cancel all submitted transfers; wait for all submitted transfers to complete */
 static int drain_transfers(pg2sdr_device_handle *dev)
 {
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     dev->draining = true; /* ensure that blocks returned by the user are not resubmitted */
 
     cancel_transfers(dev);

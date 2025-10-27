@@ -27,12 +27,12 @@ TEST(STREAM_TEST, dev)
 
 #if 0
     error = pg2sdr_set_buffering(handle(), 10 * 13616);
-    ASSERT_EQ(error, LPCSDR_SUCCESS) << "pg2sdr_set_buffering: " << pg2sdr_strerror(error);
+    ASSERT_EQ(error, PG2SDR_SUCCESS) << "pg2sdr_set_buffering: " << pg2sdr_strerror(error);
 #endif
 
     error = pg2sdr_set_sample_rate(handle(), 20000000);
-    ASSERT_EQ(error, LPCSDR_SUCCESS) << "pg2sdr_set_sample_rate: " << pg2sdr_strerror(error);
+    ASSERT_EQ(error, PG2SDR_SUCCESS) << "pg2sdr_set_sample_rate: " << pg2sdr_strerror(error);
 
     error = pg2sdr_stream_data(handle(), &stub_callback, NULL, 1000);
-    ASSERT_EQ(error, LPCSDR_SUCCESS) << "pg2sdr_stream_data: " << pg2sdr_strerror(error);
+    ASSERT_EQ(error, PG2SDR_SUCCESS) << "pg2sdr_stream_data: " << pg2sdr_strerror(error);
 }

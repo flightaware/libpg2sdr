@@ -1,5 +1,5 @@
-#ifndef LPCSDR_H
-#define LPCSDR_H
+#ifndef PG2SDR_H
+#define PG2SDR_H
 
 #include <libusb-1.0/libusb.h>
 #include <stdio.h>
@@ -16,56 +16,56 @@ extern "C" {
 #endif
 
 typedef struct pg2sdr__context pg2sdr_context;
-typedef enum { LPCSDR_LOG_DEBUG, LPCSDR_LOG_INFO, LPCSDR_LOG_ERROR } pg2sdr_log_level;
+typedef enum { PG2SDR_LOG_DEBUG, PG2SDR_LOG_INFO, PG2SDR_LOG_ERROR } pg2sdr_log_level;
 typedef void (*pg2sdr_log_callback)(pg2sdr_context *context, pg2sdr_log_level level, const char *message);
 typedef struct pg2sdr__device_handle pg2sdr_device_handle;
 
-typedef enum { LPCSDR_MODE_LOWIF_REAL, LPCSDR_MODE_BASEBAND } pg2sdr_conversion_mode_t;
+typedef enum { PG2SDR_MODE_LOWIF_REAL, PG2SDR_MODE_BASEBAND } pg2sdr_conversion_mode_t;
 
 enum pg2sdr_error {
-    LPCSDR_SUCCESS = 0, /* no error */
+    PG2SDR_SUCCESS = 0, /* no error */
 
-    LPCSDR_ERROR_NOT_FOUND = -1,          /* no matching device found */
-    LPCSDR_ERROR_DISCONNECTED = -2,       /* device unexpectedly disconnected */
-    LPCSDR_ERROR_BAD_ARGUMENT = -3,       /* bad argument to API call */
-    LPCSDR_ERROR_NO_MEMORY = -4,          /* memory allocation failed */
-    LPCSDR_ERROR_NOT_IMPLEMENTED = -5,    /* not implemented */
-    LPCSDR_ERROR_FIRMWARE_MISMATCH = -6,  /* host/firmware version mismatch */
-    LPCSDR_ERROR_MULTIPLE_DEVICES = -7,   /* more than one device found */
-    LPCSDR_ERROR_BUSY = -8,               /* device already in use */
-    LPCSDR_ERROR_BAD_STATE = -9,          /* operation not possible in this state */
-    LPCSDR_ERROR_TIMEOUT = -10,           /* operation timed out */
-    LPCSDR_ERROR_CORRUPTION = -11,        /* Heap corruption or double-free detected */
+    PG2SDR_ERROR_NOT_FOUND = -1,          /* no matching device found */
+    PG2SDR_ERROR_DISCONNECTED = -2,       /* device unexpectedly disconnected */
+    PG2SDR_ERROR_BAD_ARGUMENT = -3,       /* bad argument to API call */
+    PG2SDR_ERROR_NO_MEMORY = -4,          /* memory allocation failed */
+    PG2SDR_ERROR_NOT_IMPLEMENTED = -5,    /* not implemented */
+    PG2SDR_ERROR_FIRMWARE_MISMATCH = -6,  /* host/firmware version mismatch */
+    PG2SDR_ERROR_MULTIPLE_DEVICES = -7,   /* more than one device found */
+    PG2SDR_ERROR_BUSY = -8,               /* device already in use */
+    PG2SDR_ERROR_BAD_STATE = -9,          /* operation not possible in this state */
+    PG2SDR_ERROR_TIMEOUT = -10,           /* operation timed out */
+    PG2SDR_ERROR_CORRUPTION = -11,        /* Heap corruption or double-free detected */
 
     /* firmware image errors */
-    LPCSDR_ERROR_FWIMAGE_MISSING = -100,   /* firmware image not found */
-    LPCSDR_ERROR_FWIMAGE_UPLOAD = -101,    /* firmware image DFU upload failed */
+    PG2SDR_ERROR_FWIMAGE_MISSING = -100,   /* firmware image not found */
+    PG2SDR_ERROR_FWIMAGE_UPLOAD = -101,    /* firmware image DFU upload failed */
 
     /* libusb transfer errors */
-    LPCSDR_ERROR_TRANSFER_OTHER = -200,    /* libusb transfer status not COMPLETED and not otherwise handled */
-    LPCSDR_ERROR_TRANSFER_STALL = -201,    /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
-    LPCSDR_ERROR_TRANSFER_OVERFLOW = -202, /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
-    LPCSDR_ERROR_TRANSFER_FORMAT = -203,   /* malformed bulk transfer data */
+    PG2SDR_ERROR_TRANSFER_OTHER = -200,    /* libusb transfer status not COMPLETED and not otherwise handled */
+    PG2SDR_ERROR_TRANSFER_STALL = -201,    /* libusb transfer status LIBUSB_TRANSFER_STALL, endpoint stalled */
+    PG2SDR_ERROR_TRANSFER_OVERFLOW = -202, /* libusb transfer status LIBUSB_TRANSFER_OVERFLOW, device sent more data than requested */
+    PG2SDR_ERROR_TRANSFER_FORMAT = -203,   /* malformed bulk transfer data */
 
     /* Tuner/ADC setup errors */
-    LPCSDR_ERROR_TUNER_DETECT = -300,      /* could not detect tuner */
-    LPCSDR_ERROR_TUNER_PLL_LOCK = -301,    /* tuner LO PLL did not lock */
-    LPCSDR_ERROR_TUNER_PLL_RANGE = -302,   /* required tuner LO PLL frequency out of range */
-    LPCSDR_ERROR_TUNER_I2C = -303,         /* tuner I2C communication error */
-    LPCSDR_ERROR_ADC_RATE_RANGE = -304,    /* required ADC sample rate out of range */
+    PG2SDR_ERROR_TUNER_DETECT = -300,      /* could not detect tuner */
+    PG2SDR_ERROR_TUNER_PLL_LOCK = -301,    /* tuner LO PLL did not lock */
+    PG2SDR_ERROR_TUNER_PLL_RANGE = -302,   /* required tuner LO PLL frequency out of range */
+    PG2SDR_ERROR_TUNER_I2C = -303,         /* tuner I2C communication error */
+    PG2SDR_ERROR_ADC_RATE_RANGE = -304,    /* required ADC sample rate out of range */
 
     /* system call error range */
-    LPCSDR_ERROR_SYSTEM_MAX = -1000,
-    LPCSDR_ERROR_SYSTEM_MIN = -1999,
+    PG2SDR_ERROR_SYSTEM_MAX = -1000,
+    PG2SDR_ERROR_SYSTEM_MIN = -1999,
 
     /* libusb error range */
-    LPCSDR_ERROR_LIBUSB_MAX = -2000,
-    LPCSDR_ERROR_LIBUSB_MIN = -2999,
+    PG2SDR_ERROR_LIBUSB_MAX = -2000,
+    PG2SDR_ERROR_LIBUSB_MIN = -2999,
 };
 
 typedef enum {
-    LPCSDR_DEVICE_MODE_NORMAL = 0,        
-    LPCSDR_DEVICE_MODE_DFU_BOOTLOADER = 1, 
+    PG2SDR_DEVICE_MODE_NORMAL = 0,        
+    PG2SDR_DEVICE_MODE_DFU_BOOTLOADER = 1, 
 } pg2sdr_device_mode;
 
 typedef struct lpc_device {
@@ -144,18 +144,18 @@ int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, vo
 
 /* Set the current conversion mode to "mode", controlling the format of data returned (low-IF versus baseband).
  *
- * If mode is LPCSDR_MODE_BASEBAND, then user samples are complex baseband, with two int16_t values (I/Q, or
+ * If mode is PG2SDR_MODE_BASEBAND, then user samples are complex baseband, with two int16_t values (I/Q, or
  * real/imaginary) per sample. The resulting signal, centered around 0Hz, corresponds to the RF signal centered
  * around the configured center frequency. This is the mode that most SDR clients will want to use.
  *
- * If mode is LPCSDR_MODE_LOWIF_REAL, then user samples are the real-valued output of the ADC, with one int16_t
+ * If mode is PG2SDR_MODE_LOWIF_REAL, then user samples are the real-valued output of the ADC, with one int16_t
  * value per sample. The resulting signal corresponds to one sideband of the RF spectrum, either above or
  * below the configured frequency depending on the configured sideband mode. The configured RF frequency
  * maps to 0Hz (though there will not be anything useful there, due to both the limits of the tuner bandpass
  * filter, and LO leakage). This mode is mostly for lower-level debugging of the LPCSDR hardware or software
  * itself, where direct inspection of the ADC data is useful.
  *
- * May not be called while streaming; will return LPCSDR_ERROR_BAD_STATE if this is attempted.
+ * May not be called while streaming; will return PG2SDR_ERROR_BAD_STATE if this is attempted.
  *
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
@@ -167,7 +167,7 @@ int pg2sdr_get_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode
 /* Set the user buffer size to "buffer_size" samples. This controls the maximum number of samples contained
  * in each pg2sdr_sample_buffer passed to the user callback while pg2sdr_stream_data is running.
  *
- * May not be called while streaming; will return LPCSDR_ERROR_BAD_STATE if this is attempted.
+ * May not be called while streaming; will return PG2SDR_ERROR_BAD_STATE if this is attempted.
  */
 int pg2sdr_set_buffer_size(pg2sdr_device_handle *dev, size_t buffer_size);
 
@@ -204,23 +204,23 @@ int pg2sdr_get_sample_rate(pg2sdr_device_handle *dev, double *requested, double 
  *
  *   0:    do not do any extra decimation of the received signal;
  *
- *   1..LPCSDR_DECIMATION_MAX: scale the ADC sample rate by 2**N. Decimate received data by 2**N.
+ *   1..PG2SDR_DECIMATION_MAX: scale the ADC sample rate by 2**N. Decimate received data by 2**N.
  *
- *   LPCSDR_DECIMATION_AUTO: use power-of-two ADC scaling and decimation to move the
+ *   PG2SDR_DECIMATION_AUTO: use power-of-two ADC scaling and decimation to move the
  *    intermediate frequency range used by the received signal away from 0Hz. This avoids
  *    problems with the effective bandwidth being limited by tuner filtering near 0Hz,
  *    an issue that mostly affects lower sample rates. Won't increase the ADC frequency past
  *    20MHz. This is the default setting.
  *
- *   LPCSDR_DECIMATION_AUTO_MAX: use the largest possible power-of-two ADC scaling
+ *   PG2SDR_DECIMATION_AUTO_MAX: use the largest possible power-of-two ADC scaling
  *    and decimation. Won't increase the ADC frequency past 20MHz.
  *
  * May be called at any time; does not affect the configuration of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-#define LPCSDR_DECIMATION_MAX (8)
-#define LPCSDR_DECIMATION_AUTO (-1)
-#define LPCSDR_DECIMATION_AUTO_MAX (-2)
+#define PG2SDR_DECIMATION_MAX (8)
+#define PG2SDR_DECIMATION_AUTO (-1)
+#define PG2SDR_DECIMATION_AUTO_MAX (-2)
 int pg2sdr_set_decimation_mode(pg2sdr_device_handle *dev, int decimation_mode);
 
 /* Get the currently requested decimation mode and store it in *decimation_mode */
@@ -361,7 +361,7 @@ int pg2sdr_get_bandpass(pg2sdr_device_handle *dev, double *req_low, double *req_
  * jump to the final configuration in one step.
  *
  * Not all configuration changes can be applied while streaming is active. Either stop
- * streaming before calling pg2sdr_apply_changes, or interpret returned LPCSDR_ERROR_BAD_STATE
+ * streaming before calling pg2sdr_apply_changes, or interpret returned PG2SDR_ERROR_BAD_STATE
  * errors as "some changes could not be applied because streaming is active". If BAD_STATE is
  * returned, the device remains in a consistent state, and any unapplied changes remain
  * pending and can be applied later by a futher call to pg2sdr_apply_changes.
@@ -436,4 +436,4 @@ void pg2sdr_release_buffer(pg2sdr_sample_buffer *buffer);
 #endif
 
 
-#endif /* LPCSDR_H */
+#endif /* PG2SDR_H */

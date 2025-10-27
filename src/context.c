@@ -7,7 +7,7 @@
 
 static void default_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
 {
-    if (level >= LPCSDR_LOG_INFO)
+    if (level >= PG2SDR_LOG_INFO)
         fprintf(stderr, "liblpcsdr: %s\n", message);
 }
 
@@ -19,16 +19,16 @@ static void debug_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char
 int pg2sdr_init(pg2sdr_context **ctx) {
 
     if (!ctx)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pg2sdr_context *newctx;
     if (!(newctx = malloc(sizeof(*newctx))))
-        return LPCSDR_ERROR_NO_MEMORY;
+        return PG2SDR_ERROR_NO_MEMORY;
 
     newctx->magic = MAGIC_CTX;
     newctx->firmware_path = NULL;
 
-    if (getenv("LPCSDR_DEBUG"))
+    if (getenv("PG2SDR_DEBUG"))
         newctx->log_cb = debug_logger;
     else
         newctx->log_cb = default_logger;
@@ -50,7 +50,7 @@ int pg2sdr_init(pg2sdr_context **ctx) {
     }
 
     *ctx = newctx;
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path) {
@@ -58,17 +58,17 @@ int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path) {
 
     char *dup_path;
     if (!(dup_path = strdup(firmware_path)))
-        return LPCSDR_ERROR_NO_MEMORY;
+        return PG2SDR_ERROR_NO_MEMORY;
 
     ctx->firmware_path = dup_path;
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback)
 {
     CHECK_CTX(ctx);
     ctx->log_cb = callback;
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 
@@ -80,7 +80,7 @@ int pg2sdr_exit(pg2sdr_context *ctx)
     free(ctx->firmware_path);
     ctx->magic = MAGIC_FREE; /* try to detect use-after-free */
     free(ctx);
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 void pg2sdr__log(pg2sdr_context *ctx, pg2sdr_log_level level, const char *format, ...)

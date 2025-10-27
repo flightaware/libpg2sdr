@@ -6,7 +6,7 @@
 
 static int generic_set_gain(pg2sdr_device_handle *dev, unsigned gain, int (*tuner_set_gain)(pg2sdr_device_handle *, unsigned))
 {
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
     if ((error = tuner_set_gain(dev, gain)) < 0)
         goto done;
@@ -19,7 +19,7 @@ static int generic_set_gain(pg2sdr_device_handle *dev, unsigned gain, int (*tune
 
 static int generic_set_gain_db(pg2sdr_device_handle *dev, double gain_db, double *table, int (*tuner_set_gain)(pg2sdr_device_handle *, unsigned))
 {
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
 
     /* these tables are not necessarily sorted, do a full scan */
@@ -93,7 +93,7 @@ int pg2sdr_get_stage_gains(pg2sdr_device_handle *dev, unsigned *lna, unsigned *m
     if (vga)
         *vga = dev->vga_gain;
     pthread_mutex_unlock(&dev->mutex);
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr_get_stage_gains_db(pg2sdr_device_handle *dev, double *lna_db, double *mix_db, double *vga_db)
@@ -107,7 +107,7 @@ int pg2sdr_get_stage_gains_db(pg2sdr_device_handle *dev, double *lna_db, double 
     if (vga_db)
         *vga_db = dev->vga_table[dev->vga_gain];
     pthread_mutex_unlock(&dev->mutex);
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 /* Get/set gain as a single combined dB value, using a custom gain curve to select gain settings */
@@ -141,7 +141,7 @@ int pg2sdr_get_total_gain_db(pg2sdr_device_handle *dev, double *gain_db)
         }
     }
     pthread_mutex_unlock(&dev->mutex);
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr_set_total_gain_db(pg2sdr_device_handle *dev, double gain_db)
@@ -164,7 +164,7 @@ int pg2sdr_set_total_gain_db(pg2sdr_device_handle *dev, double gain_db)
         }
     }
 
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     if (dev->current_gain_entry != nearest) {
         if ((error = pg2sdr__tuner_set_gains(dev, nearest->lna_gain, nearest->mix_gain, nearest->vga_gain)) < 0)
             goto done;
@@ -186,9 +186,9 @@ int pg2sdr_set_gain_tables(pg2sdr_device_handle *dev,
 {
     CHECK_DEV(dev);
     if (gain_table != NULL && gain_table_size == 0)
-        return LPCSDR_ERROR_BAD_ARGUMENT; /* if changing the gain table, it must have at least one entry */
+        return PG2SDR_ERROR_BAD_ARGUMENT; /* if changing the gain table, it must have at least one entry */
 
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
 
     if (lna_table)
@@ -203,7 +203,7 @@ int pg2sdr_set_gain_tables(pg2sdr_device_handle *dev,
 
         pg2sdr_gain_table_t *new_table;
         if (!(new_table = calloc(gain_table_size, sizeof(pg2sdr_gain_table_t)))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
+            error = PG2SDR_ERROR_NO_MEMORY;
             goto done;
         }
 
@@ -231,9 +231,9 @@ int pg2sdr_get_gain_tables(pg2sdr_device_handle *dev,
 {
     CHECK_DEV(dev);
     if ((gain_table && !gain_table_size) || (!gain_table && gain_table_size))
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
 
     if (gain_table) {
@@ -246,7 +246,7 @@ int pg2sdr_get_gain_tables(pg2sdr_device_handle *dev,
          */
         pg2sdr_gain_table_t *clone;
         if (!(clone = calloc(dev->gain_table_size, sizeof(pg2sdr_gain_table_t)))) {
-            error = LPCSDR_ERROR_NO_MEMORY;
+            error = PG2SDR_ERROR_NO_MEMORY;
             goto done;
         }
 

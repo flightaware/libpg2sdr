@@ -22,8 +22,8 @@ static int control_in(libusb_device_handle *usb_handle,
     if (count < 0)
         return pg2sdr__translate_libusb_error(count);
     if (count != wLength)
-        return LPCSDR_ERROR_FIRMWARE_MISMATCH;
-    return LPCSDR_SUCCESS;
+        return PG2SDR_ERROR_FIRMWARE_MISMATCH;
+    return PG2SDR_SUCCESS;
 }
 
 static int control_out(libusb_device_handle *usb_handle,
@@ -41,18 +41,18 @@ static int control_out(libusb_device_handle *usb_handle,
     if (count < 0)
         return pg2sdr__translate_libusb_error(count);
     if (count != wLength)
-        return LPCSDR_ERROR_FIRMWARE_MISMATCH;
-    return LPCSDR_SUCCESS;
+        return PG2SDR_ERROR_FIRMWARE_MISMATCH;
+    return PG2SDR_SUCCESS;
 }
 
 /* For tuner-specific control transfers, try to refine LIBUSB_ERROR_PIPE */
 static int convert_tuner_error(pg2sdr_device_handle *dev, int error)
 {
-    if (error == (LPCSDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
+    if (error == (PG2SDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
         /* check if an I2C error was seen */
         ep0_in_board_status_t status;
         if (pg2sdr__ctrl_get_status(dev, &status) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
-            return LPCSDR_ERROR_TUNER_I2C;
+            return PG2SDR_ERROR_TUNER_I2C;
     }
 
     return error;
@@ -151,7 +151,7 @@ int pg2sdr__ctrl_get_status(pg2sdr_device_handle *dev, ep0_in_board_status_t *ou
     out->tuner_xtal = le32toh(status.tuner_xtal);
     out->serial_number = le64toh(status.serial_number);
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 /* This one takes a libusb handle, since we'll be calling it during
@@ -173,7 +173,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
     }
     
     if (le32toh(in_check.magic) != COMMS_CHECK_MAGIC)
-        return LPCSDR_ERROR_FIRMWARE_MISMATCH;
+        return PG2SDR_ERROR_FIRMWARE_MISMATCH;
 
     ep0_out_comms_check_t out_check;
     out_check.magic = htole32(COMMS_CHECK_MAGIC);
@@ -186,7 +186,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
         return error;
     }
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr__ctrl_tuner_update(pg2sdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)

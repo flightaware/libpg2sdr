@@ -12,7 +12,7 @@ static int apply_tuner_changeset(pg2sdr_device_handle *dev, change_set *cs)
 
     pg2sdr__prepare_tuner_payload_from_change_set(cs, &first, payload, &payload_size);
     if (!payload_size)
-        return LPCSDR_SUCCESS; /* no work to do */
+        return PG2SDR_SUCCESS; /* no work to do */
 
     return pg2sdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
@@ -29,21 +29,21 @@ int pg2sdr__read_tuner_bits(pg2sdr_device_handle *dev, uint8_t reg, uint8_t mask
 int pg2sdr__tuner_set_lna(pg2sdr_device_handle *dev, unsigned lna)
 {
     if (lna > 15)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr__tuner_set_gains(dev, lna, -1, -1);
 }
 
 int pg2sdr__tuner_set_mix(pg2sdr_device_handle *dev, unsigned mix)
 {
     if (mix > 15)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr__tuner_set_gains(dev, -1, mix, -1);
 }
 
 int pg2sdr__tuner_set_vga(pg2sdr_device_handle *dev, unsigned vga)
 {
     if (vga > 15)
-        return LPCSDR_ERROR_BAD_ARGUMENT;
+        return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr__tuner_set_gains(dev, -1, -1, vga);
 }
 
@@ -72,7 +72,7 @@ int pg2sdr__tuner_set_gains(pg2sdr_device_handle *dev, int lna, int mix, int vga
     if (vga >= 0)
         dev->vga_gain = vga;
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 
@@ -91,7 +91,7 @@ int pg2sdr__tuner_set_bandpass(pg2sdr_device_handle *dev, const pg2sdr_bandpass_
 
 int pg2sdr__init_tuner(pg2sdr_device_handle *dev)
 {
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
 
     if ((error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_RESET)) < 0)
         return error;
@@ -100,7 +100,7 @@ int pg2sdr__init_tuner(pg2sdr_device_handle *dev)
     if (tuner_id < 0)    /* read failed */
         return tuner_id;
     if (tuner_id != 0x96)
-        return LPCSDR_ERROR_TUNER_DETECT;
+        return PG2SDR_ERROR_TUNER_DETECT;
 
     /* Populate fixed initial register values.
      *
@@ -302,7 +302,7 @@ int pg2sdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
 
     double pll_feedback = (required_vco / 2) / pll_ref;
     if (pll_feedback < 13 || pll_feedback >= 269) {
-        return LPCSDR_ERROR_TUNER_PLL_RANGE;
+        return PG2SDR_ERROR_TUNER_PLL_RANGE;
     }
 
     double pll_feedback_int_part;
@@ -334,11 +334,11 @@ int pg2sdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
     out->actual_vco = actual_vco;
     out->actual_frequency = actual_out;
 
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }
 
 int pg2sdr__start_pll(pg2sdr_device_handle *dev, tuner_pll_config_t *params) {
-    int error = LPCSDR_SUCCESS;
+    int error = PG2SDR_SUCCESS;
     int resp = 0;
     
     if ((error = pg2sdr__configure_pll_settings(dev, params)) < 0)
@@ -355,7 +355,7 @@ int pg2sdr__start_pll(pg2sdr_device_handle *dev, tuner_pll_config_t *params) {
             break;
     }
     if (resp != 1)
-        return LPCSDR_ERROR_TUNER_PLL_LOCK;
+        return PG2SDR_ERROR_TUNER_PLL_LOCK;
 
     change_set cs = {0};
     set_tuner_bits(&cs, PLL_AUTO_CLK, 2);

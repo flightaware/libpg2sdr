@@ -121,7 +121,7 @@ int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
  * If `epsilon` > 0, only consider settings where the total frequency error is less than (epsilon * target_frequency)
  * If `epsilon` <= 0, behave as if epsilon = 1e-6 (i.e. 1PPM max error)
  *
- * Store results in `*divisors` and return LPCSDR_SUCCESS on success;
+ * Store results in `*divisors` and return PG2SDR_SUCCESS on success;
  * return a negative error code on failure.
  */
 int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);

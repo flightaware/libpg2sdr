@@ -82,10 +82,10 @@ adc_p_i_tuple_t *pg2sdr__adc_make_p_i_table()
 int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon)
 {
     if (target_frequency > 80e6)
-        return LPCSDR_ERROR_ADC_RATE_RANGE;
+        return PG2SDR_ERROR_ADC_RATE_RANGE;
 
     if (!init_p_i_table())
-        return LPCSDR_ERROR_NO_MEMORY;
+        return PG2SDR_ERROR_NO_MEMORY;
 
     if (epsilon <= 0)
         epsilon = 1e-6;
@@ -166,9 +166,9 @@ int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
 
     if (!current_best.valid) {
         /* All candidates were rejected */
-        return LPCSDR_ERROR_ADC_RATE_RANGE;
+        return PG2SDR_ERROR_ADC_RATE_RANGE;
     }
 
     *divisors = current_best;
-    return LPCSDR_SUCCESS;
+    return PG2SDR_SUCCESS;
 }

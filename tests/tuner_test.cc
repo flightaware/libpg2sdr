@@ -63,7 +63,7 @@ TEST(Test_find_pll_parameters, Success) {
 
     const double target = 100e6;
 
-    ASSERT_EQ(pg2sdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__find_pll_parameters(target, 28.8e6, &p), PG2SDR_SUCCESS);
 
     // these are very prescriptive white-box tests, needed?
     EXPECT_EQ(p.refdiv, true);
@@ -84,8 +84,8 @@ TEST(tuner_sanity_check, Success)
     pg2sdr_device_handle *h = handle();
 
     tuner_pll_config_t p;
-    ASSERT_EQ(pg2sdr__find_pll_parameters(100e6, 28800000, &p), LPCSDR_SUCCESS);
-    ASSERT_EQ(pg2sdr__start_pll(h, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__find_pll_parameters(100e6, 28800000, &p), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__start_pll(h, &p), PG2SDR_SUCCESS);
     ASSERT_EQ(pg2sdr__has_pll_lock(h), 1);
 }
 
@@ -94,9 +94,9 @@ TEST(gain_sanity_check, Success) {
     DeviceHandle handle(ctx);
 
     pg2sdr_device_handle *h = handle();
-    ASSERT_EQ(pg2sdr_set_lna_gain(h, 1), LPCSDR_SUCCESS);
-    ASSERT_EQ(pg2sdr_set_mix_gain(h, 2), LPCSDR_SUCCESS);
-    ASSERT_EQ(pg2sdr_set_vga_gain(h, 3), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr_set_lna_gain(h, 1), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr_set_mix_gain(h, 2), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr_set_vga_gain(h, 3), PG2SDR_SUCCESS);
 
     EXPECT_EQ(read_tuner_bits(h, LNA_GAIN), 1);
     EXPECT_EQ(read_tuner_bits(h, MIX_GAIN), 2);
@@ -116,7 +116,7 @@ TEST(filter_sanity_check, Success) {
     EXPECT_GE(settings->lower_corner, 0);
     EXPECT_LE(settings->upper_corner, 4000e3);
 
-    EXPECT_EQ(pg2sdr__tuner_set_bandpass(h, settings), LPCSDR_SUCCESS);
+    EXPECT_EQ(pg2sdr__tuner_set_bandpass(h, settings), PG2SDR_SUCCESS);
 
     // verify correct settings were written
     EXPECT_EQ(read_tuner_bits(h, IFFILT_HPF_CORNER), settings->hpf_corner);
@@ -133,7 +133,7 @@ TEST_P(Test_find_pll_parameters_for_range, FindParameters) {
 
     double target = GetParam();
     tuner_pll_config_t p = {};
-    ASSERT_EQ(pg2sdr__find_pll_parameters(target, 28.8e6, &p), LPCSDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__find_pll_parameters(target, 28.8e6, &p), PG2SDR_SUCCESS);
 
     ASSERT_EQ(p.refdiv, true);
     ASSERT_NEAR(p.actual_frequency, target, target * 1e-6);

@@ -19,25 +19,25 @@
 #define CHECK_CTX(ctx)                       \
     do {                                     \
         if (!ctx)                            \
-            return LPCSDR_ERROR_BAD_ARGUMENT;\
+            return PG2SDR_ERROR_BAD_ARGUMENT;\
         if (ctx->magic != MAGIC_CTX)         \
-            return LPCSDR_ERROR_CORRUPTION;  \
+            return PG2SDR_ERROR_CORRUPTION;  \
     } while (0)
 
 #define CHECK_DEV(dev)                                                            \
     do {                                                                          \
         if (!dev)                                                                 \
-            return LPCSDR_ERROR_BAD_ARGUMENT;                                     \
+            return PG2SDR_ERROR_BAD_ARGUMENT;                                     \
         if (!dev->ctx || dev->magic != MAGIC_DEV || dev->ctx->magic != MAGIC_CTX) \
-            return LPCSDR_ERROR_CORRUPTION;                                       \
+            return PG2SDR_ERROR_CORRUPTION;                                       \
     } while (0)
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define LOGDEBUG(dev,fmt,...) pg2sdr__log((dev)->ctx,LPCSDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
-#define LOGINFO(dev,fmt,...) pg2sdr__log((dev)->ctx,LPCSDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
-#define LOGERROR(dev,fmt,...) pg2sdr__log((dev)->ctx,LPCSDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGDEBUG(dev,fmt,...) pg2sdr__log((dev)->ctx,PG2SDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGINFO(dev,fmt,...) pg2sdr__log((dev)->ctx,PG2SDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
+#define LOGERROR(dev,fmt,...) pg2sdr__log((dev)->ctx,PG2SDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
 
 struct pg2sdr__context {
     int magic;
@@ -91,7 +91,7 @@ struct pg2sdr__device_handle {
 
     size_t buffer_size;                   /* requested user buffer size, counted in user samples */
 
-    int decimation_mode;                  /* decimation mode: LPCSDR_DECIMATION_AUTO, or >=0 for manual */
+    int decimation_mode;                  /* decimation mode: PG2SDR_DECIMATION_AUTO, or >=0 for manual */
     int undersampling_mode;               /* undersampling mode: 1 for normal case, >1 for using a particular alias */
 
     /* current tuner gain steps (0-15) */
@@ -133,7 +133,7 @@ struct pg2sdr__device_handle {
     /* State for BASEBAND-mode streaming */
     unsigned partial_samples; /* ADC samples receieved but not yet dispatched to a user sample, used for timestamp correction */
     dsp_downconvert_state_t *downconverter;  /* Fs/4 downconvertor+decimator */
-    dsp_halfband_decimate_state_t *post_decimators[LPCSDR_DECIMATION_MAX]; /* Chain of decimators for extra decimation following downconversion */
+    dsp_halfband_decimate_state_t *post_decimators[PG2SDR_DECIMATION_MAX]; /* Chain of decimators for extra decimation following downconversion */
     int16_t *work_buffer[2];                 /* ping-pong work buffers */
 };
 

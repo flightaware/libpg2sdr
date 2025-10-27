@@ -207,7 +207,7 @@ LPCSDRDevice::LPCSDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
       sideband_mode_(SidebandMode::AUTO)
 {
     LIBCALL(pg2sdr_set_buffer_size, 128*1024);
-    LIBCALL(pg2sdr_set_conversion_mode, LPCSDR_MODE_BASEBAND);
+    LIBCALL(pg2sdr_set_conversion_mode, PG2SDR_MODE_BASEBAND);
 
     // Collect info on gain ranges
 
@@ -289,7 +289,7 @@ void LPCSDRDevice::tryApplyChanges() const
     int error = pg2sdr_apply_changes(handle_);
     if (!error)
         return;
-    if (error == LPCSDR_ERROR_BAD_STATE) {
+    if (error == PG2SDR_ERROR_BAD_STATE) {
         // Retry with the stream paused
         PauseStreamGuard pause_stream(*this);
         LIBCALL(pg2sdr_apply_changes);
@@ -611,9 +611,9 @@ void LPCSDRDevice::writeSetting(const std::string &key, const std::string &value
     } else if (key == setting_decimation) {
         int mode;
         if (value == setting_decimation_auto)
-            mode = LPCSDR_DECIMATION_AUTO;
+            mode = PG2SDR_DECIMATION_AUTO;
         else if (value == setting_decimation_max)
-            mode = LPCSDR_DECIMATION_AUTO_MAX;
+            mode = PG2SDR_DECIMATION_AUTO_MAX;
         else
             mode = std::stoi(value);
 
@@ -684,9 +684,9 @@ std::string LPCSDRDevice::readSetting(const std::string &key) const
         LIBCALL(pg2sdr_get_decimation_mode, &mode);
         if (mode >= 0)
             return std::to_string(mode);
-        else if (mode == LPCSDR_DECIMATION_AUTO)
+        else if (mode == PG2SDR_DECIMATION_AUTO)
             return setting_decimation_auto;
-        else if (mode == LPCSDR_DECIMATION_AUTO_MAX)
+        else if (mode == PG2SDR_DECIMATION_AUTO_MAX)
             return setting_decimation_max;
         else
             throw std::runtime_error("bad decimation mode value");

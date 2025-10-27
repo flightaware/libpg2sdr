@@ -1,8 +1,8 @@
 // -*- c++ -*-
 #pragma once
 
-#ifndef SOAPY_LPCSDR_H
-#define SOAPY_LPCSDR_H
+#ifndef SOAPY_PG2SDR_H
+#define SOAPY_PG2SDR_H
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Logger.hpp>
@@ -56,10 +56,10 @@ class Context
 
         SoapySDR::LogLevel ll;
         switch (level) {
-        case LPCSDR_LOG_INFO:
+        case PG2SDR_LOG_INFO:
             ll = SOAPY_SDR_INFO;
             break;
-        case LPCSDR_LOG_ERROR:
+        case PG2SDR_LOG_ERROR:
             ll = SOAPY_SDR_ERROR;
             break;
         default:
@@ -324,4 +324,4 @@ private:
 
 }; // namespace LPCSDR
 
-#endif /* SOAPY_LPCSDR_H */
+#endif /* SOAPY_PG2SDR_H */
