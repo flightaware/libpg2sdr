@@ -1,7 +1,7 @@
 #ifndef PG2SDR_INTERNAL_H
 #define PG2SDR_INTERNAL_H
 
-#include "lpcsdr.h"
+#include "pg2sdr.h"
 #include "lpcsdr_protocol.h"
 #include "dsp.h"
 #include "tuner.h"

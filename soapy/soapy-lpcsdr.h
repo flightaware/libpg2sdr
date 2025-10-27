@@ -6,7 +6,7 @@
 
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Logger.hpp>
-#include <lpcsdr.h>
+#include <pg2sdr.h>
 
 #include <condition_variable>
 #include <list>
