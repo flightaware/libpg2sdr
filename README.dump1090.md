@@ -73,7 +73,7 @@ $ make all
 ## Install pg2sdr udev rules
 
 ```
-$ sudo cp ~/git/liblpcsdr/firmware/udev/99-lpcsdr.rules /etc/udev/rules.d/
+$ sudo cp ~/git/liblpcsdr/firmware/udev/99-pg2sdr.rules /etc/udev/rules.d/
 $ sudo systemctl reload udev
 ```
 

@@ -17,7 +17,7 @@ $ make
 
 ```
 $ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/build/soapy
-$ export PG2SDR_FIRMWARE=$HOME/git/libpg2sdr/firmware/images/lpcsdr.bin
+$ export PG2SDR_FIRMWARE=$HOME/git/libpg2sdr/firmware/images/pg2sdr.bin
 $ export SOAPY_SDR_LOG_LEVEL=DEBUG
 ```
 
