@@ -38,8 +38,8 @@ public:
     DeviceHandle(Context &ctx) : handle(nullptr) {
         int error;
 
-        if (::getenv("LPCSDR_FIRMWARE_PATH") == nullptr) {
-            if ((error = pg2sdr_set_firmware_path(ctx(), "/media/psf/soapy_shared_folder/liblpcsdr/pg2sdr_firmware/images/lpcsdr.bin")) < 0) {
+        if (::getenv("PG2SDR_FIRMWARE") == nullptr) {
+            if ((error = pg2sdr_set_firmware_path(ctx(), "../firmware/images/lpcsdr.bin")) < 0) {
                 throw std::runtime_error(std::string("device setup failed: pg2sdr_set_firmware_path: ") + pg2sdr_strerror(error));
             }
         }

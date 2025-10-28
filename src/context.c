@@ -39,7 +39,7 @@ int pg2sdr_init(pg2sdr_context **ctx) {
         return pg2sdr__translate_libusb_error(usb_error);
     }
 
-    char *firmware_env = getenv("LPCSDR_FIRMWARE");
+    char *firmware_env = getenv("PG2SDR_FIRMWARE");
     if (firmware_env) {
         int error = pg2sdr_set_firmware_path(newctx, firmware_env);
         if (error < 0) {
