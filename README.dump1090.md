@@ -1,4 +1,4 @@
-# Getting dump1090 working with liblpcsdr
+# Getting dump1090 working with libpg2sdr
 
 This assumes a Raspberry Pi OS bookworm arm64 install.
 Other base installs (notably a piaware sdcard image) may need slight tweaks.
@@ -23,7 +23,7 @@ $ sudo apt install --no-install-recommends \
 (nb: rtl-sdr / librtlsdr-dev only necessary if you want to build a dump1090
 with rtl-sdr support, e.g. for direct comparison with a prostick)
 
-## Check out and build liblpcsdr
+## Check out and build libpg2sdr
 
 You might need to do the checkout on a host with VPN/GHE access then
 copy over the checked-out repo
@@ -39,9 +39,10 @@ $ make
 
 ## Check out and build dump1090
 
-You don't _have_ to build dump1090 yourself, it should be possible to use an
-existing dump1090 package as they already have soapysdr support. But you probably
-want to build from the soapy-settings branch for support for --device-setting
+You don't _have_ to build dump1090 yourself, it should be possible to
+use an existing dump1090 package as they already have soapysdr
+support. But you probably want to build from the soapy-settings branch
+for support for --device-setting
 
 If you're not using an existing package, then build from source:
 
@@ -69,19 +70,19 @@ Building with:
 $ make all
 ```
 
-## Install lpcsdr udev rules
+## Install pg2sdr udev rules
 
 ```
-$ sudo cp ~/git/lpcsdr/lpcsdr_firmware/udev/99-lpcsdr.rules /etc/udev/rules.d/
+$ sudo cp ~/git/liblpcsdr/firmware/udev/99-lpcsdr.rules /etc/udev/rules.d/
 $ sudo systemctl reload udev
 ```
 
-Disconnect & reconnect the lpcsdr so the new rules are applied.
+Disconnect & reconnect the pg2sdr so the new rules are applied.
 
-## Ensure lpcsdr firmware is loaded
+## Ensure pg2sdr firmware is loaded
 
 ```
-$ ~/git/liblpcsdr/lpcsdr_firmware/python/status.py
+$ ~/git/liblpcsdr/firmware/python/status.py
 ```
 
 ## Set soapy env vars
@@ -94,24 +95,24 @@ $ export SOAPY_SDR_LOG_LEVEL=DEBUG
 $ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/build/soapy
 ```
 
-## Check that SoapySDR sees the lpcsdr support library
+## Check that SoapySDR sees the pg2sdr support library
 
 ```
 $ SoapySDRUtil --info
 [...]
 Search path:  /home/pi/git/liblpcsdr/soapy
-Module found: /home/pi/git/liblpcsdr/soapy/liblpcsdrSupport.so
-Available factories... lpcsdr
+Module found: /home/pi/git/liblpcsdr/soapy/libpg2sdrSupport.so
+Available factories... pg2sdr
 [...]
 ```
 
-## Check that SoapySDR sees the lpcsdr device
+## Check that SoapySDR sees the pg2sdr device
 
 ```
 $ SoapySDRUtil --sparse --find=driver=lpcsdr
-[DEBUG] LPCSDR: FindDevices("driver=lpcsdr")
-[DEBUG] candidate: address=19, bus=3, driver=lpcsdr, index=0, label=LPCSDR@3:2 s/n 38265463986061DC, ports=2, serial=38265463986061DC
-0: LPCSDR@3:2 s/n 38265463986061DC
+[DEBUG] PG2SDR: FindDevices("driver=pg2sdr")
+[DEBUG] candidate: address=2, bus=1, driver=pg2sdr, index=0, label=ProStick Gen 2 @ 1:11 s/n 386297DBD86461DC, ports=11, serial=386297DBD86461DC
+0: ProStick Gen 2 @ 1:11 s/n 386297DBD86461DC
 ```
 
 ## Run dump1090
@@ -121,8 +122,8 @@ leave it unattended.
 
 ```
 $ /home/pi/git/dump1090/dump1090                                  \
-   --device-type soapy --device driver=lpcsdr                     \
-   --gain-element VGA:8 --gain-element MIX:8 --gain-element LNA:8 \
+   --device-type soapy --device driver=pg2sdr                     \
+   --gain 60 \
    --lat <your location> --lon <your location>                    \
    --fix
 ```
@@ -130,8 +131,7 @@ $ /home/pi/git/dump1090/dump1090                                  \
 This will spit out a lot of debugging info on startup, then write decoded
 ADS-B messages to stdout as it receives them.
 
-The gain-element settings sets the gain of each individual gain stage directly
-(each in the range 0-15)
+Gain is total gain in dB (approx)
 
 ## Extra dump1090 args
 
@@ -140,8 +140,12 @@ Useful extra flags to pass, depending on what you're doing:
 `--device-setting decimation=max` - makes the ADC will run at 19.2MHz
 (default is 9.6)
 
-`--quiet` - don't write the decoded ADS-B mesages to stdout. You will want this after you've confirmed that messages are arriving correctly.
+`--quiet` - don't write the decoded ADS-B mesages to stdout. You will
+want this after you've confirmed that messages are arriving correctly.
 
-`--net-bo-port 12345` -- make Beast-format data available on TCP port 12345. You could point a relay-mode piaware at this. Or, if you don't need skyaware, put dump1090 on port 30005 directly.
+`--net-bo-port 12345` -- make Beast-format data available on TCP port
+12345. You could point a relay-mode piaware at this. Or, if you don't
+need skyaware, put dump1090 on port 30005 directly.
 
-`--write-json /tmp/lpcsdr-json/` -- write json files to `/tmp/lpcsdr-json` (suitable for e.g. feeding to skyaware_logger)
+`--write-json /tmp/pg2sdr-json/` -- write json files to
+`/tmp/pg2sdr-json` (suitable for e.g. feeding to skyaware_logger)

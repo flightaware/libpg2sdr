@@ -152,7 +152,7 @@ int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, vo
  * value per sample. The resulting signal corresponds to one sideband of the RF spectrum, either above or
  * below the configured frequency depending on the configured sideband mode. The configured RF frequency
  * maps to 0Hz (though there will not be anything useful there, due to both the limits of the tuner bandpass
- * filter, and LO leakage). This mode is mostly for lower-level debugging of the LPCSDR hardware or software
+ * filter, and LO leakage). This mode is mostly for lower-level debugging of the PG2SDR hardware or software
  * itself, where direct inspection of the ADC data is useful.
  *
  * May not be called while streaming; will return PG2SDR_ERROR_BAD_STATE if this is attempted.
@@ -251,7 +251,7 @@ int pg2sdr_set_undersampling_mode(pg2sdr_device_handle *dev, int undersampling_m
 /* Get the current undersampling mode, and place in *undersampling_mode */
 int pg2sdr_get_undersampling_mode(pg2sdr_device_handle *dev, int *undersampling_mode);
 
-/* Set the ADC sampling rate limit, in Hz. liblpcsdr will not set the ADC to a rate higher
+/* Set the ADC sampling rate limit, in Hz. libpg2sdr will not set the ADC to a rate higher
  * than this limit.
  *
  * Limiting the ADC rate implicitly limits the available sampling rates. In LOWIF_REAL mode,

@@ -279,7 +279,7 @@ public:
     int read(void *out, const size_t numElems, int &flags, long long &timeNs, const long timeoutUs);
 
 private:
-    // A unique_ptr for pg2sdr_sample_buffer that frees buffers via the liblpcsdr API
+    // A unique_ptr for pg2sdr_sample_buffer that frees buffers via the libpg2sdr API
     typedef std::unique_ptr<pg2sdr_sample_buffer, decltype(&pg2sdr_release_buffer)> BufferPtr;
 
     // Items contained in queue_ and pending_

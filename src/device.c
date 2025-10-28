@@ -184,7 +184,7 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_li
             mode = PG2SDR_DEVICE_MODE_DFU_BOOTLOADER;
             memset(serial, 0, sizeof(serial));
         } else if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
-            /* LPCSDR firmware */
+            /* PG2SDR firmware */
             mode = PG2SDR_DEVICE_MODE_NORMAL;
             if ((usb_error = get_serial(usb_dev, serial, sizeof(serial))) < 0) {
                 /* warn (but still use the device) */

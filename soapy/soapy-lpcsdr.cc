@@ -229,7 +229,7 @@ PG2SDRDevice::PG2SDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
     total_gain_range_ = SoapySDR::Range(gain_table[0].gain_db, gain_table[gain_table_size-1].gain_db);
     Logf(SOAPY_SDR_DEBUG, "Total gain range [%.1f,%.1f] dB", total_gain_range_.minimum(), total_gain_range_.maximum());
 
-    // liblpcsdr allocated space for our copy of the table, we must free it
+    // libpg2sdr allocated space for our copy of the table, we must free it
     free(gain_table);
 }
 

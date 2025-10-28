@@ -4,16 +4,16 @@ This library is going to be used by third-party code, so there are a few
 things we need to do to make sure it doesn't conflict with whatever that
 code does.
 
-## Contents of the public lpcsdr.h header
+## Contents of the public pg2sdr.h header
 
-`lpcsdr.h` is the public header that third-party code is going to include.
+`pg2sdr.h` is the public header that third-party code is going to include.
 We need to make sure that nothing in that header is going to conflict with
 things in the third-party code.
 
 All names -- functions, type names, macro names, enum names, etc -- visible
-in lpcsdr.h should start with `lpcsdr_` or `LPCSDR_`.
+in pg2sdr.h should start with `pg2sdr_` or `PG2SDR_`.
 
-The only things that should be present in `lpcsdr.h` are things that are
+The only things that should be present in `pg2sdr.h` are things that are
 necessary for external use of the library.
 
 Internal typedefs, functions, etc should be declared in a separate header.
@@ -24,14 +24,14 @@ third-party code.
 ## Naming non-static functions and global variables
 
 Every non-static function, and every non-static global variable, should start
-with `lpcsdr_`. This includes both internal and external functions/globals.
+with `pg2sdr_`. This includes both internal and external functions/globals.
 
 These symbols will be visible as public symbols in the compiled library, so
 we need to make sure that they cannot clash with whatever names third-party
 code uses.
 
 For internal functions that are non-static, maybe we should follow a convention
-like starting them with `lpcsdr__` (note two underscores) to distinguish them
+like starting them with `pg2sdr__` (note two underscores) to distinguish them
 from functions that are intended to be used externally.
 
 For static functions, call them what you want, they will not turn into public
@@ -44,5 +44,5 @@ tests)
 Here's one way to look for stray symbols in the library output:
 
 ```
-$ nm -C build/src/liblpcsdr.a  | grep -v lpcsdr_ | grep -v ' [Ua-z] '
+$ nm -C build/src/libpg2sdr.a  | grep -v pg2sdr_ | grep -v ' [Ua-z] '
 ```

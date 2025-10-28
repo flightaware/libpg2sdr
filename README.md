@@ -1,4 +1,4 @@
-# liblpcsdr
+# libpg2sdr
 
 ## TODO
 
@@ -11,9 +11,8 @@
 # Development
 
 
-## Initialize lpcsdr_firmware Submodule
-`git submodule init`
-`git submodule update`
+## Initialize firmware and starch submodules
+`git submodule update --init`
 
 # Unit Testing
 
