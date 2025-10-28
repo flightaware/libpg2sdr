@@ -1,4 +1,4 @@
-#include "soapy-lpcsdr.h"
+#include "soapy-pg2sdr.h"
 
 #include <SoapySDR/Formats.hpp>
 #include <SoapySDR/Registry.hpp>

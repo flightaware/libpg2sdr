@@ -3,7 +3,7 @@ find_package(SoapySDR REQUIRED)
 SOAPY_SDR_MODULE_UTIL(
   TARGET pg2sdrSupport
   SOURCES
-    soapy-lpcsdr.cc
+    soapy-pg2sdr.cc
   LIBRARIES
     pg2sdr)
 
