@@ -10,3 +10,4 @@
 
 #include "../impl/fs4_mix.generic.c"
 #include "../impl/halfband_decimate.generic.c"
+#include "../impl/unpack_raw_adc_data.generic.c"

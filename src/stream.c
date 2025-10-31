@@ -3,10 +3,10 @@
 #include <assert.h>
 
 #include "internal.h"
+#include "starch.h"
 
 #define memory_barrier() atomic_thread_fence(memory_order_acq_rel)
 
-static void unpack_raw_adc_data(const uint32_t *in, uint32_t words, int16_t *out);
 static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data, size_t length, int16_t *out);
 static void dispatch_contiguous_blocks(pg2sdr_device_handle *dev, const uint8_t *data, size_t length, pg2sdr_stream_callback callback, void *user_data);
 
@@ -39,62 +39,6 @@ static void unpack_header(const uint8_t *in, ep1_header_t* out)
     out->samples = le32toh(h->samples);
     out->sequence = le32toh(h->sequence);
     out->status = le32toh(h->status);
-}
-
-/* Convert "words" uint32_t words of packed ADC data stored at "in":
- *   1. unpack the sample values from the packed representation
- *   2. scale from 12-bit twos-complement to 16-bit twos-complement
- *   3. write results to "out"
- *
- * caller must ensure:
- *   "words" is a multiple of 3
- *   "out" has at least enough space for (words * 8 / 3) int16_t values
- */
-static void unpack_raw_adc_data(const uint32_t *in, uint32_t words, int16_t *out)
-{
-    /* This function is a candidate for use of starch */
-
-    assert(words % 3 == 0);
-
-    for (unsigned i = 0; i < words; i += 3, in += 3, out += 8) {
-        uint32_t first = in[0];
-        uint32_t second = in[1];
-        uint32_t third = in[2];
-
-        /* 12->16 bit scaling is baked into the bitshifts here */
-        out[0] = (int16_t) ((first  & 0x00000FFF) << 4);
-        out[1] = (int16_t) ((first  & 0x0FFF0000) >> 12);
-        out[2] = (int16_t) ((second & 0x00000FFF) << 4);
-        out[3] = (int16_t) ((second & 0x0FFF0000) >> 12);
-        out[4] = (int16_t) ((third  & 0x00000FFF) << 4);
-        out[5] = (int16_t) ((third  & 0x0FFF0000) >> 12);
-        out[6] = (int16_t) (((first & 0x0000F000)) | ((second & 0x0000F000) >> 4) | ((third & 0x0000F000) >> 8));
-        out[7] = (int16_t) (((first & 0xF0000000) >> 16) | ((second & 0xF0000000) >> 20)  | ((third & 0xF0000000) >> 24));
-    }
-}
-
-/* Like `unpack_raw_adc_data`, but also invert the spectrum */
-static void unpack_raw_adc_data_invert(const uint32_t *in, uint32_t words, int16_t *out)
-{
-    /* This function is a candidate for use of starch */
-
-    assert(words % 3 == 0);
-
-    for (unsigned i = 0; i < words; i += 3, in += 3, out += 8) {
-        uint32_t first = in[0];
-        uint32_t second = in[1];
-        uint32_t third = in[2];
-
-        /* 12->16 bit scaling is baked into the bitshifts here */
-        out[0] = (int16_t) ((first  & 0x00000FFF) << 4);
-        out[1] = (int16_t) -((first  & 0x0FFF0000) >> 12);
-        out[2] = (int16_t) ((second & 0x00000FFF) << 4);
-        out[3] = (int16_t) -((second & 0x0FFF0000) >> 12);
-        out[4] = (int16_t) ((third  & 0x00000FFF) << 4);
-        out[5] = (int16_t) -((third  & 0x0FFF0000) >> 12);
-        out[6] = (int16_t) (((first & 0x0000F000)) | ((second & 0x0000F000) >> 4) | ((third & 0x0000F000) >> 8));
-        out[7] = (int16_t) -(((first & 0xF0000000) >> 16) | ((second & 0xF0000000) >> 20)  | ((third & 0xF0000000) >> 24));
-    }
 }
 
 /* Get a fresh pg2sdr_sample_buffer that can be used to fill with data and pass to user code */
@@ -150,7 +94,7 @@ static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data,
             /* unpack ADC data into out directly */
             unsigned count = 0;
             for (unsigned i = 0; i < length; i += bpb, count += spb)
-                unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, out + count);
+                pg2sdr__starch_unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, out + count);
             return count;
         }
 
@@ -160,10 +104,10 @@ static size_t convert_adc_blocks(pg2sdr_device_handle *dev, const uint8_t *data,
             unsigned count = 0;
             if (!inverted_spectrum) {
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
-                    unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
+                    pg2sdr__starch_unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             } else {
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
-                    unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
+                    pg2sdr__starch_unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             }
 
             /* work_buffer[0] now contains uninverted-spectrum ADC data, with the signal we want centered at Fs/4 */

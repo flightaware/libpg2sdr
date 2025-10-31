@@ -27,6 +27,12 @@ def main():
     gen.add_function(name = 'fs4_mix',
                      argtypes = ['const int16_t *', 'uint32_t', 'cs16_t *'],
                      returntype = 'uint32_t')
+    gen.add_function(name = 'unpack_raw_adc_data',
+                     argtypes = ['const uint32_t *', 'uint32_t', 'int16_t *'],
+                     returntype = 'void')
+    gen.add_function(name = 'unpack_raw_adc_data_invert',
+                     argtypes = ['const uint32_t *', 'uint32_t', 'int16_t *'],
+                     returntype = 'void')
 
     gen.add_flavor(name = 'default',
                    description = 'Build with compiler defaults',

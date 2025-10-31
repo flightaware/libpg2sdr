@@ -12,3 +12,5 @@
 #include "../impl/fs4_mix.neon.c"
 #include "../impl/halfband_decimate.generic.c"
 #include "../impl/halfband_decimate.neon.c"
+#include "../impl/unpack_raw_adc_data.generic.c"
+#include "../impl/unpack_raw_adc_data.neon.c"

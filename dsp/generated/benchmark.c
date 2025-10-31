@@ -290,6 +290,232 @@ static void starch_benchmark_run_halfband_decimate_block( const dsp_halfband_dec
     }
 }
 
+/* prototypes for benchmark helpers provided by user code */
+void pg2sdr__starch_unpack_raw_adc_data_benchmark (void);
+bool pg2sdr__starch_unpack_raw_adc_data_benchmark_verify ( const uint32_t * arg0, uint32_t arg1, int16_t * arg2 );
+
+/* prototype the benchmarking function so that we can build with -Wmissing-declarations */
+void pg2sdr__starch_unpack_raw_adc_data_benchmark(void);
+
+static void starch_benchmark_one_unpack_raw_adc_data( pg2sdr__starch_unpack_raw_adc_data_regentry * _entry, const uint32_t * arg0, uint32_t arg1, int16_t * arg2 )
+{
+    fprintf(stderr, "  %-40s  ", _entry->name);
+
+    /* test for support */
+    if (_entry->flavor_supported && !(_entry->flavor_supported())) {
+        fprintf(stderr, "unsupported\n");
+        return;
+    }
+
+    if (starch_benchmark_flavor_whitelist && !starch_benchmark_flavor_in_list(_entry->flavor, starch_benchmark_flavor_whitelist)) {
+        fprintf(stderr, "skipped (not whitelisted)\n");
+        return;
+    }
+
+    if (starch_benchmark_flavor_blacklist && starch_benchmark_flavor_in_list(_entry->flavor, starch_benchmark_flavor_blacklist)) {
+        fprintf(stderr, "skipped (blacklisted)\n");
+        return;
+    }
+
+    if (starch_benchmark_list_only) {
+        fprintf(stderr, "supported\n");
+        return;
+    }
+
+    /* initial warmup */
+    for (unsigned _loop = 0; _loop < starch_benchmark_warmup_loops; ++_loop)
+        _entry->callable ( arg0, arg1, arg2 );
+
+    /* verify correctness of the output */
+    if (! pg2sdr__starch_unpack_raw_adc_data_benchmark_verify ( arg0, arg1, arg2 )) {
+        fprintf(stderr, "skipped (verification failed)\n");
+        starch_benchmark_validation_failed = true;
+        return;
+    }
+    if (starch_benchmark_validate_only) {
+        fprintf(stderr, "validation ok\n");
+        return;
+    }
+
+    /* pre-benchmark, find a loop count that takes at least 100ms */
+    starch_benchmark_time _start, _end;
+    uint64_t _elapsed = 0;
+    uint64_t _loops = 127;
+    while (_elapsed < 100000000) {
+        _loops *= 2;
+        starch_benchmark_get_time(&_start);
+        for (uint64_t _loop = 0; _loop < _loops; ++_loop)
+            _entry->callable ( arg0, arg1, arg2 );
+        starch_benchmark_get_time(&_end);
+        _elapsed = starch_benchmark_elapsed(&_start, &_end);
+    }
+
+    /* real benchmark, run for approx 1 second */
+    _loops = _loops * 1000000000 / _elapsed;
+
+    _elapsed = 0;
+    uint64_t _elapsed_min = UINT64_MAX;
+    uint64_t _elapsed_max = 0;
+    for (unsigned _iter = 0; _iter < starch_benchmark_iterations; ++_iter) {
+        starch_benchmark_get_time(&_start);
+        for (uint64_t _loop = 0; _loop < _loops; ++_loop)
+            _entry->callable ( arg0, arg1, arg2 );
+        starch_benchmark_get_time(&_end);
+        uint64_t _elapsed_one = starch_benchmark_elapsed(&_start, &_end);
+        if (_elapsed_one < _elapsed_min)
+            _elapsed_min = _elapsed_one;
+        if (_elapsed_one > _elapsed_max)
+            _elapsed_max = _elapsed_one;
+        _elapsed += _elapsed_one;
+    }
+
+    uint64_t _per_loop;
+    if (starch_benchmark_iterations > 2)
+        _per_loop = (_elapsed - _elapsed_min - _elapsed_max) / _loops / (starch_benchmark_iterations - 2);
+    else
+        _per_loop = _elapsed / _loops / starch_benchmark_iterations;
+
+    fprintf(stderr, "%" PRIu64 " ns/call\n", _per_loop);
+
+    if (starch_benchmark_result_count >= starch_benchmark_result_size) {
+        if (!starch_benchmark_result_size)
+            starch_benchmark_result_size = 64;
+        else
+            starch_benchmark_result_size *= 2;
+        starch_benchmark_results = realloc(starch_benchmark_results, starch_benchmark_result_size * sizeof(*starch_benchmark_results));
+        if (!starch_benchmark_results) {
+            fprintf(stderr, "realloc: %s\n", strerror(errno));
+            exit(1);
+        }
+    }
+
+    starch_benchmark_results[starch_benchmark_result_count].name = "unpack_raw_adc_data";
+    starch_benchmark_results[starch_benchmark_result_count].impl = _entry->name;
+    starch_benchmark_results[starch_benchmark_result_count].ns = _per_loop;
+    starch_benchmark_results[starch_benchmark_result_count].flavor = _entry->flavor;
+    ++starch_benchmark_result_count;
+}
+
+static void starch_benchmark_run_unpack_raw_adc_data( const uint32_t * arg0, uint32_t arg1, int16_t * arg2 )
+{
+    for (pg2sdr__starch_unpack_raw_adc_data_regentry *_entry = pg2sdr__starch_unpack_raw_adc_data_registry; _entry->name; ++_entry) {
+        starch_benchmark_one_unpack_raw_adc_data( _entry, arg0, arg1, arg2 );
+    }
+}
+
+/* prototypes for benchmark helpers provided by user code */
+void pg2sdr__starch_unpack_raw_adc_data_invert_benchmark (void);
+bool pg2sdr__starch_unpack_raw_adc_data_invert_benchmark_verify ( const uint32_t * arg0, uint32_t arg1, int16_t * arg2 );
+
+/* prototype the benchmarking function so that we can build with -Wmissing-declarations */
+void pg2sdr__starch_unpack_raw_adc_data_invert_benchmark(void);
+
+static void starch_benchmark_one_unpack_raw_adc_data_invert( pg2sdr__starch_unpack_raw_adc_data_invert_regentry * _entry, const uint32_t * arg0, uint32_t arg1, int16_t * arg2 )
+{
+    fprintf(stderr, "  %-40s  ", _entry->name);
+
+    /* test for support */
+    if (_entry->flavor_supported && !(_entry->flavor_supported())) {
+        fprintf(stderr, "unsupported\n");
+        return;
+    }
+
+    if (starch_benchmark_flavor_whitelist && !starch_benchmark_flavor_in_list(_entry->flavor, starch_benchmark_flavor_whitelist)) {
+        fprintf(stderr, "skipped (not whitelisted)\n");
+        return;
+    }
+
+    if (starch_benchmark_flavor_blacklist && starch_benchmark_flavor_in_list(_entry->flavor, starch_benchmark_flavor_blacklist)) {
+        fprintf(stderr, "skipped (blacklisted)\n");
+        return;
+    }
+
+    if (starch_benchmark_list_only) {
+        fprintf(stderr, "supported\n");
+        return;
+    }
+
+    /* initial warmup */
+    for (unsigned _loop = 0; _loop < starch_benchmark_warmup_loops; ++_loop)
+        _entry->callable ( arg0, arg1, arg2 );
+
+    /* verify correctness of the output */
+    if (! pg2sdr__starch_unpack_raw_adc_data_invert_benchmark_verify ( arg0, arg1, arg2 )) {
+        fprintf(stderr, "skipped (verification failed)\n");
+        starch_benchmark_validation_failed = true;
+        return;
+    }
+    if (starch_benchmark_validate_only) {
+        fprintf(stderr, "validation ok\n");
+        return;
+    }
+
+    /* pre-benchmark, find a loop count that takes at least 100ms */
+    starch_benchmark_time _start, _end;
+    uint64_t _elapsed = 0;
+    uint64_t _loops = 127;
+    while (_elapsed < 100000000) {
+        _loops *= 2;
+        starch_benchmark_get_time(&_start);
+        for (uint64_t _loop = 0; _loop < _loops; ++_loop)
+            _entry->callable ( arg0, arg1, arg2 );
+        starch_benchmark_get_time(&_end);
+        _elapsed = starch_benchmark_elapsed(&_start, &_end);
+    }
+
+    /* real benchmark, run for approx 1 second */
+    _loops = _loops * 1000000000 / _elapsed;
+
+    _elapsed = 0;
+    uint64_t _elapsed_min = UINT64_MAX;
+    uint64_t _elapsed_max = 0;
+    for (unsigned _iter = 0; _iter < starch_benchmark_iterations; ++_iter) {
+        starch_benchmark_get_time(&_start);
+        for (uint64_t _loop = 0; _loop < _loops; ++_loop)
+            _entry->callable ( arg0, arg1, arg2 );
+        starch_benchmark_get_time(&_end);
+        uint64_t _elapsed_one = starch_benchmark_elapsed(&_start, &_end);
+        if (_elapsed_one < _elapsed_min)
+            _elapsed_min = _elapsed_one;
+        if (_elapsed_one > _elapsed_max)
+            _elapsed_max = _elapsed_one;
+        _elapsed += _elapsed_one;
+    }
+
+    uint64_t _per_loop;
+    if (starch_benchmark_iterations > 2)
+        _per_loop = (_elapsed - _elapsed_min - _elapsed_max) / _loops / (starch_benchmark_iterations - 2);
+    else
+        _per_loop = _elapsed / _loops / starch_benchmark_iterations;
+
+    fprintf(stderr, "%" PRIu64 " ns/call\n", _per_loop);
+
+    if (starch_benchmark_result_count >= starch_benchmark_result_size) {
+        if (!starch_benchmark_result_size)
+            starch_benchmark_result_size = 64;
+        else
+            starch_benchmark_result_size *= 2;
+        starch_benchmark_results = realloc(starch_benchmark_results, starch_benchmark_result_size * sizeof(*starch_benchmark_results));
+        if (!starch_benchmark_results) {
+            fprintf(stderr, "realloc: %s\n", strerror(errno));
+            exit(1);
+        }
+    }
+
+    starch_benchmark_results[starch_benchmark_result_count].name = "unpack_raw_adc_data_invert";
+    starch_benchmark_results[starch_benchmark_result_count].impl = _entry->name;
+    starch_benchmark_results[starch_benchmark_result_count].ns = _per_loop;
+    starch_benchmark_results[starch_benchmark_result_count].flavor = _entry->flavor;
+    ++starch_benchmark_result_count;
+}
+
+static void starch_benchmark_run_unpack_raw_adc_data_invert( const uint32_t * arg0, uint32_t arg1, int16_t * arg2 )
+{
+    for (pg2sdr__starch_unpack_raw_adc_data_invert_regentry *_entry = pg2sdr__starch_unpack_raw_adc_data_invert_registry; _entry->name; ++_entry) {
+        starch_benchmark_one_unpack_raw_adc_data_invert( _entry, arg0, arg1, arg2 );
+    }
+}
+
 
 #define STARCH_SYMBOL(_name) pg2sdr__starch_ ## _name ## _benchmark_sym
 #define STARCH_BENCHMARK(_function) pg2sdr__starch_ ## _function ## _benchmark
@@ -298,6 +524,7 @@ static void starch_benchmark_run_halfband_decimate_block( const dsp_halfband_dec
 
 #include "../impl/fs4_mix.benchmark.c"
 #include "../impl/halfband_decimate.benchmark.c"
+#include "../impl/unpack_raw_adc_data.benchmark.c"
 
 #undef STARCH_SYMBOL
 #undef STARCH_BENCHMARK
@@ -313,6 +540,16 @@ static void starch_benchmark_all_halfband_decimate_block(void)
 {
     fprintf(stderr, "==== halfband_decimate_block ===\n");
     pg2sdr__starch_halfband_decimate_block_benchmark ();
+}
+static void starch_benchmark_all_unpack_raw_adc_data(void)
+{
+    fprintf(stderr, "==== unpack_raw_adc_data ===\n");
+    pg2sdr__starch_unpack_raw_adc_data_benchmark ();
+}
+static void starch_benchmark_all_unpack_raw_adc_data_invert(void)
+{
+    fprintf(stderr, "==== unpack_raw_adc_data_invert ===\n");
+    pg2sdr__starch_unpack_raw_adc_data_invert_benchmark ();
 }
 
 static int starch_benchmark_compare_result(const void *a, const void *b)
@@ -391,6 +628,8 @@ static void starch_benchmark_usage(const char *argv0)
               "\nFunctions: "
               "fs4_mix "
               "halfband_decimate_block "
+              "unpack_raw_adc_data "
+              "unpack_raw_adc_data_invert "
               "\n");
 }
 
@@ -486,6 +725,16 @@ int main(int argc, char **argv)
             starch_benchmark_all_halfband_decimate_block();
             continue;
         }
+        if (!strcmp(argv[i], "unpack_raw_adc_data")) {
+            specific = 1;
+            starch_benchmark_all_unpack_raw_adc_data();
+            continue;
+        }
+        if (!strcmp(argv[i], "unpack_raw_adc_data_invert")) {
+            specific = 1;
+            starch_benchmark_all_unpack_raw_adc_data_invert();
+            continue;
+        }
 
         fprintf(stderr, "%s: unrecognized function name: %s\n", argv[0], argv[i]);
         return 2;
@@ -494,6 +743,8 @@ int main(int argc, char **argv)
     if (!specific) {
         starch_benchmark_all_fs4_mix();
         starch_benchmark_all_halfband_decimate_block();
+        starch_benchmark_all_unpack_raw_adc_data();
+        starch_benchmark_all_unpack_raw_adc_data_invert();
     }
 
     if (output_path) {
