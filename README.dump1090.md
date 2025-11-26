@@ -31,7 +31,7 @@ copy over the checked-out repo
 ```
 $ mkdir ~/git
 $ cd ~/git
-$ git clone --recurse-submodules git@github.flightaware.com:flightaware/libpg2sdr.git -b initial
+$ git clone --recurse-submodules git@github.flightaware.com:flightaware/libpg2sdr.git
 
 $ cd ~/git/libpg2sdr
 $ make
@@ -81,8 +81,9 @@ Disconnect & reconnect the pg2sdr so the new rules are applied.
 
 ## Ensure pg2sdr firmware is loaded
 
+The python scripts are now in a separate repo https://github.flightaware.com/flightaware/pg2sdr-python
 ```
-$ ~/git/libpg2sdr/firmware/python/status.py
+$ ~/git/pg2sdr-python/status.py
 ```
 
 ## Set soapy env vars
