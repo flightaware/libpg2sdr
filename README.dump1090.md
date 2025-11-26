@@ -31,9 +31,9 @@ copy over the checked-out repo
 ```
 $ mkdir ~/git
 $ cd ~/git
-$ git clone --recurse-submodules git@github.flightaware.com:flightaware/liblpcsdr.git -b initial
+$ git clone --recurse-submodules git@github.flightaware.com:flightaware/libpg2sdr.git -b initial
 
-$ cd ~/git/liblpcsdr
+$ cd ~/git/libpg2sdr
 $ make
 ```
 
@@ -73,7 +73,7 @@ $ make all
 ## Install pg2sdr udev rules
 
 ```
-$ sudo cp ~/git/liblpcsdr/firmware/udev/99-pg2sdr.rules /etc/udev/rules.d/
+$ sudo cp ~/git/libpg2sdr/firmware/udev/99-pg2sdr.rules /etc/udev/rules.d/
 $ sudo systemctl reload udev
 ```
 
@@ -82,7 +82,7 @@ Disconnect & reconnect the pg2sdr so the new rules are applied.
 ## Ensure pg2sdr firmware is loaded
 
 ```
-$ ~/git/liblpcsdr/firmware/python/status.py
+$ ~/git/libpg2sdr/firmware/python/status.py
 ```
 
 ## Set soapy env vars
@@ -92,7 +92,7 @@ have to remember to run them in every new shell:
 
 ```
 $ export SOAPY_SDR_LOG_LEVEL=DEBUG
-$ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/build/soapy
+$ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/libpg2sdr/build/soapy
 ```
 
 ## Check that SoapySDR sees the pg2sdr support library
@@ -100,8 +100,8 @@ $ export SOAPY_SDR_PLUGIN_PATH=$HOME/git/liblpcsdr/build/soapy
 ```
 $ SoapySDRUtil --info
 [...]
-Search path:  /home/pi/git/liblpcsdr/soapy
-Module found: /home/pi/git/liblpcsdr/soapy/libpg2sdrSupport.so
+Search path:  /home/pi/git/libpg2sdr/soapy
+Module found: /home/pi/git/libpg2sdr/soapy/libpg2sdrSupport.so
 Available factories... pg2sdr
 [...]
 ```
@@ -109,7 +109,7 @@ Available factories... pg2sdr
 ## Check that SoapySDR sees the pg2sdr device
 
 ```
-$ SoapySDRUtil --sparse --find=driver=lpcsdr
+$ SoapySDRUtil --sparse --find=driver=pg2sdr
 [DEBUG] PG2SDR: FindDevices("driver=pg2sdr")
 [DEBUG] candidate: address=2, bus=1, driver=pg2sdr, index=0, label=ProStick Gen 2 @ 1:11 s/n 386297DBD86461DC, ports=11, serial=386297DBD86461DC
 0: ProStick Gen 2 @ 1:11 s/n 386297DBD86461DC
