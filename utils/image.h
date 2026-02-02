@@ -1,0 +1,39 @@
+#ifndef PG2_IMAGE_H
+#define PG2_IMAGE_H
+
+#include "io.h"
+#include <stdint.h>
+
+typedef struct {
+    /* total image size size, including header/suffix */
+    uint32_t image_size;
+    /* complete image contents, including header/suffix */
+    uint8_t *image_bytes;
+    /* bcdDevice from DFU suffix (firmware release number) */
+    uint16_t dfu_release;
+
+    /* start of data to load over DFU / LOAD_IMAGE */
+    uint8_t *load_bytes;
+    /* number of bytes to load over DFU / LOAD_IMAGE */
+    uint32_t load_size;
+} firmware_image_t;
+
+/*
+ * Load and verify a firmware image using `io` to
+ * access the image data.
+ *
+ * Returns the loaded image, or NULL on error.
+ *
+ * Caller should eventually call `image_free`
+ * when done with the loaded image.
+ */
+firmware_image_t *image_read(firmware_io_t *io);
+
+/*
+ * Free `image` previously returned from `image_read`.
+ * If `image` is NULL, does nothing.
+ */
+void image_free(firmware_image_t *image);
+
+#endif
+

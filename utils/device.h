@@ -1,0 +1,26 @@
+#ifndef PG2_DEVICE_H
+#define PG2_DEVICE_H
+
+#include <stdbool.h>
+#include <libusb-1.0/libusb.h>
+
+/* fixme: header overlap with lib */
+#define VID_LPC_ROM 0x1fc9
+#define PID_LPC_ROM 0x000c
+
+#define VID_PG2SDR 0xDEAD
+#define PID_PG2SDR 0xBEEF
+
+const char *device_serial(libusb_device *dev);
+
+bool device_is_pg2(libusb_device *dev);
+bool device_is_dfu(libusb_device *dev);
+
+const char *device_string(libusb_device *dev);
+const char *device_ports(libusb_device *dev);
+
+#define SEARCH_DFU 1
+#define SEARCH_PG2 2
+libusb_device *device_search(const char *serial_prefix, const char *port_path, unsigned flags);
+
+#endif
