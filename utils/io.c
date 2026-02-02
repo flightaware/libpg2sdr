@@ -9,10 +9,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-/* TODO: this should probably be in pg2sdr_protocol.h? */
-#define FLASH_PAGE_SIZE 256
-#define FLASH_SECTOR_SIZE 4096
-
 /* TODO: get this from the firmware or pg2sdr_protocol.h */
 #define CONTROL_TIMEOUT 1000
 

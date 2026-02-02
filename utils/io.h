@@ -23,7 +23,10 @@ typedef struct firmware_io_s {
 
     /* read(io, offset, buffer, length):
      *
-     *   Read `length` bytes at offset `offset` into `buffer
+     *   Read `length` bytes at offset `offset` into `buffer`.
+     *   This does not need to be page-aligned, or limited to
+     *   only one flash page - arbitrary ranges can be read.
+     *
      *   Return true on success, false on error
      */
     bool (*read)(struct firmware_io_s *io,
@@ -83,5 +86,9 @@ firmware_io_t *io_open_file(const char *path);
  * Return the new object, or NULL on error.
  */
 firmware_io_t *io_open_flash(libusb_device *dev, bool dryrun);
+
+/* TODO: this should probably be in pg2sdr_protocol.h? */
+#define FLASH_PAGE_SIZE 256
+#define FLASH_SECTOR_SIZE 4096
 
 #endif
