@@ -17,6 +17,7 @@ typedef struct {
 int subcommand_help(int argc, char * const argv[]);
 int subcommand_load(int argc, char * const argv[]);
 int subcommand_write(int argc, char * const argv[]);
+int subcommand_verify(int argc, char * const argv[]);
 //int subcommand_info(int argc, char * const argv[]);
 //int subcommand_list_devices(int argc, char * const argv[]);
 
@@ -39,6 +40,12 @@ static const subcommand_t subcommands[] = {
         .name = "write",
         .brief = "Write a firmware image to ProStick flash storage",
         .handler = subcommand_write,
+    },
+
+    {
+        .name = "verify",
+        .brief = "Compare a firmware image to the contents of ProStick flash storage",
+        .handler = subcommand_verify,
     },
 
 #if 0

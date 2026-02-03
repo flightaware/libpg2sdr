@@ -17,7 +17,20 @@ int subcommand_load(int argc, char * const argv[]);
 
 static void show_load_help()
 {
-    log_verbose("%s: help goes here", argv0);
+    log_verbose("Usage: %s [OPTIONS] FIRMWARE-IMAGE\n"
+                "This subcommand will load and start a new firmware image on a ProStick Gen 2.\n"
+                "Firmware can be loaded in recovery mode, or while running normal firmware.\n"
+                "Loading new firmware does not affect the firmware image stored in flash,\n"
+                "and when the device is next reset or disconnected, it will return to using\n"
+                "the firmware stored on flash (or entering recovery mode).\n"
+                "\n"
+                "Available options:\n"
+                "\n"
+                " -h, --help             show this help\n"
+                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -q, --quiet            suppress informational logging, show errors only",
+                argv0);
 }
 
 int subcommand_load(int argc, char * const argv[])
