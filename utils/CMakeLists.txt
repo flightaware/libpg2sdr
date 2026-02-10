@@ -1,7 +1,7 @@
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
-add_executable(pg2-firmware log.c device.c io.c image.c reset.c dfu_load.c mem_load.c load.c write.c pg2-firmware.c)
+add_executable(pg2-firmware log.c device.c io.c image.c reset.c dfu_load.c mem_load.c load.c write.c device-info.c nanojson.c meta.c pg2-firmware.c)
 target_compile_options(pg2-firmware PRIVATE -O3 -Wall -Wmissing-declarations -Werror)
 target_include_directories(pg2-firmware PRIVATE ${CMAKE_SOURCE_DIR}/firmware/include)
 
