@@ -1,6 +1,7 @@
 #include "dfu_load.h"
 #include "reset.h"
 #include "log.h"
+#include "device.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -137,21 +138,9 @@ bool dfu_load(const firmware_image_t *image, libusb_device *dev, libusb_device *
     libusb_device_handle *handle = NULL;
     firmware_reset_state *reset_state = NULL;
     libusb_device *post_reset = NULL;
-    int usb_error;
 
     /* open and configure the original bootloader device */
-    if ((usb_error = libusb_open(dev, &handle)) < 0) {
-        log_perror_libusb(usb_error, "libusb_open");
-        goto cleanup;
-    }
-
-    if ((usb_error = libusb_set_configuration(handle, 1)) < 0) {
-        log_perror_libusb(usb_error, "libusb_set_configuration(1)");
-        goto cleanup;
-    }
-
-    if ((usb_error = libusb_claim_interface(handle, 0)) < 0) {
-        log_perror_libusb(usb_error, "libusb_claim_interface(0)");
+    if (!(handle = device_open(dev, true))) {
         goto cleanup;
     }
 
@@ -171,7 +160,7 @@ bool dfu_load(const firmware_image_t *image, libusb_device *dev, libusb_device *
         goto cleanup;
 
     /* done with the bootloader device */
-    libusb_close(handle);
+    device_close(handle);
     handle = NULL;
 
     /* wait for the new device to appear */
@@ -181,7 +170,7 @@ bool dfu_load(const firmware_image_t *image, libusb_device *dev, libusb_device *
 
  cleanup:
     if (handle)
-        libusb_close(handle);
+        device_close(handle);
     if (post_reset)
         libusb_unref_device(post_reset);
     if (reset_state)

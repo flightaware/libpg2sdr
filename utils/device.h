@@ -11,6 +11,9 @@
 #define VID_PG2SDR 0xDEAD
 #define PID_PG2SDR 0xBEEF
 
+libusb_device_handle *device_open(libusb_device *dev, bool claim_interface);
+void device_close(libusb_device_handle *handle);
+
 const char *device_serial(libusb_device *dev);
 
 bool device_is_pg2(libusb_device *dev);

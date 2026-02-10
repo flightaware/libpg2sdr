@@ -8,6 +8,86 @@
 // USB device helpers
 //
 
+/* a one-entry cache, so we don't keep calling libusb_open */
+static libusb_device *cache_dev = NULL;            /* device we're caching for (has a reference) */
+static libusb_device_handle *cache_handle = NULL;  /* opened/configured handle for cache_dev */
+static bool cache_handle_in_use = false;           /* true if cache_handle is currently in use (i.e. still waiting for a call to device_close) */
+
+libusb_device_handle *device_open(libusb_device *dev, bool claim_interface)
+{
+    int usb_error;
+    libusb_device_handle *handle = NULL;
+
+    if (cache_handle != NULL && !cache_handle_in_use && cache_dev == dev) {
+        cache_handle_in_use = true;
+        handle = cache_handle;
+    } else {
+        if ((usb_error = libusb_open(dev, &handle)) < 0) {
+            log_perror_libusb(usb_error, "libusb_open");
+            goto error;
+        }
+    }
+
+    int config;
+    if ((usb_error = libusb_get_configuration(handle, &config)) < 0) {
+        log_perror_libusb(usb_error, "libusb_get_configuration");
+        goto error;
+    }
+
+    if (config == 0) {
+        if ((usb_error = libusb_set_configuration(handle, 1) < 0)) {
+            log_perror_libusb(usb_error, "libusb_set_configuration(1)");
+            goto error;
+        }
+    }
+
+    if (claim_interface) {
+        if ((usb_error = libusb_claim_interface(handle, 0)) < 0) {
+            log_perror_libusb(usb_error, "libusb_claim_interface(0)");
+            goto error;
+        }
+    }
+
+    if (cache_handle != NULL) {
+        if (!cache_handle_in_use) /* cache entry is idle */
+            libusb_close(cache_handle);
+
+        /* we discard the cache regardless. If the cached handle was actually
+         * in use, it stays open and will be closed by device_close() later.
+         */
+        cache_handle_in_use = false;
+        cache_handle = NULL;
+    }
+
+    if (cache_dev) {
+        libusb_unref_device(cache_dev);
+        cache_dev = NULL;
+    }
+
+    if (!cache_handle) {
+        cache_dev = libusb_ref_device(dev);
+        cache_handle = handle;
+        cache_handle_in_use = true;
+    }
+
+    return handle;
+
+ error:
+    if (handle)
+        libusb_close(handle);
+    return NULL;
+}
+
+void device_close(libusb_device_handle *handle)
+{
+    if (cache_handle_in_use && handle == cache_handle) {
+        cache_handle_in_use = false;
+        return;
+    }
+
+    libusb_close(handle);
+}
+
 const char *device_serial(libusb_device *dev)
 {
     static char buf[33];
@@ -25,13 +105,11 @@ const char *device_serial(libusb_device *dev)
     /* unfortunately, current libusb lacks a way to get string descriptors without opening the device
      * (though there seems to be some slow movement on an API for that upstream)
      */
-    libusb_device_handle *handle = NULL;
-    int usb_error;
-    if ((usb_error = libusb_open(dev, &handle)) != LIBUSB_SUCCESS) {
-        log_perror_libusb(usb_error, "failed to read device serial number: libusb_open");
+    libusb_device_handle *handle = device_open(dev, false);
+    if (!handle)
         return NULL;
-    }
 
+    int usb_error;
     if ((usb_error = libusb_get_string_descriptor_ascii(handle, ddesc.iSerialNumber, (unsigned char *)buf, sizeof(buf))) < 0) {
         libusb_close(handle);
         log_perror_libusb(usb_error, "failed to read device serial number: libusb_get_string_descriptor_ascii(%d)", ddesc.iSerialNumber);

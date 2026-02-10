@@ -1,5 +1,6 @@
 #include "io.h"
 #include "log.h"
+#include "device.h"
 #include "pg2sdr_protocol.h"
 
 #include <stdlib.h>
@@ -109,46 +110,32 @@ typedef struct {
     libusb_device_handle *handle; /* handle of opened USB device */
 } io_flash_t;
 
-firmware_io_t *io_open_flash(libusb_device *dev, bool dryrun)
+firmware_io_t *io_open_flash(libusb_device *dev, bool readonly)
 {
     io_flash_t *io = NULL;
     libusb_device_handle *handle = NULL;;
-    int usb_error;
 
     if (!(io = calloc(1, sizeof(*io)))) {
         log_perror("calloc");
         return NULL;
     }
 
-    if ((usb_error = libusb_open(dev, &handle)) < 0) {
-        log_perror_libusb(usb_error, "libusb_open");
+    /* claim interface only if we are going to do writes */
+    if (!(handle = device_open(dev, readonly ? false : true))) {
         goto error;
-    }
-
-    int config;
-    if ((usb_error = libusb_get_configuration(handle, &config)) < 0) {
-        log_perror_libusb(usb_error, "libusb_get_configuration");
-        goto error;
-    }
-
-    if (config == 0) {
-        if ((usb_error = libusb_set_configuration(handle, 1) < 0)) {
-            log_perror_libusb(usb_error, "libusb_set_configuration(1)");
-            goto error;
-        }
     }
 
     io->common.what = "SPI flash";
     io->common.read = flash_read;
     io->common.close = flash_close;
-    io->common.write_page = dryrun ? dryrun_write_page : flash_write_page;
-    io->common.erase_sector = dryrun ? dryrun_erase_sector : flash_erase_sector;
+    io->common.write_page = readonly ? dryrun_write_page : flash_write_page;
+    io->common.erase_sector = readonly ? dryrun_erase_sector : flash_erase_sector;
     io->handle = handle;
     return &io->common;
 
  error:
     if (handle)
-        libusb_close(handle);
+        device_close(handle);
     free(io);
     return NULL;
 }
@@ -160,7 +147,7 @@ static void flash_close(firmware_io_t *io)
 
     io_flash_t *flash = (io_flash_t*) io;
     if (flash->handle) {
-        libusb_close(flash->handle);
+        device_close(flash->handle);
         flash->handle = NULL;
     }
     free(io);
