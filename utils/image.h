@@ -1,8 +1,10 @@
 #ifndef PG2_IMAGE_H
 #define PG2_IMAGE_H
 
-#include "io.h"
 #include <stdint.h>
+
+#include "io.h"
+#include "pg2sdr_protocol.h"
 
 typedef struct {
     /* total image size size, including header/suffix */
@@ -11,11 +13,16 @@ typedef struct {
     uint8_t *image_bytes;
     /* bcdDevice from DFU suffix (firmware release number) */
     uint16_t dfu_release;
+    /* CRC from DFU suffix */
+    uint32_t dfu_crc;
 
     /* start of data to load over DFU / LOAD_IMAGE */
     uint8_t *load_bytes;
     /* number of bytes to load over DFU / LOAD_IMAGE */
     uint32_t load_size;
+
+    /* embedded image metadata */
+    firmware_metadata_t metadata;
 } firmware_image_t;
 
 /*

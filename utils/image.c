@@ -2,6 +2,8 @@
 #include "log.h"
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 /*
  * Firmware images are expected to follow this exact format,
@@ -148,8 +150,22 @@ firmware_image_t *image_read(firmware_io_t *io)
     }
 
     image->dfu_release = le16toh(suffix->bcdDevice);
+    image->dfu_crc = suffix_crc;
 
-    /* todo: metadata extraction */
+    /* if metadata is present, copy it out */
+    uint32_t meta_addr = vec[8];
+    if (meta_addr >= 0x10000000 && meta_addr <= 0x1000ffff) {
+        uint32_t offset = meta_addr - 0x10000000;
+        if (offset + sizeof(firmware_metadata_t) <= load_size) {
+            firmware_metadata_t *meta = (firmware_metadata_t*) (image->image_bytes + offset + sizeof(lpc_header_t));
+            image->metadata.version = le32toh(meta->version);
+            image->metadata.compat = le32toh(meta->compat);
+            image->metadata.max_control_transfer = le16toh(meta->max_control_transfer);
+            image->metadata.control_timeout_ms = le16toh(meta->control_timeout_ms);
+            memcpy(image->metadata.build_type, meta->build_type, sizeof(meta->build_type));
+            image->metadata.build_type[sizeof(meta->build_type) - 1] = 0;
+        }
+    }
 
     /* set up helpers for DFU / memory load */
     image->load_bytes = image->image_bytes;
