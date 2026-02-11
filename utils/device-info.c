@@ -14,10 +14,7 @@ static bool do_device_info(const char *serial_prefix, const char *port_path, boo
 
 static bool show_device_info(libusb_device *dev, bool json_output);
 static void show_port_metadata(port_metadata_t *meta);
-static void show_firmware_metadata(firmware_metadata_t *meta);
-
 static void json_port_metadata(port_metadata_t *meta);
-static void json_firmware_metadata(firmware_metadata_t *metadata);
 
 static void show_device_info_help()
 {
@@ -197,39 +194,13 @@ static void show_port_metadata(port_metadata_t *meta)
 
     if (meta->active_firmware_valid) {
         fprintf(stdout, "  Active firmware:\n");
-        show_firmware_metadata(&meta->active_firmware);
+        show_firmware_metadata("    ", &meta->active_firmware, stdout);
     }
 
     if (meta->flash_image) {
         fprintf(stdout, "  Flash firmware:\n");
-        show_firmware_metadata(&meta->flash_image->metadata);
-        fprintf(stdout,
-                "    Total image size:   %u bytes\n"
-                "    DFU release number: %04x\n"
-                "    DFU CRC:            %08x\n",
-                meta->flash_image->image_size,
-                meta->flash_image->dfu_release,
-                meta->flash_image->dfu_crc);
+        show_firmware_image("    ", meta->flash_image, stdout);
     }
-}
-
-static void show_firmware_metadata(firmware_metadata_t *metadata)
-{
-    if (!metadata->version)
-        return;
-    fprintf(stdout, "    Version:            %u.%u.%u.%u\n",
-            ((metadata->version >> 24) & 0xFF),
-            ((metadata->version >> 16) & 0xFF),
-            ((metadata->version >> 8) & 0xFF),
-            ((metadata->version >> 0) & 0xFF));
-    fprintf(stdout, "    Compat:             %u.%u.%u.%u\n",
-            ((metadata->compat >> 24) & 0xFF),
-            ((metadata->compat >> 16) & 0xFF),
-            ((metadata->compat >> 8) & 0xFF),
-            ((metadata->compat >> 0) & 0xFF));
-    fprintf(stdout, "    Max control xfer:   %u bytes\n", metadata->max_control_transfer);
-    fprintf(stdout, "    Control timeout:    %u ms\n", metadata->control_timeout_ms);
-    fprintf(stdout, "    Build type:         %s\n", metadata->build_type);
 }
 
 static void json_port_metadata(port_metadata_t *meta)
@@ -251,30 +222,8 @@ static void json_port_metadata(port_metadata_t *meta)
     if (meta->flash_image) {
         json_key("flash");
         json_start_object();
-        json_firmware_metadata(&meta->flash_image->metadata);
-        json_key("image_size"); json_number(meta->flash_image->image_size);
-        json_key("dfu_release"); json_string_fmt("%04x", meta->flash_image->dfu_release);
-        json_key("dfu_crc"); json_string_fmt("%08x", meta->flash_image->dfu_crc);
+        json_firmware_image(meta->flash_image);
         json_end_object();
     }
     json_end_object();
-}
-
-static void json_firmware_metadata(firmware_metadata_t *metadata)
-{
-    if (!metadata->version)
-        return;
-    json_key("version"); json_string_fmt("%u.%u.%u.%u",
-                                         ((metadata->version >> 24) & 0xFF),
-                                         ((metadata->version >> 16) & 0xFF),
-                                         ((metadata->version >> 8) & 0xFF),
-                                         ((metadata->version >> 0) & 0xFF));
-    json_key("compat"); json_string_fmt("%u.%u.%u.%u",
-                                        ((metadata->compat >> 24) & 0xFF),
-                                        ((metadata->compat >> 16) & 0xFF),
-                                        ((metadata->compat >> 8) & 0xFF),
-                                        ((metadata->compat >> 0) & 0xFF));
-    json_key("max_control_transfer"); json_number(metadata->max_control_transfer);
-    json_key("control_timeout_ms"); json_number(metadata->control_timeout_ms);
-    json_key("build_type"); json_string(metadata->build_type);
 }

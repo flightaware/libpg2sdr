@@ -1,5 +1,6 @@
 #include "image.h"
 #include "log.h"
+#include "nanojson.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -264,4 +265,60 @@ static uint32_t calc_dfu_crc(uint8_t *buf, size_t len)
     for (size_t i = 0; i < len; ++i)
         crc = dfu_crc_table[(crc ^ buf[i]) & 0xFF] ^ (crc>>8);
     return crc;
+}
+
+void show_firmware_metadata(const char *indent, firmware_metadata_t *metadata, FILE *out)
+{
+    if (!metadata->version)
+        return;
+    fprintf(out, "%sVersion:            %u.%u.%u.%u\n",
+            indent,
+            ((metadata->version >> 24) & 0xFF),
+            ((metadata->version >> 16) & 0xFF),
+            ((metadata->version >> 8) & 0xFF),
+            ((metadata->version >> 0) & 0xFF));
+    fprintf(out, "%sCompat:             %u.%u.%u.%u\n",
+            indent,
+            ((metadata->compat >> 24) & 0xFF),
+            ((metadata->compat >> 16) & 0xFF),
+            ((metadata->compat >> 8) & 0xFF),
+            ((metadata->compat >> 0) & 0xFF));
+    fprintf(out, "%sMax control xfer:   %u bytes\n", indent, metadata->max_control_transfer);
+    fprintf(out, "%sControl timeout:    %u ms\n", indent, metadata->control_timeout_ms);
+    fprintf(out, "%sBuild type:         %s\n", indent, metadata->build_type);
+}
+
+void show_firmware_image(const char *indent, firmware_image_t *image, FILE *out)
+{
+    show_firmware_metadata(indent, &image->metadata, out);
+    fprintf(out, "%sTotal image size:   %u bytes\n", indent, image->image_size);
+    fprintf(out, "%sDFU release number: %04x\n", indent, image->dfu_release);
+    fprintf(out, "%sDFU CRC:            %08x\n", indent, image->dfu_crc);
+}
+
+void json_firmware_metadata(firmware_metadata_t *metadata)
+{
+    if (!metadata->version)
+        return;
+    json_key("version"); json_string_fmt("%u.%u.%u.%u",
+                                         ((metadata->version >> 24) & 0xFF),
+                                         ((metadata->version >> 16) & 0xFF),
+                                         ((metadata->version >> 8) & 0xFF),
+                                         ((metadata->version >> 0) & 0xFF));
+    json_key("compat"); json_string_fmt("%u.%u.%u.%u",
+                                        ((metadata->compat >> 24) & 0xFF),
+                                        ((metadata->compat >> 16) & 0xFF),
+                                        ((metadata->compat >> 8) & 0xFF),
+                                        ((metadata->compat >> 0) & 0xFF));
+    json_key("max_control_transfer"); json_number(metadata->max_control_transfer);
+    json_key("control_timeout_ms"); json_number(metadata->control_timeout_ms);
+    json_key("build_type"); json_string(metadata->build_type);
+}
+
+void json_firmware_image(firmware_image_t *image)
+{
+    json_firmware_metadata(&image->metadata);
+    json_key("image_size"); json_number(image->image_size);
+    json_key("dfu_release"); json_string_fmt("%04x", image->dfu_release);
+    json_key("dfu_crc"); json_string_fmt("%08x", image->dfu_crc);
 }

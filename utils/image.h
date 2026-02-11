@@ -2,6 +2,7 @@
 #define PG2_IMAGE_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "io.h"
 #include "pg2sdr_protocol.h"
@@ -41,6 +42,12 @@ firmware_image_t *image_read(firmware_io_t *io);
  * If `image` is NULL, does nothing.
  */
 void image_free(firmware_image_t *image);
+
+void show_firmware_image(const char *indent, firmware_image_t *image, FILE *out);
+void show_firmware_metadata(const char *indent, firmware_metadata_t *meta, FILE *out);
+
+void json_firmware_image(firmware_image_t *image);
+void json_firmware_metadata(firmware_metadata_t *meta);
 
 #endif
 
