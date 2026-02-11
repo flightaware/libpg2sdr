@@ -19,6 +19,7 @@ int subcommand_load(int argc, char * const argv[]);
 int subcommand_write(int argc, char * const argv[]);
 int subcommand_verify(int argc, char * const argv[]);
 int subcommand_device_info(int argc, char * const argv[]);
+int subcommand_image_info(int argc, char * const argv[]);
 
 static const char *base_argv0;
 
@@ -51,6 +52,12 @@ static const subcommand_t subcommands[] = {
         .name = "device-info",
         .brief = "List connected devices, and their firmware status",
         .handler = subcommand_device_info
+    },
+
+    {
+        .name = "image-info",
+        .brief = "Show information about a firmware image file",
+        .handler = subcommand_image_info
     },
 };
 
