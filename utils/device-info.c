@@ -32,7 +32,7 @@ static void show_device_info_help()
                 " -h, --help             show this help\n"
                 " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
                 " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
-                " -q, --quiet            suppress informational logging, show errors only"
+                " -q, --quiet            suppress informational logging, show errors only\n"
                 " -j, --json             output machine-readable json to stdout",
                 argv0);
 }
