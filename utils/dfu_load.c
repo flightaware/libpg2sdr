@@ -115,16 +115,25 @@ static bool dfu_download_bytes(libusb_device_handle *handle, const uint8_t *fw_b
  *
  * return true on (probable) success -- i.e. sending the GET_STATUS
  * control transfer to start the firmware either suceeded, or
- * returned an expected pipe error. This doesn't mean the new firmware
- * is actually working!
+ * returned one of the expected errors. This doesn't mean the new
+ * firmware is actually working!
  */
 static bool dfu_manifest(libusb_device_handle *handle)
 {
     dfu_status_t dfu_status;
     int usb_error;
 
-    /* Sending the dfu_get_status to trigger manifestaton phase will get a pipe error response. Even though nothing is wrong. */
-    if ((usb_error = dfu_ctrl_get_status(handle, &dfu_status)) < 0 && usb_error != LIBUSB_ERROR_PIPE) {
+    /* When we send the final DFU_GET_STATUS, the LPC ROM bootloader immediately resets the
+     * device's USB controller (causing it to disconnect from the USB bus) and starts the new
+     * firmware. The USB disconnect happens before the control transfer has been properly
+     * acknowledged by the PG2, so we expect to see some sort of USB protocol error here -- from
+     * the host perspective, it is like the device was unplugged halfway through the transfer.
+     * Pipe error (aka "control transfer stall") and I/O error are both possible, depending on
+     * the exact timing.
+     */
+    if ((usb_error = dfu_ctrl_get_status(handle, &dfu_status)) < 0 &&
+        usb_error != LIBUSB_ERROR_PIPE &&
+        usb_error != LIBUSB_ERROR_IO) {
         log_perror_libusb(usb_error, "DFU_GET_STATUS (manifest)");
         return false;
     }
