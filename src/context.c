@@ -26,7 +26,6 @@ int pg2sdr_init(pg2sdr_context **ctx) {
         return PG2SDR_ERROR_NO_MEMORY;
 
     newctx->magic = MAGIC_CTX;
-    newctx->firmware_path = NULL;
 
     if (getenv("PG2SDR_DEBUG"))
         newctx->log_cb = debug_logger;
@@ -39,28 +38,7 @@ int pg2sdr_init(pg2sdr_context **ctx) {
         return pg2sdr__translate_libusb_error(usb_error);
     }
 
-    char *firmware_env = getenv("PG2SDR_FIRMWARE");
-    if (firmware_env) {
-        int error = pg2sdr_set_firmware_path(newctx, firmware_env);
-        if (error < 0) {
-            free(newctx->firmware_path);
-            free(newctx);
-            return error;
-        }
-    }
-
     *ctx = newctx;
-    return PG2SDR_SUCCESS;
-}
-
-int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path) {
-    CHECK_CTX(ctx);
-
-    char *dup_path;
-    if (!(dup_path = strdup(firmware_path)))
-        return PG2SDR_ERROR_NO_MEMORY;
-
-    ctx->firmware_path = dup_path;
     return PG2SDR_SUCCESS;
 }
 
@@ -77,7 +55,6 @@ int pg2sdr_exit(pg2sdr_context *ctx)
     CHECK_CTX(ctx);
 
     libusb_exit(ctx->libusb_ctx);
-    free(ctx->firmware_path);
     ctx->magic = MAGIC_FREE; /* try to detect use-after-free */
     free(ctx);
     return PG2SDR_SUCCESS;

@@ -78,7 +78,7 @@ class Context
         int error;
 
         if ((error = pg2sdr_init(&newctx)) < 0) {
-            
+
             return Context("pg2sdr_init: " + pg2sdr_strerror_string(error));
         }
 
@@ -120,12 +120,12 @@ class DeviceList
     DeviceList(const Context &) = delete;
     DeviceList &operator=(const DeviceList &) = delete;
 
-    static DeviceList Enumerate(Context &ctx, bool allow_bootloader)
+    static DeviceList Enumerate(Context &ctx)
     {
         int error;
         pg2sdr_usb_device **newlist;
 
-        if ((error = pg2sdr_discover_devices(ctx, &newlist, allow_bootloader)) < 0) {
+        if ((error = pg2sdr_discover_devices(ctx, &newlist)) < 0) {
             SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: could not enumerate PG2SDR devices: " + pg2sdr_strerror_string(error));
             return DeviceList(nullptr);
         }

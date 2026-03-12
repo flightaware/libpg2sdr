@@ -87,7 +87,7 @@ typedef enum {
 /**
  * \brief Error codes returned by pg2sdr API calls.
  * \ingroup errors
- * 
+ *
  * Most API calls return 0 on success, or a negative error code on
  * failure.  This enum enumerates those error codes.
  *
@@ -104,7 +104,7 @@ enum pg2sdr_error {
     PG2SDR_SUCCESS = 0,                    /**< no error */
 
     /** \name General pg2sdr API errors */
-    /**@{*/    
+    /**@{*/
     PG2SDR_ERROR_NOT_FOUND = -1,           /**< \ref pg2sdr_open_single_device found no matching devices */
     PG2SDR_ERROR_DISCONNECTED = -2,        /**< Device unexpectedly disconnected */
     PG2SDR_ERROR_BAD_ARGUMENT = -3,        /**< Bad argument to API call */
@@ -120,7 +120,7 @@ enum pg2sdr_error {
     /**@}*/
 
     /** \name Bulk transfer errors while streaming data */
-    /**@{*/    
+    /**@{*/
     PG2SDR_ERROR_TRANSFER_OTHER = -200,    /**< Unexpected libusb transfer status */
     PG2SDR_ERROR_TRANSFER_STALL = -201,    /**< Bulk endpoint stalled (libusb transfer status LIBUSB_TRANSFER_STALL) */
     PG2SDR_ERROR_TRANSFER_OVERFLOW = -202, /**< Received unexpected data on bulk endpoint (libusb transfer status LIBUSB_TRANSFER_OVERFLOW) */
@@ -186,21 +186,10 @@ enum pg2sdr_error {
  * about the device if needed.
  */
 typedef struct pg2sdr_usb_device {
-    pg2sdr_context *context;
-    pg2sdr_device_mode mode;
-    char serial[17];               /* serial number string, ASCIIZ */
-    unsigned index;
-    /* USB connection details: */
-    uint8_t usb_bus;      /* bus number this device is connected to */
-    uint8_t usb_address;  /* address within usb_bus */
-    uint8_t usb_ports[8]; /* ports (from root) of this device, 0-terminated */
-    void *libusb_device;
+    const char *serial;        /**< Serial number of this device, ASCIIZ */
+    const char *ports;         /**< Physical USB bus/port path for this device, ASCIIZ */
+    libusb_device *lu_device;  /**< Underlying libusb_device for this device. */
 } pg2sdr_usb_device;
-
-struct hotplug_callback_state {
-    int completed;
-    libusb_device *device;
-};
 
 /**
  * \brief Sample buffer passed to ::pg2sdr_stream_callback
@@ -240,7 +229,7 @@ typedef struct {
     unsigned count;
 
     /** \brief Sample timestamp at the start of this buffer.
-     * 
+     *
      * The sample timestamp is the cumulative number of received
      * samples, incrementing at the configured sample rate.
      *
@@ -349,7 +338,6 @@ int pg2sdr_init(pg2sdr_context **ctx);
  * \return ::PG2SDR_SUCCESS on success, negative error code on failure
  */
 int pg2sdr_exit(pg2sdr_context *ctx);
-int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path);
 
 /**
  * \brief Set a callback to receive library logging.
@@ -358,7 +346,7 @@ int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path);
  * By default, libpg2sdr will log INFO and ERROR messages to stderr.
  * If the PG2SDR_DEBUG environment variable is set, it will also log
  * DEBUG messages to stderr.
- * 
+ *
  * If log messages should be handled differently, provide a logging
  * callback by calling this function. libpg2sdr will call the logging
  * callback to perform logging, replacing the default behaviour.
@@ -374,42 +362,187 @@ int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path);
 int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
 
 /* Device discovery and open/close (device.c) */
-int pg2sdr_open_device(pg2sdr_usb_device *device, pg2sdr_device **device_handle);
-void pg2sdr_free_device_list(pg2sdr_usb_device **device_list);
-ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***pg2sdr_usb_device_list, bool allow_rom_bootloader);
-int pg2sdr_open_single_device(pg2sdr_context *ctx, pg2sdr_device **device_handle);
-int pg2sdr_close_device(pg2sdr_device *dev);
-int pg2sdr_get_serial(pg2sdr_device *dev, char *serial, size_t length);
 
-int pg2sdr_open_by_serial(pg2sdr_context *ctx, const char *serial, pg2sdr_device **device);
-int pg2sdr_open_by_address(pg2sdr_context *ctx, uint8_t bus, uint8_t address, pg2sdr_device **device);
-int pg2sdr_open_by_index(pg2sdr_context *ctx, unsigned index, pg2sdr_device **device);
-int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(pg2sdr_usb_device*, void *), void *callback_data, pg2sdr_device **device);
+/**
+ * \brief Enumerate available pg2sdr devices.
+ * \ingroup device
+ *
+ * Enumerates available devices and creates an array of pg2sdr_usb_device *,
+ * one per discovered device.
+ *
+ * Caller should eventually call pg2sdr_free_device_list(*usb_device_list)
+ * to free storage associated with the device list.
+ *
+ * \param[in] ctx A library context.
+ *
+ * \param[out] usb_device_list Storage for a pointer to an array of
+ *   pg2sdr_usb_device
+ *
+ * \return the number of discovered devices in the returned list, or a
+ *   negative error code on failure
+ */
+ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***usb_device_list);
+
+/**
+ * \brief Free a device list previously allocated by pg2sdr_discover_devices.
+ * \ingroup device
+ *
+ * After a device list is freed, the individual ::pg2sdr_usb_device
+ * instances in the list should not be used.
+ *
+ * \param[in] usb_device_list The device list to free
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+void pg2sdr_free_device_list(pg2sdr_usb_device **usb_device_list);
+
+/**
+ * \brief Open a device previously discovered by pg2sdr_discover_devices.
+ * \ingroup device
+ *
+ * \param[in] ctx The library context that allocated the device
+ * \param[in] usb_device The USB device to open
+ * \param[out] device Storage for the newly opened device instance
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_open_device(pg2sdr_context *ctx, pg2sdr_usb_device *usb_device, pg2sdr_device **device);
+
+/**
+ * \brief Open a device directly from a libusb device.
+ * \ingroup device
+ *
+ * No special checks are done to see if the device really is a PG2SDR,
+ * it's assumed to be a PG2SDR and used directly.
+ *
+ * \param[in] ctx The library context that allocated the device
+ * \param[in] lu_device The libusb device to open
+ * \param[out] device Storage for the newly opened device instance
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_open_device_libusb(pg2sdr_context *ctx, libusb_device *lu_device, pg2sdr_device **device);
+
+/**
+ * \brief Open a single device by serial number or port path.
+ * \ingroup device
+ *
+ * Search for a single connected pg2sdr device and open it. This is
+ * the preferred way for simple single-device library users to open a
+ * device.
+ *
+ * Optionally, a serial prefix and/or port path can be provided to
+ * limit the search to only devices matching that prefix or path.
+ *
+ * The search must be unambiguous -- exactly one device should match
+ * the given criteria.  In most cases, there will only be a single
+ * pg2sdr device connected, so no special criteria are needed. If more
+ * than one device is connected, then serial_prefix or port must be
+ * provided to select a single device.
+ *
+ * If no devices match, ::PG2SDR_ERROR_NOT_FOUND is
+ * returned.  If more than one device matches,
+ * ::PG2SDR_ERROR_MULTIPLE_DEVICES is returned.
+ *
+ * \param[in] ctx The library context to use to open the device
+ * \param[in] serial_prefix if not NULL, an ASCIIZ serial number
+ *   prefix to match devices against
+ * \param[in] ports if not NULL, an ASCIIZ port path to match devices against
+ * \param[out] device Storage for the newly opened device instance
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_open_single_device(pg2sdr_context *ctx,
+                              const char *serial_prefix,
+                              const char *ports,
+                              pg2sdr_device **device);
+
+/**
+ * \brief Close a pg2sdr device.
+ * \ingroup device
+ *
+ * If the device is currently streaming data,
+ * ::PG2SDR_ERROR_BUSY will be returned. To avoid this,
+ * call pg2sdr_stop_streaming() and wait for pg2sdr_stream_data() to
+ * return before calling pg2sdr_close_device().
+ *
+ * The device handle should not be used after being closed.
+ *
+ * \param[in] dev the device to close
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_close_device(pg2sdr_device *dev);
+
+/**
+ * \brief Get the serial number of an opened device.
+ * \ingroup device
+ *
+ * The returned string is a shared value specific to the device instance and
+ * should not be modified or freed, or used after the device is closed.
+ *
+ * \param[in] dev the device to query
+ *
+ * \return pointer to an ASCIIZ string, or NULL if the given device is
+ * not valid.
+ */
+const char *pg2sdr_get_serial(pg2sdr_device *dev);
+
+/**
+ * \brief Get the USB port path of an opened device.
+ * \ingroup device
+ *
+ * The USB port path represents the physical port a device is
+ * connected to, in the same format used by ::pg2sdr_usb_device::ports
+ * and the "port" parameter of pg2sdr_open_single_device().
+ *
+ * The returned string is a shared value specific to the device
+ * instance and should not be modified or freed, or used after the
+ * device is closed.
+ *
+ * \param[in] dev the device to query
+ *
+ * \return pointer to an ASCIIZ string, or NULL if the given device is
+ * not valid.
+ */
+const char *pg2sdr_get_ports(pg2sdr_device *dev);
 
 /* Device configuration (config.c) */
 
 /*
- * Conversion mode, sample rate, center frequency, sideband, bandpass, decimation mode:
- * changes made to these parameters can interact, and need a call to pg2sdr_apply_changes to take effect
- * after you've completed all the changes you want.
+ * Conversion mode, sample rate, center frequency, sideband, bandpass,
+ * decimation mode: changes made to these parameters can interact, and
+ * need a call to pg2sdr_apply_changes to take effect after you've
+ * completed all the changes you want.
  */
 
-/* Set the current conversion mode to "mode", controlling the format of data returned (low-IF versus baseband).
+/**
+ * \brief Set the format of sample data.
  *
- * If mode is PG2SDR_MODE_BASEBAND, then user samples are complex baseband, with two int16_t values (I/Q, or
- * real/imaginary) per sample. The resulting signal, centered around 0Hz, corresponds to the RF signal centered
- * around the configured center frequency. This is the mode that most SDR clients will want to use.
+ * Sets the current conversion mode, controlling the format of data
+ * returned (low-IF versus baseband).
  *
- * If mode is PG2SDR_MODE_LOWIF_REAL, then user samples are the real-valued output of the ADC, with one int16_t
- * value per sample. The resulting signal corresponds to one sideband of the RF spectrum, either above or
- * below the configured frequency depending on the configured sideband mode. The configured RF frequency
- * maps to 0Hz (though there will not be anything useful there, due to both the limits of the tuner bandpass
- * filter, and LO leakage). This mode is mostly for lower-level debugging of the PG2SDR hardware or software
- * itself, where direct inspection of the ADC data is useful.
+ * If \p mode is ::PG2SDR_MODE_BASEBAND,
+ * then user samples are complex baseband, with two int16_t values
+ * (I/Q, or real/imaginary) per sample. The resulting signal, centered
+ * around 0Hz, corresponds to the RF signal centered around the
+ * configured center frequency. This is the mode that most SDR clients
+ * will want to use.
  *
- * May not be called while streaming; will return PG2SDR_ERROR_BAD_STATE if this is attempted.
+ * If \p mode is ::PG2SDR_MODE_LOWIF_REAL,
+ * then user samples are the real-valued output of the ADC, with one
+ * int16_t value per sample. The resulting signal corresponds to one
+ * sideband of the RF spectrum, either above or below the configured
+ * frequency depending on the configured sideband mode. The configured
+ * RF frequency maps to 0Hz (though there will not be anything useful
+ * there, due to both the limits of the tuner bandpass filter, and LO
+ * leakage). This mode is mostly for lower-level debugging of the
+ * PG2SDR hardware or software itself, where direct inspection of the
+ * ADC data is useful.
  *
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * May not be called while streaming; will return
+ * ::PG2SDR_ERROR_BAD_STATE if this is attempted.
+ *
+ * Call pg2sdr_apply_changes() to complete the configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] mode the new conversion mode to set
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
  */
 int pg2sdr_set_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t mode);
 

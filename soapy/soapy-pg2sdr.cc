@@ -78,50 +78,40 @@ static inline void Logf(SoapySDR::LogLevel level, const char *format, ...)
 #define LIBCALL(fn, ...) LIBCALL_DIRECT(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 #define LIBCALL_NOTHROW(fn, ...) LIBCALL_DIRECT_NOTHROW(ctx_, fn, handle_ __VA_OPT__(,) __VA_ARGS__)
 
-static std::string format_ports(uint8_t *ports)
-{
-    std::string s;
-    for (unsigned i = 0; ports[i]; ++i) {
-        if (i != 0)
-            s += ":";
-        s += std::to_string(ports[i]);
-    }
-    return s;
-}
-
 static SoapySDR::Kwargs DeviceToKwargs(pg2sdr_usb_device *device)
 {
     SoapySDR::Kwargs entry;
     entry["driver"] = "pg2sdr";
-    entry["index"] = std::to_string(device->index);
-    if (device->serial[0])
-        entry["serial"] = device->serial;
-    entry["bus"] = std::to_string(device->usb_bus);
-    entry["address"] = std::to_string(device->usb_address);
-    entry["ports"] = format_ports(device->usb_ports);
-    entry["label"] = "ProStick Gen 2 @ " + entry["bus"] + ":" + entry["ports"] + " s/n " + device->serial;
+    entry["serial"] = device->serial;
+    entry["ports"] = device->ports;
+    entry["label"] = "ProStick Gen 2 @ " + entry["ports"] + " s/n " + entry["serial"];
     return entry;
+}
+
+static bool starts_with(const std::string &candidate, const std::string &prefix)
+{
+    return (candidate.substr(0, prefix.size()) == prefix);
 }
 
 static std::pair<SoapySDR::KwargsList, std::vector<pg2sdr_usb_device *>> FindDevicesMatching(DeviceList &devices, const SoapySDR::Kwargs &kwargs)
 {
-    // extract just the args we want to match on;
-    // a device is a match if every entry in 'matchers' is present in its own per-device args;
-    // extra per-device args, or extra args in the criteria we don't recognize, are ignored
-    SoapySDR::Kwargs matchers;
-    for (auto kwarg : kwargs) {
-        if (!kwarg.second.empty() && (kwarg.first == "driver" || kwarg.first == "index" || kwarg.first == "serial" || kwarg.first == "bus" || kwarg.first == "address" || kwarg.first == "ports"))
-            matchers.insert(kwarg);
-    }
+    // exact match on ports=...
+    auto ports = kwargs.find("ports");
+
+    // prefix match on serial=...
+    auto serial_prefix = kwargs.find("serial");
 
     SoapySDR::KwargsList result_args;
     std::vector<pg2sdr_usb_device *> result_devices;
     for (unsigned i = 0; i < devices.size(); ++i) {
         auto dev_kwargs = DeviceToKwargs(devices[i]);
-        if (std::includes(dev_kwargs.begin(), dev_kwargs.end(), matchers.begin(), matchers.end())) {
-            result_args.emplace_back(dev_kwargs);
-            result_devices.emplace_back(devices[i]);
-        }
+        if (ports != kwargs.end() && dev_kwargs["ports"] != ports->second)
+            continue;
+        if (serial_prefix != kwargs.end() && !starts_with(dev_kwargs["serial"], serial_prefix->second))
+            continue;
+
+        result_args.emplace_back(dev_kwargs);
+        result_devices.emplace_back(devices[i]);
     }
     return std::make_pair(result_args, result_devices);
 }
@@ -141,7 +131,7 @@ SoapySDR::KwargsList PG2SDRDevice::FindDevices(const SoapySDR::Kwargs &kwargs)
         return {};
     }
 
-    auto devices = DeviceList::Enumerate(ctx, false);
+    auto devices = DeviceList::Enumerate(ctx);
     auto matching = FindDevicesMatching(devices, kwargs);
     for (auto &match : matching.first) {
         SoapySDR::log(SOAPY_SDR_DEBUG, "candidate: " + SoapySDR::KwargsToString(match));
@@ -158,7 +148,7 @@ SoapySDR::Device *PG2SDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     if (!ctx)
         throw std::runtime_error("could not initialize libpg2sdr: " + ctx.Error());
 
-    auto devices = DeviceList::Enumerate(ctx, false); // this needs to live beyond the match loop
+    auto devices = DeviceList::Enumerate(ctx); // this needs to live beyond the match loop
     auto matching = FindDevicesMatching(devices, kwargs);
     if (matching.second.empty())
         throw std::runtime_error("No PG2SDR device found that matches '" + SoapySDR::KwargsToString(kwargs) + "'");
@@ -168,7 +158,7 @@ SoapySDR::Device *PG2SDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
     }
 
     pg2sdr_device *handle;
-    LIBCALL_DIRECT(ctx, pg2sdr_open_device, matching.second[0], &handle);
+    LIBCALL_DIRECT(ctx, pg2sdr_open_device, ctx, matching.second[0], &handle);
 
     auto dev = new PG2SDRDevice(std::move(ctx), handle);
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: constructed %p with libpg2sdr handle %p", dev, handle);
@@ -603,7 +593,7 @@ void PG2SDRDevice::writeSetting(const std::string &key, const std::string &value
 
     if (key == setting_buffer_size) {
         size_t size = std::stoi(value);
-        
+
         {
             PauseStreamGuard pause_stream(*this);
             LIBCALL(pg2sdr_set_buffer_size, size);
@@ -756,7 +746,7 @@ void PG2SDRDevice::setGain(const int direction, const size_t channel, const std:
 {
     TRACECALLF("(%d,%zu,\"%s\",%.1f)", direction, channel, name.c_str(), value);
     CheckChannel(direction, channel);
-    
+
     if (name == gain_element_LNA) {
         LIBCALL(pg2sdr_set_lna_gain_db, value);
     } else if (name == gain_element_MIX) {
@@ -889,7 +879,7 @@ int PG2SDRDevice::activateStream(SoapySDR::Stream *stream, const int flags, cons
     auto s = reinterpret_cast<PG2SDRStream *>(stream);
     if (s == nullptr)
         return SOAPY_SDR_STREAM_ERROR; /* bad arg */
-        
+
     if (flags != 0)
         return SOAPY_SDR_NOT_SUPPORTED;
     if (timeNs != 0)
@@ -921,7 +911,7 @@ int PG2SDRDevice::deactivateStream(SoapySDR::Stream *stream, const int flags, co
     auto s = reinterpret_cast<PG2SDRStream *>(stream);
     if (s == nullptr)
         return SOAPY_SDR_STREAM_ERROR; /* bad arg */
-        
+
     if (flags != 0)
         return SOAPY_SDR_NOT_SUPPORTED;
     if (timeNs != 0)
@@ -1015,7 +1005,7 @@ PG2SDRStream::~PG2SDRStream()
 
 size_t PG2SDRStream::getMTU() const
 {
-    size_t size;    
+    size_t size;
     LIBCALL_DIRECT(dev_.context(), pg2sdr_get_buffer_size, dev_.handle(), &size);
     return size;
 }

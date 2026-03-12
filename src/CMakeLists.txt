@@ -34,7 +34,7 @@ add_custom_command(
     ${BANDPASS_METRICS})
 
 add_library(pg2sdr STATIC
-  errors.c boot.c context.c device.c control.c adc.c stream.c tuner.c config.c gain.c bandpass.c
+  errors.c context.c device.c control.c adc.c stream.c tuner.c config.c gain.c bandpass.c
   ${CMAKE_CURRENT_BINARY_DIR}/gain-tables.gen.c
   ${CMAKE_CURRENT_BINARY_DIR}/bandpass-table.gen.c)
 

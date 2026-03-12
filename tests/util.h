@@ -37,14 +37,7 @@ class DeviceHandle {
 public:
     DeviceHandle(Context &ctx) : handle(nullptr) {
         int error;
-
-        if (::getenv("PG2SDR_FIRMWARE") == nullptr) {
-            if ((error = pg2sdr_set_firmware_path(ctx(), "../firmware/images/pg2sdr.bin")) < 0) {
-                throw std::runtime_error(std::string("device setup failed: pg2sdr_set_firmware_path: ") + pg2sdr_strerror(error));
-            }
-        }
-
-        if ((error = pg2sdr_open_single_device(ctx(), &handle)) < 0)
+        if ((error = pg2sdr_open_single_device(ctx(), NULL, NULL, &handle)) < 0)
             throw std::runtime_error(std::string("device setup failed: pg2sdr_open_single_device: ") + pg2sdr_strerror(error));
     }
 

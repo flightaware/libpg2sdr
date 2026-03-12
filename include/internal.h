@@ -64,6 +64,9 @@ struct pg2sdr__device {
     pthread_mutex_t mutex;
     pg2sdr_context *ctx;
 
+    char *serial;
+    char *ports;
+
     uint32_t usb_samples_per_block;
     uint32_t usb_bytes_per_block;
 
