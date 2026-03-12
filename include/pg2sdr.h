@@ -42,6 +42,19 @@ extern "C" {
  */
 
 /**
+ * \brief An opaque handle for library state.
+ * \ingroup context
+ *
+ * Library context is represented as a pointer to an opaque
+ * pg2sdr_context struct, where the details of the struct are
+ * internal to the library.
+ *
+ * \sa pg2sdr_init()
+ * \sa pg2sdr_exit()
+ */
+typedef struct pg2sdr__context pg2sdr_context;
+
+/**
  * \brief Severity of log messages passed to ::pg2sdr_log_callback.
  * \ingroup context
  */
@@ -62,19 +75,6 @@ typedef enum {
 typedef void (*pg2sdr_log_callback)(pg2sdr_context *context,
                                     pg2sdr_log_level level,
                                     const char *message);
-
-/**
- * \brief An opaque handle for library state.
- * \ingroup context
- *
- * Library context is represented as a pointer to an opaque
- * pg2sdr_context struct, where the details of the struct are
- * internal to the library.
- *
- * \sa pg2sdr_init()
- * \sa pg2sdr_exit()
- */
-typedef struct pg2sdr__context pg2sdr_context;
 
 /**
  * \brief Allocate a new library context.
