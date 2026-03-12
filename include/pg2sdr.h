@@ -24,18 +24,22 @@ extern "C" {
 #endif
 
 /**
- * \brief An opaque handle for library state.
- * \ingroup context
+ * \defgroup context Library context and init/deinit
  *
- * To avoid multiple users of the library within the same process
- * clobbering each other, all library state is stored in a context
- * object that is explicitly or implicitly passed to each library API
- * call.
+ * Library contexts allow for multiple users of the pg2sdr library in
+ * the same process, without requiring coordination between the
+ * different users. Each library user should allocate a separate
+ * context, and pass it to the various API functions that expect a
+ * context.
  *
- * The lifetime of state objects is managed by
- * pg2sdr_init() and pg2sdr_exit().
+ * There is a context associated with each ::pg2sdr_device instance.
+ * APIs that accept ::pg2sdr_device arguments implicitly use the
+ * associated context.
+ *
+ * The lifetime of contexts is managed by pg2sdr_init() and
+ * pg2sdr_exit().
+ *
  */
-typedef struct pg2sdr__context pg2sdr_context;
 
 /**
  * \brief Severity of log messages passed to ::pg2sdr_log_callback.
@@ -59,6 +63,174 @@ typedef void (*pg2sdr_log_callback)(pg2sdr_context *context,
                                     pg2sdr_log_level level,
                                     const char *message);
 
+/**
+ * \brief An opaque handle for library state.
+ * \ingroup context
+ *
+ * Library context is represented as a pointer to an opaque
+ * pg2sdr_context struct, where the details of the struct are
+ * internal to the library.
+ *
+ * \sa pg2sdr_init()
+ * \sa pg2sdr_exit()
+ */
+typedef struct pg2sdr__context pg2sdr_context;
+
+/**
+ * \brief Allocate a new library context.
+ * \ingroup context
+ *
+ * Context should be eventually freed by calling pg2sdr_exit()
+ *
+ * \param[out] ctx Storage for a pointer to the newly allocated context
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_init(pg2sdr_context **ctx);
+
+/**
+ * \brief Free a library context.
+ * \ingroup context
+ *
+ * Releases resources associated with a context previously allocated by
+ * pg2sdr_init().
+ *
+ * Must not be called while there are in-progress API calls using the
+ * context.
+ *
+ * After a call to pg2sdr_exit(), the context is no longer valid and
+ * should not be used.
+ *
+ * \param[in] ctx The context to free
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_exit(pg2sdr_context *ctx);
+
+/**
+ * \brief Set a callback to receive library logging.
+ * \ingroup context
+ *
+ * By default, libpg2sdr will log INFO and ERROR messages to stderr.
+ * If the PG2SDR_DEBUG environment variable is set, it will also log
+ * DEBUG messages to stderr.
+ *
+ * If log messages should be handled differently, provide a logging
+ * callback by calling this function. libpg2sdr will call the logging
+ * callback to perform logging, replacing the default behaviour.
+ *
+ * Each library context has a separate log callback setting.
+ *
+ * Logging callbacks must be threadsafe.
+ *
+ * \param[in] ctx The library context to change
+ * \param[in] callback The callback to call for each log message
+ * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ */
+int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
+
+/**
+ * \defgroup errors Error handling
+ *
+ * Most libpg2sdr API functions return an integer, with 0 indicating
+ * success and negative values representing errors. A few APIs can
+ * also return positive values on success.
+ *
+ * Negative error codes are chosen from the ::pg2sdr_error
+ * enumeration.  Users of the library API can directly match on these
+ * values to handle specific errors differently, or use
+ * pg2sdr_strerror() and pg2sdr_strerror_r() to format the errors for
+ * human consumption.
+ *
+ * When libpg2sdr encounters an error from a system call or libusb,
+ * that error is remapped into a value within the
+ * ::PG2SDR_ERROR_SYSTEM_MIN .. ::PG2SDR_ERROR_SYSTEM_MAX or
+ * ::PG2SDR_ERROR_LIBUSB_MIN .. ::PG2SDR_ERROR_LIBUSB_MAX ranges,
+ * preserving the underlying error. pg2sdr_strerror() knows how to
+ * interpret values in this range by calling strerror() or
+ * libusb_strerror() as needed.
+ */
+
+/**
+ * \brief Enumeration of possible negative error codes.
+ * \ingroup errors
+ *
+ * libpg2sdr API functions return an integer error code, where values
+ * >= 0 indicate success and values <0 indicate errors. This
+ * enumeration describes those error codes.
+ */
+enum pg2sdr_error {
+    PG2SDR_SUCCESS = 0,                    /**< no error */
+
+    PG2SDR_ERROR_NOT_FOUND = -1,           /**< \ref pg2sdr_open_single_device found no matching devices */
+    PG2SDR_ERROR_DISCONNECTED = -2,        /**< Device unexpectedly disconnected */
+    PG2SDR_ERROR_BAD_ARGUMENT = -3,        /**< Bad argument to API call */
+    PG2SDR_ERROR_NO_MEMORY = -4,           /**< Memory allocation failed */
+    PG2SDR_ERROR_NOT_IMPLEMENTED = -5,     /**< Operation not implemented */
+    PG2SDR_ERROR_FIRMWARE_MISMATCH = -6,   /**< Host/firmware version mismatch */
+    PG2SDR_ERROR_MULTIPLE_DEVICES = -7,    /**< \ref pg2sdr_open_single_device found more than one matching device */
+    PG2SDR_ERROR_BUSY = -8,                /**< Device already in use */
+    PG2SDR_ERROR_BAD_STATE = -9,           /**< Operation not possible in this state */
+    PG2SDR_ERROR_TIMEOUT = -10,            /**< Operation timed out */
+    PG2SDR_ERROR_CORRUPTION = -11,         /**< Heap corruption, double-free, or use-after-free detected */
+    PG2SDR_ERROR_ACCESS = -12,             /**< Insufficient permissions to access device */
+
+    PG2SDR_ERROR_TRANSFER_OTHER = -200,    /**< Unexpected libusb transfer status */
+    PG2SDR_ERROR_TRANSFER_STALL = -201,    /**< Bulk endpoint stalled (libusb transfer status LIBUSB_TRANSFER_STALL) */
+    PG2SDR_ERROR_TRANSFER_OVERFLOW = -202, /**< Received unexpected data on bulk endpoint (libusb transfer status LIBUSB_TRANSFER_OVERFLOW) */
+    PG2SDR_ERROR_TRANSFER_FORMAT = -203,   /**< Received malformed data on bulk endpoint */
+
+    PG2SDR_ERROR_TUNER_DETECT = -300,      /**< Tuner not present on I2C bus */
+    PG2SDR_ERROR_TUNER_PLL_LOCK = -301,    /**< Tuner LO PLL did not lock */
+    PG2SDR_ERROR_TUNER_PLL_RANGE = -302,   /**< Required tuner LO PLL frequency out of range */
+    PG2SDR_ERROR_TUNER_I2C = -303,         /**< Tuner I2C bus communication error */
+    PG2SDR_ERROR_ADC_RATE_RANGE = -304,    /**< Required ADC sample rate out of range for ADC hardware */
+
+    PG2SDR_ERROR_SYSTEM_MAX = -1000,       /**< Upper end of remapped errno range */
+    PG2SDR_ERROR_SYSTEM_MIN = -1999,       /**< Lower end of remapped errno range */
+
+    PG2SDR_ERROR_LIBUSB_MAX = -2000,      /**< Upper end of remapped libusb error range */
+    PG2SDR_ERROR_LIBUSB_MIN = -2999,      /**< Lower end of remapped libusb error range */
+};
+
+/**
+ * \brief Format a pg2sdr error code as a human-readable error message.
+ * \ingroup errors
+ *
+ * This function is not threadsafe; the returned message may be a pointer
+ * to a static buffer area that is reused on each call. For a threadsafe
+ * version, use pg2sdr_strerror_r().
+ *
+ * \param[in] error an error code returned by the PG2SDR API
+ * \return an ASCIIZ error message, that may point to shared buffer space
+ */
+const char *pg2sdr_strerror(int error);
+
+/**
+ * \brief Format a pg2sdr error code as a human-readable error message.
+ * \ingroup errors
+ *
+ * This is the threadsafe variant of pg2sdr_strerror(), using a user-
+ * provided buffer if needed.
+ *
+ * Note that in cases where the error message is fixed, \p buf is not
+ * used and a pointer to the fixed error message is returned directly.
+ *
+ * \param[in] error an error code returned by the PG2SDR API
+ *
+ * \param[in] buf a buffer to use if a non-static error message needs
+ *   to be generated
+ *
+ * \param[in] buflen the size of \p buf
+ *
+ * \return an ASCIIZ error message, that may point within \p buf
+ */
+const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen);
+
+/**
+ * \defgroup device Device discovery and management
+ *
+ * description goes here
+ */
+ 
 /**
  * \brief Opaque type representing the state of an opened PG2SDR device.
  * \ingroup device
@@ -85,96 +257,6 @@ typedef enum {
 } pg2sdr_conversion_mode_t;
 
 /**
- * \brief Error codes returned by pg2sdr API calls.
- * \ingroup errors
- *
- * Most API calls return 0 on success, or a negative error code on
- * failure.  This enum enumerates those error codes.
- *
- * System call and libusb errors encountered within pg2sdr are
- * remapped to values within the
- * ::PG2SDR_ERROR_SYSTEM_MIN .. ::PG2SDR_ERROR_SYSTEM_MAX and
- * ::PG2SDR_ERROR_LIBUSB_MIN .. ::PG2SDR_ERROR_LIBUSB_MAX ranges.
- *
- * Use pg2sdr_strerror() or pg2sdr_strerror_r() to turn an error code
- * into a human-readable string.
- *
- */
-enum pg2sdr_error {
-    PG2SDR_SUCCESS = 0,                    /**< no error */
-
-    /** \name General pg2sdr API errors */
-    /**@{*/
-    PG2SDR_ERROR_NOT_FOUND = -1,           /**< \ref pg2sdr_open_single_device found no matching devices */
-    PG2SDR_ERROR_DISCONNECTED = -2,        /**< Device unexpectedly disconnected */
-    PG2SDR_ERROR_BAD_ARGUMENT = -3,        /**< Bad argument to API call */
-    PG2SDR_ERROR_NO_MEMORY = -4,           /**< Memory allocation failed */
-    PG2SDR_ERROR_NOT_IMPLEMENTED = -5,     /**< Operation not implemented */
-    PG2SDR_ERROR_FIRMWARE_MISMATCH = -6,   /**< Host/firmware version mismatch */
-    PG2SDR_ERROR_MULTIPLE_DEVICES = -7,    /**< \ref pg2sdr_open_single_device found more than one matching device */
-    PG2SDR_ERROR_BUSY = -8,                /**< Device already in use */
-    PG2SDR_ERROR_BAD_STATE = -9,           /**< Operation not possible in this state */
-    PG2SDR_ERROR_TIMEOUT = -10,            /**< Operation timed out */
-    PG2SDR_ERROR_CORRUPTION = -11,         /**< Heap corruption, double-free, or use-after-free detected */
-    PG2SDR_ERROR_ACCESS = -12,             /**< Insufficient permissions to access device */
-    /**@}*/
-
-    /** \name Bulk transfer errors while streaming data */
-    /**@{*/
-    PG2SDR_ERROR_TRANSFER_OTHER = -200,    /**< Unexpected libusb transfer status */
-    PG2SDR_ERROR_TRANSFER_STALL = -201,    /**< Bulk endpoint stalled (libusb transfer status LIBUSB_TRANSFER_STALL) */
-    PG2SDR_ERROR_TRANSFER_OVERFLOW = -202, /**< Received unexpected data on bulk endpoint (libusb transfer status LIBUSB_TRANSFER_OVERFLOW) */
-    PG2SDR_ERROR_TRANSFER_FORMAT = -203,   /**< Received malformed data on bulk endpoint */
-    /**@\}*/
-
-    /** \name Tuner/ADC hardware setup errors */
-    /**@{*/
-    PG2SDR_ERROR_TUNER_DETECT = -300,      /**< Tuner not present on I2C bus */
-    PG2SDR_ERROR_TUNER_PLL_LOCK = -301,    /**< Tuner LO PLL did not lock */
-    PG2SDR_ERROR_TUNER_PLL_RANGE = -302,   /**< Required tuner LO PLL frequency out of range */
-    PG2SDR_ERROR_TUNER_I2C = -303,         /**< Tuner I2C bus communication error */
-    PG2SDR_ERROR_ADC_RATE_RANGE = -304,    /**< Required ADC sample rate out of range for ADC hardware */
-    /**@\}*/
-
-    /** \name Remapped system call error range
-     *
-     * Errors from system calls (i.e. library functions that set
-     * errno) that are not otherwise handled above are are remapped
-     * into this range, such that:
-     *
-     * \code
-     *   pg2sdr_error_code = PG2SDR_ERROR_SYSTEM_MIN + errno
-     * \endcode
-     *
-     * \ref pg2sdr_strerror() will convert errors in this range to strings
-     * using strerror() automatically.
-     */
-    /**@{*/
-    PG2SDR_ERROR_SYSTEM_MAX = -1000,       /**< Upper end of remapped errno range */
-    PG2SDR_ERROR_SYSTEM_MIN = -1999,       /**< Lower end of remapped errno range */
-    /**@}*/
-
-    /** \name Remapped libusb error range
-     *
-     * Errors from libusb API calls that are not otherwise handled
-     * above are are remapped into this range, such that:
-     *
-     * \code
-     *   pg2sdr_error_code = PG2SDR_ERROR_LIBUSB_MIN - libusb_error_code
-     * \endcode
-     *
-     * (note that libusb error codes are negative)
-     *
-     * \ref pg2sdr_strerror() will convert errors in this range to strings
-     * using libusb_strerror() automatically.
-     */
-    /**@{*/
-    PG2SDR_ERROR_LIBUSB_MAX = -2000,      /**< Upper end of remapped libusb error range */
-    PG2SDR_ERROR_LIBUSB_MIN = -2999,      /**< Lower end of remapped libusb error range */
-    /**@}*/
-};
-
-/**
  * \brief Representation of an unopened PG2SDR device on the USB bus.
  * \ingroup device
  *
@@ -185,7 +267,7 @@ enum pg2sdr_error {
  * pg2sdr_usb_device::lu_device may be used as needed to discover additional information
  * about the device if needed.
  */
-typedef struct pg2sdr_usb_device {
+typedef struct {
     const char *serial;        /**< Serial number of this device, ASCIIZ */
     const char *ports;         /**< Physical USB bus/port path for this device, ASCIIZ */
     libusb_device *lu_device;  /**< Underlying libusb_device for this device. */
@@ -265,101 +347,7 @@ typedef struct {
  */
 typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_data);
 
-/**
- * \brief Format a pg2sdr error code as a human-readable error message.
- * \ingroup errors
- *
- * This function is not threadsafe; the returned message may be a pointer
- * to a static buffer area that is reused on each call. For a threadsafe
- * version, use pg2sdr_strerror_r().
- *
- * \param[in] error an error code returned by the PG2SDR API
- * \return an ASCIIZ error message, that may point to shared buffer space
- */
-const char *pg2sdr_strerror(int error);
-
-/**
- * \brief Format a pg2sdr error code as a human-readable error message.
- * \ingroup errors
- *
- * This is the threadsafe variant of pg2sdr_strerror(), using a user-
- * provided buffer if needed.
- *
- * Note that in cases where the error message is fixed, "buf" is not
- * used and a pointer to the fixed error message is returned directly.
- *
- * \param[in] error an error code returned by the PG2SDR API
- *
- * \param[in] buf a buffer to use if a non-static error message needs
- *   to be generated
- *
- * \param[in] buflen the size of "buf"
- *
- * \return an ASCIIZ error message, that may point within "buf"
- */
-const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen);
-
 /* Library context (context.c) */
-
-/**
- * \brief Allocate a new library context.
- * \ingroup context
- *
- * Library contexts allow for multiple uses of the pg2sdr library
- * in the same process, without requiring coordination between
- * the different users. Each library user should allocate a separate
- * context, and pass it to the various API functions that expect a context.
- *
- * There is a context associated with each ::pg2sdr_device instance.
- * APIs that accept ::pg2sdr_device arguments implicitly use the associated
- * context.
- *
- * Context should be eventually freed by calling pg2sdr_exit()
- *
- * \param[out] ctx Storage for a pointer to the newly allocated context
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
- */
-int pg2sdr_init(pg2sdr_context **ctx);
-
-/**
- * \brief Free a library context.
- * \ingroup context
- *
- * Releases resources associated with a context previously allocated by
- * pg2sdr_init().
- *
- * Must not be called while there are in-progress API calls using the
- * context.
- *
- * After a call to pg2sdr_exit(), the context is no longer valid and
- * should not be used.
- *
- * \param[in] ctx The context to free
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
- */
-int pg2sdr_exit(pg2sdr_context *ctx);
-
-/**
- * \brief Set a callback to receive library logging.
- * \ingroup context
- *
- * By default, libpg2sdr will log INFO and ERROR messages to stderr.
- * If the PG2SDR_DEBUG environment variable is set, it will also log
- * DEBUG messages to stderr.
- *
- * If log messages should be handled differently, provide a logging
- * callback by calling this function. libpg2sdr will call the logging
- * callback to perform logging, replacing the default behaviour.
- *
- * Each library context has a separate log callback setting.
- *
- * Logging callbacks must be threadsafe.
- *
- * \param[in] ctx The library context to change
- * \param[in] callback The callback to call for each log message
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
- */
-int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
 
 /* Device discovery and open/close (device.c) */
 
