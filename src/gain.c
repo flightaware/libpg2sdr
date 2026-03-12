@@ -4,7 +4,7 @@
 
 /* Generic helpers, to reduce duplication needed for code that's the same shape for lna/mix/vga */
 
-static int generic_set_gain(pg2sdr_device_handle *dev, unsigned gain, int (*tuner_set_gain)(pg2sdr_device_handle *, unsigned))
+static int generic_set_gain(pg2sdr_device *dev, unsigned gain, int (*tuner_set_gain)(pg2sdr_device *, unsigned))
 {
     int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
@@ -17,7 +17,7 @@ static int generic_set_gain(pg2sdr_device_handle *dev, unsigned gain, int (*tune
     return error;
 }
 
-static int generic_set_gain_db(pg2sdr_device_handle *dev, double gain_db, double *table, int (*tuner_set_gain)(pg2sdr_device_handle *, unsigned))
+static int generic_set_gain_db(pg2sdr_device *dev, double gain_db, double *table, int (*tuner_set_gain)(pg2sdr_device *, unsigned))
 {
     int error = PG2SDR_SUCCESS;
     pthread_mutex_lock(&dev->mutex);
@@ -40,13 +40,13 @@ static int generic_set_gain_db(pg2sdr_device_handle *dev, double gain_db, double
 
 /* -- LNA -- */
 
-int pg2sdr_set_lna_gain(pg2sdr_device_handle *dev, unsigned gain)
+int pg2sdr_set_lna_gain(pg2sdr_device *dev, unsigned gain)
 {
     CHECK_DEV(dev);
     return generic_set_gain(dev, gain, pg2sdr__tuner_set_lna);
 }
 
-int pg2sdr_set_lna_gain_db(pg2sdr_device_handle *dev, double gain_db)
+int pg2sdr_set_lna_gain_db(pg2sdr_device *dev, double gain_db)
 {
     CHECK_DEV(dev);
     return generic_set_gain_db(dev, gain_db, dev->lna_table, pg2sdr__tuner_set_lna);
@@ -54,13 +54,13 @@ int pg2sdr_set_lna_gain_db(pg2sdr_device_handle *dev, double gain_db)
 
 /* -- MIX -- */
 
-int pg2sdr_set_mix_gain(pg2sdr_device_handle *dev, unsigned gain)
+int pg2sdr_set_mix_gain(pg2sdr_device *dev, unsigned gain)
 {
     CHECK_DEV(dev);
     return generic_set_gain(dev, gain, pg2sdr__tuner_set_mix);
 }
 
-int pg2sdr_set_mix_gain_db(pg2sdr_device_handle *dev, double gain_db)
+int pg2sdr_set_mix_gain_db(pg2sdr_device *dev, double gain_db)
 {
     CHECK_DEV(dev);
     return generic_set_gain_db(dev, gain_db, dev->mix_table, pg2sdr__tuner_set_mix);
@@ -68,13 +68,13 @@ int pg2sdr_set_mix_gain_db(pg2sdr_device_handle *dev, double gain_db)
 
 /* -- VGA -- */
 
-int pg2sdr_set_vga_gain(pg2sdr_device_handle *dev, unsigned gain)
+int pg2sdr_set_vga_gain(pg2sdr_device *dev, unsigned gain)
 {
     CHECK_DEV(dev);
     return generic_set_gain(dev, gain, pg2sdr__tuner_set_vga);
 }
 
-int pg2sdr_set_vga_gain_db(pg2sdr_device_handle *dev, double gain_db)
+int pg2sdr_set_vga_gain_db(pg2sdr_device *dev, double gain_db)
 {
     CHECK_DEV(dev);
     return generic_set_gain_db(dev, gain_db, dev->vga_table, pg2sdr__tuner_set_vga);
@@ -82,7 +82,7 @@ int pg2sdr_set_vga_gain_db(pg2sdr_device_handle *dev, double gain_db)
 
 /* Getters that operate on any/all three stages at once */
 
-int pg2sdr_get_stage_gains(pg2sdr_device_handle *dev, unsigned *lna, unsigned *mix, unsigned *vga)
+int pg2sdr_get_stage_gains(pg2sdr_device *dev, unsigned *lna, unsigned *mix, unsigned *vga)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -96,7 +96,7 @@ int pg2sdr_get_stage_gains(pg2sdr_device_handle *dev, unsigned *lna, unsigned *m
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_stage_gains_db(pg2sdr_device_handle *dev, double *lna_db, double *mix_db, double *vga_db)
+int pg2sdr_get_stage_gains_db(pg2sdr_device *dev, double *lna_db, double *mix_db, double *vga_db)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -124,7 +124,7 @@ static int compare_gain_entry(const void *left, const void *right)
     return 0;
 }
 
-int pg2sdr_get_total_gain_db(pg2sdr_device_handle *dev, double *gain_db)
+int pg2sdr_get_total_gain_db(pg2sdr_device *dev, double *gain_db)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -144,7 +144,7 @@ int pg2sdr_get_total_gain_db(pg2sdr_device_handle *dev, double *gain_db)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_total_gain_db(pg2sdr_device_handle *dev, double gain_db)
+int pg2sdr_set_total_gain_db(pg2sdr_device *dev, double gain_db)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -178,7 +178,7 @@ int pg2sdr_set_total_gain_db(pg2sdr_device_handle *dev, double gain_db)
 
 /* -- Gain table access -- */
 
-int pg2sdr_set_gain_tables(pg2sdr_device_handle *dev,
+int pg2sdr_set_gain_tables(pg2sdr_device *dev,
                            const pg2sdr_gain_table_t *gain_table, size_t gain_table_size,
                            const double *lna_table,
                            const double *mix_table,
@@ -222,7 +222,7 @@ int pg2sdr_set_gain_tables(pg2sdr_device_handle *dev,
     return error;
 }
 
-int pg2sdr_get_gain_tables(pg2sdr_device_handle *dev,
+int pg2sdr_get_gain_tables(pg2sdr_device *dev,
                            pg2sdr_gain_table_t **gain_table,
                            size_t *gain_table_size,
                            double *lna_table,

@@ -4,7 +4,7 @@
 #include "internal.h"
 #include "tuner-regs.h"
 
-static int apply_tuner_changeset(pg2sdr_device_handle *dev, change_set *cs)
+static int apply_tuner_changeset(pg2sdr_device *dev, change_set *cs)
 {
     uint16_t first;
     uint8_t payload[TUNER_REG_MAX_PAYLOAD_SIZE] = {0};
@@ -17,7 +17,7 @@ static int apply_tuner_changeset(pg2sdr_device_handle *dev, change_set *cs)
     return pg2sdr__ctrl_tuner_update(dev, first, payload, payload_size);
 }
 
-int pg2sdr__read_tuner_bits(pg2sdr_device_handle *dev, uint8_t reg, uint8_t mask, unsigned offset)
+int pg2sdr__read_tuner_bits(pg2sdr_device *dev, uint8_t reg, uint8_t mask, unsigned offset)
 {
     int error;
     uint8_t value;
@@ -26,28 +26,28 @@ int pg2sdr__read_tuner_bits(pg2sdr_device_handle *dev, uint8_t reg, uint8_t mask
     return (value & mask) >> offset;
 }
 
-int pg2sdr__tuner_set_lna(pg2sdr_device_handle *dev, unsigned lna)
+int pg2sdr__tuner_set_lna(pg2sdr_device *dev, unsigned lna)
 {
     if (lna > 15)
         return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr__tuner_set_gains(dev, lna, -1, -1);
 }
 
-int pg2sdr__tuner_set_mix(pg2sdr_device_handle *dev, unsigned mix)
+int pg2sdr__tuner_set_mix(pg2sdr_device *dev, unsigned mix)
 {
     if (mix > 15)
         return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr__tuner_set_gains(dev, -1, mix, -1);
 }
 
-int pg2sdr__tuner_set_vga(pg2sdr_device_handle *dev, unsigned vga)
+int pg2sdr__tuner_set_vga(pg2sdr_device *dev, unsigned vga)
 {
     if (vga > 15)
         return PG2SDR_ERROR_BAD_ARGUMENT;
     return pg2sdr__tuner_set_gains(dev, -1, -1, vga);
 }
 
-int pg2sdr__tuner_set_gains(pg2sdr_device_handle *dev, int lna, int mix, int vga)
+int pg2sdr__tuner_set_gains(pg2sdr_device *dev, int lna, int mix, int vga)
 {
     assert (lna <= 15);
     assert (mix <= 15);
@@ -76,7 +76,7 @@ int pg2sdr__tuner_set_gains(pg2sdr_device_handle *dev, int lna, int mix, int vga
 }
 
 
-int pg2sdr__tuner_set_bandpass(pg2sdr_device_handle *dev, const pg2sdr_bandpass_table_t *settings)
+int pg2sdr__tuner_set_bandpass(pg2sdr_device *dev, const pg2sdr_bandpass_table_t *settings)
 {
     assert(settings != NULL);
 
@@ -89,7 +89,7 @@ int pg2sdr__tuner_set_bandpass(pg2sdr_device_handle *dev, const pg2sdr_bandpass_
     return apply_tuner_changeset(dev, &cs);
 }
 
-int pg2sdr__init_tuner(pg2sdr_device_handle *dev)
+int pg2sdr__init_tuner(pg2sdr_device *dev)
 {
     int error = PG2SDR_SUCCESS;
 
@@ -337,7 +337,7 @@ int pg2sdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr__start_pll(pg2sdr_device_handle *dev, tuner_pll_config_t *params) {
+int pg2sdr__start_pll(pg2sdr_device *dev, tuner_pll_config_t *params) {
     int error = PG2SDR_SUCCESS;
     int resp = 0;
     
@@ -362,7 +362,7 @@ int pg2sdr__start_pll(pg2sdr_device_handle *dev, tuner_pll_config_t *params) {
     return apply_tuner_changeset(dev, &cs);
 }
 
-int pg2sdr__configure_pll_settings(pg2sdr_device_handle *dev, tuner_pll_config_t *params) {
+int pg2sdr__configure_pll_settings(pg2sdr_device *dev, tuner_pll_config_t *params) {
     LOGDEBUG(dev, "configuring PLL with:\n"
              "  SDM:    %u\n"
              "  SELDIV: %u\n"
@@ -417,7 +417,7 @@ int pg2sdr__configure_pll_settings(pg2sdr_device_handle *dev, tuner_pll_config_t
     return apply_tuner_changeset(dev, &cs);
 }
 
-int pg2sdr__has_pll_lock(pg2sdr_device_handle *dev) {
+int pg2sdr__has_pll_lock(pg2sdr_device *dev) {
     int value;
     if ((value = read_tuner_bits(dev, PLL_LOCK)) < 0)
         return value;

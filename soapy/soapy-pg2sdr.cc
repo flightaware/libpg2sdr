@@ -89,7 +89,7 @@ static std::string format_ports(uint8_t *ports)
     return s;
 }
 
-static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
+static SoapySDR::Kwargs DeviceToKwargs(pg2sdr_usb_device *device)
 {
     SoapySDR::Kwargs entry;
     entry["driver"] = "pg2sdr";
@@ -103,7 +103,7 @@ static SoapySDR::Kwargs DeviceToKwargs(lpc_device *device)
     return entry;
 }
 
-static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMatching(DeviceList &devices, const SoapySDR::Kwargs &kwargs)
+static std::pair<SoapySDR::KwargsList, std::vector<pg2sdr_usb_device *>> FindDevicesMatching(DeviceList &devices, const SoapySDR::Kwargs &kwargs)
 {
     // extract just the args we want to match on;
     // a device is a match if every entry in 'matchers' is present in its own per-device args;
@@ -115,7 +115,7 @@ static std::pair<SoapySDR::KwargsList, std::vector<lpc_device *>> FindDevicesMat
     }
 
     SoapySDR::KwargsList result_args;
-    std::vector<lpc_device *> result_devices;
+    std::vector<pg2sdr_usb_device *> result_devices;
     for (unsigned i = 0; i < devices.size(); ++i) {
         auto dev_kwargs = DeviceToKwargs(devices[i]);
         if (std::includes(dev_kwargs.begin(), dev_kwargs.end(), matchers.begin(), matchers.end())) {
@@ -167,7 +167,7 @@ SoapySDR::Device *PG2SDRDevice::MakeDevice(const SoapySDR::Kwargs &kwargs)
         SoapySDR::log(SOAPY_SDR_WARNING, "PG2SDR: more than one PG2SDR device matched '" + SoapySDR::KwargsToString(kwargs) + "'; trying the first one");
     }
 
-    pg2sdr_device_handle *handle;
+    pg2sdr_device *handle;
     LIBCALL_DIRECT(ctx, pg2sdr_open_device, matching.second[0], &handle);
 
     auto dev = new PG2SDRDevice(std::move(ctx), handle);
@@ -199,7 +199,7 @@ static SoapySDR::Range simple_gain_range(double *table)
     return SoapySDR::Range(*range.first, *range.second);
 }
 
-PG2SDRDevice::PG2SDRDevice(Context &&ctx, pg2sdr_device_handle *handle)
+PG2SDRDevice::PG2SDRDevice(Context &&ctx, pg2sdr_device *handle)
     : ctx_(std::move(ctx)),
       handle_(handle),
       gain_element_mode_(GainElementMode::BOTH),

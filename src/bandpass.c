@@ -4,7 +4,7 @@
 
 /* -- Bandpass table access -- */
 
-int pg2sdr_set_bandpass_table(pg2sdr_device_handle *dev,
+int pg2sdr_set_bandpass_table(pg2sdr_device *dev,
                               const pg2sdr_bandpass_table_t *bandpass_table, size_t bandpass_table_size)
 {
     CHECK_DEV(dev);
@@ -33,7 +33,7 @@ int pg2sdr_set_bandpass_table(pg2sdr_device_handle *dev,
     return error;
 }
 
-int pg2sdr_get_bandpass_table(pg2sdr_device_handle *dev,
+int pg2sdr_get_bandpass_table(pg2sdr_device *dev,
                               pg2sdr_bandpass_table_t **bandpass_table,
                               size_t *bandpass_table_size)
 {
@@ -113,7 +113,7 @@ static double filter_penalty(const pg2sdr_bandpass_table_t *entry,
     return penalty;
 }
 
-const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device_handle *dev,
+const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device *dev,
                                                               double low_signal,
                                                               double high_signal,
                                                               double low_nyquist,

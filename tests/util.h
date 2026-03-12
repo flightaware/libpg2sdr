@@ -55,12 +55,12 @@ public:
         pg2sdr_close_device(handle);
     }
 
-    pg2sdr_device_handle *operator()(void) {
+    pg2sdr_device *operator()(void) {
         return handle;
     }
 
 private:
-    pg2sdr_device_handle  *handle;
+    pg2sdr_device  *handle;
 };
 
 #endif

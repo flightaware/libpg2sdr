@@ -36,7 +36,7 @@ typedef struct {
 #define read_tuner_bits(dev, name) pg2sdr__read_tuner_bits((dev), name ## _REG, name ## _MASK, name ## _OFFSET)
 
 void pg2sdr__prepare_tuner_payload_from_change_set(change_set *cs, uint16_t *first, uint8_t *out, uint16_t *out_size);
-int pg2sdr__read_tuner_bits(pg2sdr_device_handle *dev, uint8_t reg, uint8_t mask, unsigned offset);
+int pg2sdr__read_tuner_bits(pg2sdr_device *dev, uint8_t reg, uint8_t mask, unsigned offset);
 
 /* Make this static-inline to ensure it's visible to the compiler at the point of use -- in most cases
  * it can be optimized down to some simple bit twiddling (or, in the extreme case of pg2sdr__set_initial_values,

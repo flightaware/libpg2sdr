@@ -46,7 +46,7 @@ static int control_out(libusb_device_handle *usb_handle,
 }
 
 /* For tuner-specific control transfers, try to refine LIBUSB_ERROR_PIPE */
-static int convert_tuner_error(pg2sdr_device_handle *dev, int error)
+static int convert_tuner_error(pg2sdr_device *dev, int error)
 {
     if (error == (PG2SDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
         /* check if an I2C error was seen */
@@ -58,7 +58,7 @@ static int convert_tuner_error(pg2sdr_device_handle *dev, int error)
     return error;
 }
 
-int pg2sdr__ctrl_start_transfer(pg2sdr_device_handle *dev, const adc_pll_config_t *config)
+int pg2sdr__ctrl_start_transfer(pg2sdr_device *dev, const adc_pll_config_t *config)
 {
     ep0_out_start_transfer_t buffer = {
         .n_divisor = htole32(config->n),
@@ -76,7 +76,7 @@ int pg2sdr__ctrl_start_transfer(pg2sdr_device_handle *dev, const adc_pll_config_
                        sizeof(buffer));
 }
 
-int pg2sdr__ctrl_stop_transfer(pg2sdr_device_handle *dev)
+int pg2sdr__ctrl_stop_transfer(pg2sdr_device *dev)
 {
     return control_out(dev->usb_handle,
                        EP0_OUT_STOP_TRANSFER,
@@ -86,7 +86,7 @@ int pg2sdr__ctrl_stop_transfer(pg2sdr_device_handle *dev)
                        0);
 }
 
-int pg2sdr__ctrl_get_status(pg2sdr_device_handle *dev, ep0_in_board_status_t *out)
+int pg2sdr__ctrl_get_status(pg2sdr_device *dev, ep0_in_board_status_t *out)
 {
     ep0_in_board_status_t status;
     int error = control_in(dev->usb_handle, 
@@ -155,7 +155,7 @@ int pg2sdr__ctrl_get_status(pg2sdr_device_handle *dev, ep0_in_board_status_t *ou
 }
 
 /* This one takes a libusb handle, since we'll be calling it during
- * device discovery/setup before we have a full pg2sdr_device_handle
+ * device discovery/setup before we have a full pg2sdr_device
  * prepared
  */
 int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
@@ -189,7 +189,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr__ctrl_tuner_update(pg2sdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
+int pg2sdr__ctrl_tuner_update(pg2sdr_device *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
 {   
     return convert_tuner_error(dev, control_out(dev->usb_handle,
                                                 EP0_OUT_TUNER_UPDATE,
@@ -199,7 +199,7 @@ int pg2sdr__ctrl_tuner_update(pg2sdr_device_handle *dev, uint16_t first, uint8_t
                                                 payload_size));
 }
 
-int pg2sdr__ctrl_set_rf_power(pg2sdr_device_handle *dev, rf_power_mode_t mode)
+int pg2sdr__ctrl_set_rf_power(pg2sdr_device *dev, rf_power_mode_t mode)
 {
     return control_out(dev->usb_handle,
                        EP0_OUT_SET_RF_POWER,
@@ -209,7 +209,7 @@ int pg2sdr__ctrl_set_rf_power(pg2sdr_device_handle *dev, rf_power_mode_t mode)
                        0);
 }
 
-int pg2sdr__ctrl_read_tuner_register(pg2sdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size)
+int pg2sdr__ctrl_read_tuner_register(pg2sdr_device *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size)
 {
     return convert_tuner_error(dev, control_in(dev->usb_handle,
                                                EP0_IN_TUNER_READ,
@@ -219,7 +219,7 @@ int pg2sdr__ctrl_read_tuner_register(pg2sdr_device_handle *dev, uint16_t first_r
                                                buffer_size));
 }
 
-int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device_handle *dev, uint16_t vco_current, uint16_t timeout) {
+int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device *dev, uint16_t vco_current, uint16_t timeout) {
     ep0_in_tuner_lock_t out;
     int error = convert_tuner_error(dev, control_in(dev->usb_handle,
                                                     EP0_IN_TUNER_LOCK,

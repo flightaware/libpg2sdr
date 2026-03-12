@@ -123,7 +123,7 @@ class DeviceList
     static DeviceList Enumerate(Context &ctx, bool allow_bootloader)
     {
         int error;
-        lpc_device **newlist;
+        pg2sdr_usb_device **newlist;
 
         if ((error = pg2sdr_discover_devices(ctx, &newlist, allow_bootloader)) < 0) {
             SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: could not enumerate PG2SDR devices: " + pg2sdr_strerror_string(error));
@@ -134,11 +134,11 @@ class DeviceList
     }
 
     // InputIterator
-    lpc_device **begin() { return list_; }
+    pg2sdr_usb_device **begin() { return list_; }
 
-    lpc_device **end() { return list_ + size_; }
+    pg2sdr_usb_device **end() { return list_ + size_; }
 
-    lpc_device *operator[](size_t index)
+    pg2sdr_usb_device *operator[](size_t index)
     {
         if (index >= size_)
             throw std::out_of_range("device index out of range");
@@ -150,7 +150,7 @@ class DeviceList
     bool empty() const { return (size_ == 0); }
 
   private:
-    DeviceList(lpc_device **list) : list_(list), size_(0)
+    DeviceList(pg2sdr_usb_device **list) : list_(list), size_(0)
     {
         if (list_) {
             while (list_[size_])
@@ -158,7 +158,7 @@ class DeviceList
         }
     }
 
-    lpc_device **list_;
+    pg2sdr_usb_device **list_;
     size_t size_;
 };
 
@@ -228,10 +228,10 @@ class PG2SDRDevice : public SoapySDR::Device
     SoapySDR::RangeList getBandwidthRange(const int direction, const size_t channel) const override;
 
     Context &context() { return ctx_; }
-    pg2sdr_device_handle *handle() { return handle_; }
+    pg2sdr_device *handle() { return handle_; }
 
   private:
-    PG2SDRDevice(Context &&ctx, pg2sdr_device_handle *handle);
+    PG2SDRDevice(Context &&ctx, pg2sdr_device *handle);
 
     void tryApplyChanges() const;
 
@@ -242,7 +242,7 @@ class PG2SDRDevice : public SoapySDR::Device
     mutable PG2SDRStream *active_stream_ = nullptr; // currently activated PG2SDRStream
 
     mutable Context ctx_;
-    mutable pg2sdr_device_handle *handle_;
+    mutable pg2sdr_device *handle_;
 
     // how are we advertising gain stages?
     GainElementMode gain_element_mode_;

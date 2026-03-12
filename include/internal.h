@@ -47,7 +47,7 @@ struct pg2sdr__context {
 };
 
 typedef struct pg2sdr__transfer_state {
-    pg2sdr_device_handle *dev; /* owning device */
+    pg2sdr_device *dev; /* owning device */
     enum {
         XFER_IDLE,      /* not submitted */
         XFER_BUSY,      /* submitted and waiting for a result */
@@ -59,7 +59,7 @@ typedef struct pg2sdr__transfer_state {
     struct pg2sdr__transfer_state *next; /* next transfer in the list */
 } pg2sdr__transfer_state;
 
-struct pg2sdr__device_handle {
+struct pg2sdr__device {
     unsigned magic;
     pthread_mutex_t mutex;
     pg2sdr_context *ctx;
@@ -149,17 +149,17 @@ int pg2sdr__translate_libusb_transfer_status(enum libusb_transfer_status status)
 int pg2sdr__translate_errno(int error);
 
 //control transfers
-int pg2sdr__ctrl_get_status(pg2sdr_device_handle *dev, ep0_in_board_status_t *status);
-int pg2sdr__ctrl_set_rf_power(pg2sdr_device_handle *dev, rf_power_mode_t mode);
+int pg2sdr__ctrl_get_status(pg2sdr_device *dev, ep0_in_board_status_t *status);
+int pg2sdr__ctrl_set_rf_power(pg2sdr_device *dev, rf_power_mode_t mode);
 int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle);
-int pg2sdr__ctrl_start_transfer(pg2sdr_device_handle *dev, const adc_pll_config_t *config);
-int pg2sdr__ctrl_stop_transfer(pg2sdr_device_handle *dev);
-int pg2sdr__ctrl_tuner_update(pg2sdr_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int pg2sdr__ctrl_read_tuner_register(pg2sdr_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
-int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device_handle *dev, uint16_t vco_current, uint16_t timeout);
+int pg2sdr__ctrl_start_transfer(pg2sdr_device *dev, const adc_pll_config_t *config);
+int pg2sdr__ctrl_stop_transfer(pg2sdr_device *dev);
+int pg2sdr__ctrl_tuner_update(pg2sdr_device *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
+int pg2sdr__ctrl_read_tuner_register(pg2sdr_device *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
+int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device *dev, uint16_t vco_current, uint16_t timeout);
 
 /* bandpass.c */
-const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device_handle *dev,
+const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device *dev,
                                                               double low_signal,
                                                               double high_signal,
                                                               double low_nyquist,

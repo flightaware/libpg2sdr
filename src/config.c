@@ -4,22 +4,22 @@
 
 #include "internal.h"
 
-static double actual_sample_rate(pg2sdr_device_handle *dev);
-static double actual_frequency(pg2sdr_device_handle *dev);
-static double actual_bandpass_low(pg2sdr_device_handle *dev);
-static double actual_bandpass_high(pg2sdr_device_handle *dev);
+static double actual_sample_rate(pg2sdr_device *dev);
+static double actual_frequency(pg2sdr_device *dev);
+static double actual_bandpass_low(pg2sdr_device *dev);
+static double actual_bandpass_high(pg2sdr_device *dev);
 
-static double lo_offset(pg2sdr_device_handle *dev);
-static double center_if_frequency(pg2sdr_device_handle *dev);
+static double lo_offset(pg2sdr_device *dev);
+static double center_if_frequency(pg2sdr_device *dev);
 
-static int apply_rate_change(pg2sdr_device_handle *dev);
-static int apply_freq_change(pg2sdr_device_handle *dev);
-static int apply_bandpass_change(pg2sdr_device_handle *dev);
+static int apply_rate_change(pg2sdr_device *dev);
+static int apply_freq_change(pg2sdr_device *dev);
+static int apply_bandpass_change(pg2sdr_device *dev);
 
 static bool tuner_pll_config_equal(const tuner_pll_config_t *left, const tuner_pll_config_t *right);
 static bool tuner_bandpass_equal(const pg2sdr_bandpass_table_t *left, const pg2sdr_bandpass_table_t *right);
 
-int pg2sdr_set_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode_t mode)
+int pg2sdr_set_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t mode)
 {
     CHECK_DEV(dev);
 
@@ -52,7 +52,7 @@ int pg2sdr_set_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode
     return error;
 }
 
-int pg2sdr_get_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode_t *mode)
+int pg2sdr_get_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t *mode)
 {
     CHECK_DEV(dev);
 
@@ -62,7 +62,7 @@ int pg2sdr_get_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_buffer_size(pg2sdr_device_handle *dev, size_t buffer_size)
+int pg2sdr_set_buffer_size(pg2sdr_device *dev, size_t buffer_size)
 {
     CHECK_DEV(dev);
     if (buffer_size < 1)
@@ -86,7 +86,7 @@ int pg2sdr_set_buffer_size(pg2sdr_device_handle *dev, size_t buffer_size)
     return error;
 }
 
-int pg2sdr_get_buffer_size(pg2sdr_device_handle *dev, size_t *buffer_size)
+int pg2sdr_get_buffer_size(pg2sdr_device *dev, size_t *buffer_size)
 {
     CHECK_DEV(dev);
 
@@ -96,7 +96,7 @@ int pg2sdr_get_buffer_size(pg2sdr_device_handle *dev, size_t *buffer_size)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_sample_rate(pg2sdr_device_handle *dev, double rate)
+int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate)
 {
     CHECK_DEV(dev);
 
@@ -111,7 +111,7 @@ int pg2sdr_set_sample_rate(pg2sdr_device_handle *dev, double rate)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_sample_rate(pg2sdr_device_handle *dev, double *requested, double *actual)
+int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual)
 {
     CHECK_DEV(dev);
 
@@ -126,7 +126,7 @@ int pg2sdr_get_sample_rate(pg2sdr_device_handle *dev, double *requested, double 
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_decimation_mode(pg2sdr_device_handle *dev, int decimation_mode)
+int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode)
 {
     CHECK_DEV(dev);
 
@@ -143,7 +143,7 @@ int pg2sdr_set_decimation_mode(pg2sdr_device_handle *dev, int decimation_mode)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_decimation_mode(pg2sdr_device_handle *dev, int *decimation_mode)
+int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -153,7 +153,7 @@ int pg2sdr_get_decimation_mode(pg2sdr_device_handle *dev, int *decimation_mode)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_undersampling_mode(pg2sdr_device_handle *dev, int undersampling_mode)
+int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, int undersampling_mode)
 {
     CHECK_DEV(dev);
 
@@ -170,7 +170,7 @@ int pg2sdr_set_undersampling_mode(pg2sdr_device_handle *dev, int undersampling_m
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_undersampling_mode(pg2sdr_device_handle *dev, int *undersampling_mode)
+int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, int *undersampling_mode)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -180,7 +180,7 @@ int pg2sdr_get_undersampling_mode(pg2sdr_device_handle *dev, int *undersampling_
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_adc_limit(pg2sdr_device_handle *dev, double adc_limit)
+int pg2sdr_set_adc_limit(pg2sdr_device *dev, double adc_limit)
 {
     CHECK_DEV(dev);
 
@@ -197,7 +197,7 @@ int pg2sdr_set_adc_limit(pg2sdr_device_handle *dev, double adc_limit)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_adc_limit(pg2sdr_device_handle *dev, double *adc_limit)
+int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -207,7 +207,7 @@ int pg2sdr_get_adc_limit(pg2sdr_device_handle *dev, double *adc_limit)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_sideband(pg2sdr_device_handle *dev, bool upper_sideband)
+int pg2sdr_set_sideband(pg2sdr_device *dev, bool upper_sideband)
 {
     CHECK_DEV(dev);
 
@@ -223,7 +223,7 @@ int pg2sdr_set_sideband(pg2sdr_device_handle *dev, bool upper_sideband)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_sideband(pg2sdr_device_handle *dev, bool *upper_sideband)
+int pg2sdr_get_sideband(pg2sdr_device *dev, bool *upper_sideband)
 {
     CHECK_DEV(dev);
 
@@ -234,7 +234,7 @@ int pg2sdr_get_sideband(pg2sdr_device_handle *dev, bool *upper_sideband)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_frequency(pg2sdr_device_handle *dev, double freq)
+int pg2sdr_set_frequency(pg2sdr_device *dev, double freq)
 {
     CHECK_DEV(dev);
 
@@ -247,7 +247,7 @@ int pg2sdr_set_frequency(pg2sdr_device_handle *dev, double freq)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_frequency(pg2sdr_device_handle *dev, double *requested, double *actual)
+int pg2sdr_get_frequency(pg2sdr_device *dev, double *requested, double *actual)
 {
     CHECK_DEV(dev);
 
@@ -262,7 +262,7 @@ int pg2sdr_get_frequency(pg2sdr_device_handle *dev, double *requested, double *a
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_bandpass(pg2sdr_device_handle *dev, double low, double high)
+int pg2sdr_set_bandpass(pg2sdr_device *dev, double low, double high)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -283,7 +283,7 @@ int pg2sdr_set_bandpass(pg2sdr_device_handle *dev, double low, double high)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_bandpass(pg2sdr_device_handle *dev, double *low, double *high, double *actual_low, double *actual_high)
+int pg2sdr_get_bandpass(pg2sdr_device *dev, double *low, double *high, double *actual_low, double *actual_high)
 {
     CHECK_DEV(dev);
     pthread_mutex_lock(&dev->mutex);
@@ -301,7 +301,7 @@ int pg2sdr_get_bandpass(pg2sdr_device_handle *dev, double *low, double *high, do
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_apply_changes(pg2sdr_device_handle *dev)
+int pg2sdr_apply_changes(pg2sdr_device *dev)
 {
     CHECK_DEV(dev);
 
@@ -333,7 +333,7 @@ int pg2sdr_apply_changes(pg2sdr_device_handle *dev)
     return error;
 }
 
-static double actual_sample_rate(pg2sdr_device_handle *dev)
+static double actual_sample_rate(pg2sdr_device *dev)
 {
     if (!dev->adc_pll_config.valid || dev->changing_rate || !dev->adc_samples_per_user_sample)
         return 0;
@@ -341,7 +341,7 @@ static double actual_sample_rate(pg2sdr_device_handle *dev)
     return dev->adc_pll_config.actual_frequency / dev->adc_samples_per_user_sample;
 }
 
-static double actual_frequency(pg2sdr_device_handle *dev)
+static double actual_frequency(pg2sdr_device *dev)
 {
     if (!dev->tuner_pll_config.valid || !dev->adc_pll_config.valid || dev->changing_rate || dev->changing_freq) {
         return 0;
@@ -350,7 +350,7 @@ static double actual_frequency(pg2sdr_device_handle *dev)
     return dev->tuner_pll_config.actual_frequency - lo_offset(dev);
 }
 
-static double actual_bandpass_low(pg2sdr_device_handle *dev)
+static double actual_bandpass_low(pg2sdr_device *dev)
 {
     if (!dev->adc_pll_config.valid || !dev->current_bandpass_entry || dev->changing_rate || dev->changing_bandpass)
         return 0;
@@ -362,7 +362,7 @@ static double actual_bandpass_low(pg2sdr_device_handle *dev)
         return (center - dev->current_bandpass_entry->lower_corner);
 }
 
-static double actual_bandpass_high(pg2sdr_device_handle *dev)
+static double actual_bandpass_high(pg2sdr_device *dev)
 {
     if (!dev->adc_pll_config.valid || !dev->current_bandpass_entry || dev->changing_rate || dev->changing_bandpass)
         return 0;
@@ -374,12 +374,12 @@ static double actual_bandpass_high(pg2sdr_device_handle *dev)
         return (center - dev->current_bandpass_entry->upper_corner);
 }
 
-static double undersampling_offset(pg2sdr_device_handle *dev)
+static double undersampling_offset(pg2sdr_device *dev)
 {
     return (dev->undersampling_mode - 1) * dev->adc_pll_config.actual_frequency / 2.0;
 }
 
-static double lo_offset(pg2sdr_device_handle *dev)
+static double lo_offset(pg2sdr_device *dev)
 {
     switch (dev->conversion_mode) {
     case PG2SDR_MODE_LOWIF_REAL:
@@ -396,7 +396,7 @@ static double lo_offset(pg2sdr_device_handle *dev)
     }
 }
 
-static double center_if_frequency(pg2sdr_device_handle *dev)
+static double center_if_frequency(pg2sdr_device *dev)
 {
     switch (dev->conversion_mode) {
     case PG2SDR_MODE_LOWIF_REAL:
@@ -431,7 +431,7 @@ static bool tuner_bandpass_equal(const pg2sdr_bandpass_table_t *left, const pg2s
         left->lpf_q == right->lpf_q;
 }
 
-static int apply_rate_change(pg2sdr_device_handle *dev)
+static int apply_rate_change(pg2sdr_device *dev)
 {
     /* can't change sample rate while streaming data */
     if (dev->streaming)
@@ -509,7 +509,7 @@ static int apply_rate_change(pg2sdr_device_handle *dev)
     return PG2SDR_SUCCESS;
 }
 
-static int apply_freq_change(pg2sdr_device_handle *dev)
+static int apply_freq_change(pg2sdr_device *dev)
 {
     if (!dev->requested_frequency)
         return PG2SDR_SUCCESS;         /* no frequency configured yet */
@@ -551,7 +551,7 @@ static int apply_freq_change(pg2sdr_device_handle *dev)
     return PG2SDR_SUCCESS;
 }
 
-static int apply_bandpass_change(pg2sdr_device_handle *dev)
+static int apply_bandpass_change(pg2sdr_device *dev)
 {
     if (!dev->adc_pll_config.valid || dev->changing_rate)
         return PG2SDR_SUCCESS; /* will apply when rate change is applied */

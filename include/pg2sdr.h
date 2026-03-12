@@ -18,7 +18,7 @@ extern "C" {
 typedef struct pg2sdr__context pg2sdr_context;
 typedef enum { PG2SDR_LOG_DEBUG, PG2SDR_LOG_INFO, PG2SDR_LOG_ERROR } pg2sdr_log_level;
 typedef void (*pg2sdr_log_callback)(pg2sdr_context *context, pg2sdr_log_level level, const char *message);
-typedef struct pg2sdr__device_handle pg2sdr_device_handle;
+typedef struct pg2sdr__device pg2sdr_device;
 
 typedef enum { PG2SDR_MODE_LOWIF_REAL, PG2SDR_MODE_BASEBAND } pg2sdr_conversion_mode_t;
 
@@ -68,7 +68,7 @@ typedef enum {
     PG2SDR_DEVICE_MODE_DFU_BOOTLOADER = 1, 
 } pg2sdr_device_mode;
 
-typedef struct lpc_device {
+typedef struct pg2sdr_usb_device {
     pg2sdr_context *context;
     pg2sdr_device_mode mode;
     char serial[17];               /* serial number string, ASCIIZ */
@@ -78,7 +78,7 @@ typedef struct lpc_device {
     uint8_t usb_address;  /* address within usb_bus */
     uint8_t usb_ports[8]; /* ports (from root) of this device, 0-terminated */
     void *libusb_device;
-} lpc_device;
+} pg2sdr_usb_device;
 
 struct hotplug_callback_state {
     int completed;
@@ -87,7 +87,7 @@ struct hotplug_callback_state {
 
 typedef struct {
     /* Handle for the device producing this sample block. */
-    pg2sdr_device_handle *dev;
+    pg2sdr_device *dev;
 
     /* Sample data.
      * In LOWIF_REAL mode, each sample is a single 16-bit value.
@@ -122,17 +122,17 @@ int pg2sdr_set_firmware_path(pg2sdr_context *ctx, const char *firmware_path);
 int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
 
 /* Device discovery and open/close (device.c) */
-int pg2sdr_open_device(lpc_device *device, pg2sdr_device_handle **device_handle);
-void pg2sdr_free_device_list(lpc_device **device_list);
-ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, lpc_device ***lpc_device_list, bool allow_rom_bootloader);
-int pg2sdr_open_single_device(pg2sdr_context *ctx, pg2sdr_device_handle **device_handle);
-int pg2sdr_close_device(pg2sdr_device_handle *dev);
-int pg2sdr_get_serial(pg2sdr_device_handle *dev, char *serial, size_t length);
+int pg2sdr_open_device(pg2sdr_usb_device *device, pg2sdr_device **device_handle);
+void pg2sdr_free_device_list(pg2sdr_usb_device **device_list);
+ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***pg2sdr_usb_device_list, bool allow_rom_bootloader);
+int pg2sdr_open_single_device(pg2sdr_context *ctx, pg2sdr_device **device_handle);
+int pg2sdr_close_device(pg2sdr_device *dev);
+int pg2sdr_get_serial(pg2sdr_device *dev, char *serial, size_t length);
 
-int pg2sdr_open_by_serial(pg2sdr_context *ctx, const char *serial, pg2sdr_device_handle **device);
-int pg2sdr_open_by_address(pg2sdr_context *ctx, uint8_t bus, uint8_t address, pg2sdr_device_handle **device);
-int pg2sdr_open_by_index(pg2sdr_context *ctx, unsigned index, pg2sdr_device_handle **device);
-int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, void *), void *callback_data, pg2sdr_device_handle **device);
+int pg2sdr_open_by_serial(pg2sdr_context *ctx, const char *serial, pg2sdr_device **device);
+int pg2sdr_open_by_address(pg2sdr_context *ctx, uint8_t bus, uint8_t address, pg2sdr_device **device);
+int pg2sdr_open_by_index(pg2sdr_context *ctx, unsigned index, pg2sdr_device **device);
+int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(pg2sdr_usb_device*, void *), void *callback_data, pg2sdr_device **device);
 
 /* Device configuration (config.c) */
 
@@ -159,27 +159,27 @@ int pg2sdr_open_by_callback(pg2sdr_context *ctx, int (*callback)(lpc_device*, vo
  *
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode_t mode);
+int pg2sdr_set_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t mode);
 
 /* Get the current conversion mode and store it in *mode. */
-int pg2sdr_get_conversion_mode(pg2sdr_device_handle *dev, pg2sdr_conversion_mode_t *mode);
+int pg2sdr_get_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t *mode);
 
 /* Set the user buffer size to "buffer_size" samples. This controls the maximum number of samples contained
  * in each pg2sdr_sample_buffer passed to the user callback while pg2sdr_stream_data is running.
  *
  * May not be called while streaming; will return PG2SDR_ERROR_BAD_STATE if this is attempted.
  */
-int pg2sdr_set_buffer_size(pg2sdr_device_handle *dev, size_t buffer_size);
+int pg2sdr_set_buffer_size(pg2sdr_device *dev, size_t buffer_size);
 
 /* Get the current user buffer size and store it in *buffer_size */
-int pg2sdr_get_buffer_size(pg2sdr_device_handle *dev, size_t *buffer_size);
+int pg2sdr_get_buffer_size(pg2sdr_device *dev, size_t *buffer_size);
 
 /* Set the current requested sample rate to "rate".
  *
  * May be called at any time; does not affect the sample rate of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_sample_rate(pg2sdr_device_handle *dev, double rate);
+int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate);
 
 /* Get current sample rate configuration.
  *
@@ -190,7 +190,7 @@ int pg2sdr_set_sample_rate(pg2sdr_device_handle *dev, double rate);
  * rate that the hardware is configured for, and may differ slightly from the requested rate
  * due to limitations of the hardware.
  */
-int pg2sdr_get_sample_rate(pg2sdr_device_handle *dev, double *requested, double *actual);
+int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual);
 
 /* Set the current decimation mode to "decimation_mode". This controls additional, transparent,
  * ADC sample rate scaling and decimation performed in the receive path. In all cases, the user
@@ -221,10 +221,10 @@ int pg2sdr_get_sample_rate(pg2sdr_device_handle *dev, double *requested, double 
 #define PG2SDR_DECIMATION_MAX (8)
 #define PG2SDR_DECIMATION_AUTO (-1)
 #define PG2SDR_DECIMATION_AUTO_MAX (-2)
-int pg2sdr_set_decimation_mode(pg2sdr_device_handle *dev, int decimation_mode);
+int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode);
 
 /* Get the currently requested decimation mode and store it in *decimation_mode */
-int pg2sdr_get_decimation_mode(pg2sdr_device_handle *dev, int *decimation_mode);
+int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode);
 
 /* Set the current undersampling mode.
  *
@@ -246,10 +246,10 @@ int pg2sdr_get_decimation_mode(pg2sdr_device_handle *dev, int *decimation_mode);
  * May be called at any time; does not affect the configuration of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_undersampling_mode(pg2sdr_device_handle *dev, int undersampling_mode);
+int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, int undersampling_mode);
 
 /* Get the current undersampling mode, and place in *undersampling_mode */
-int pg2sdr_get_undersampling_mode(pg2sdr_device_handle *dev, int *undersampling_mode);
+int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, int *undersampling_mode);
 
 /* Set the ADC sampling rate limit, in Hz. libpg2sdr will not set the ADC to a rate higher
  * than this limit.
@@ -268,10 +268,10 @@ int pg2sdr_get_undersampling_mode(pg2sdr_device_handle *dev, int *undersampling_
  * May be called at any time; does not affect the configuration of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_adc_limit(pg2sdr_device_handle *dev, double adc_limit);
+int pg2sdr_set_adc_limit(pg2sdr_device *dev, double adc_limit);
 
 /* Get the current ADC limit, and place in *adc_limit */
-int pg2sdr_get_adc_limit(pg2sdr_device_handle *dev, double *adc_limit);
+int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit);
 
 /* Set the current sideband tuning mode.
  *
@@ -288,10 +288,10 @@ int pg2sdr_get_adc_limit(pg2sdr_device_handle *dev, double *adc_limit);
  * May be called at any time; does not affect the configuration of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_sideband(pg2sdr_device_handle *dev, bool upper_sideband);
+int pg2sdr_set_sideband(pg2sdr_device *dev, bool upper_sideband);
 
 /* Get the currently requested sideband tuning mode and store it in *upper_sideband */
-int pg2sdr_get_sideband(pg2sdr_device_handle *dev, bool *upper_sideband);
+int pg2sdr_get_sideband(pg2sdr_device *dev, bool *upper_sideband);
 
 /* Set the center frequency for received data. This is the RF frequency that will be
  * downconverted to 0Hz in samples provided to user callbacks, in both baseband and low-IF modes.
@@ -299,7 +299,7 @@ int pg2sdr_get_sideband(pg2sdr_device_handle *dev, bool *upper_sideband);
  * May be called at any time; does not affect the configuration of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_frequency(pg2sdr_device_handle *dev, double frequency);
+int pg2sdr_set_frequency(pg2sdr_device *dev, double frequency);
 
 /* Get current center frequency configuration.
  *
@@ -310,7 +310,7 @@ int pg2sdr_set_frequency(pg2sdr_device_handle *dev, double frequency);
  * effective frequency that the hardware is configured for, and may differ slightly from the
  * requested frequency due to limitations of the hardware.
  */
-int pg2sdr_get_frequency(pg2sdr_device_handle *dev, double *requested, double *actual);
+int pg2sdr_get_frequency(pg2sdr_device *dev, double *requested, double *actual);
 
 /* Set bandpass filter limits.
  *
@@ -335,7 +335,7 @@ int pg2sdr_get_frequency(pg2sdr_device_handle *dev, double *requested, double *a
  * May be called at any time; does not affect the configuration of any currently active stream.
  * Call pg2sdr_apply_changes to complete the configuration change.
  */
-int pg2sdr_set_bandpass(pg2sdr_device_handle *dev, double low, double high);
+int pg2sdr_set_bandpass(pg2sdr_device *dev, double low, double high);
 
 /* Get current bandpass filter configuration.
  *
@@ -349,7 +349,7 @@ int pg2sdr_set_bandpass(pg2sdr_device_handle *dev, double low, double high);
  * All limits are relative to the configured center frequency, i.e. a limit of +1MHz corresponds
  * to a cutoff of +1MHz at baseband.
  */
-int pg2sdr_get_bandpass(pg2sdr_device_handle *dev, double *req_low, double *req_high, double *actual_low, double *actual_high);
+int pg2sdr_get_bandpass(pg2sdr_device *dev, double *req_low, double *req_high, double *actual_low, double *actual_high);
 
 /* Attempt to apply any outstanding configuration changes to conversion mode, sampling rate,
  * decimation mode, center frequency, sideband mode, and bandpass limits.
@@ -370,23 +370,23 @@ int pg2sdr_get_bandpass(pg2sdr_device_handle *dev, double *req_low, double *req_
  *
  * Calls to pg2sdr_stream_data implicit call pg2sdr_apply_changes before starting streaming.
  */
-int pg2sdr_apply_changes(pg2sdr_device_handle *dev);
+int pg2sdr_apply_changes(pg2sdr_device *dev);
 
 /* Per-gain-stage gain configuration, in gain steps */
-int pg2sdr_set_lna_gain(pg2sdr_device_handle *dev, unsigned gain);
-int pg2sdr_set_mix_gain(pg2sdr_device_handle *dev, unsigned gain);
-int pg2sdr_set_vga_gain(pg2sdr_device_handle *dev, unsigned gain);
-int pg2sdr_get_stage_gains(pg2sdr_device_handle *dev, unsigned *lna, unsigned *mix, unsigned *vga);
+int pg2sdr_set_lna_gain(pg2sdr_device *dev, unsigned gain);
+int pg2sdr_set_mix_gain(pg2sdr_device *dev, unsigned gain);
+int pg2sdr_set_vga_gain(pg2sdr_device *dev, unsigned gain);
+int pg2sdr_get_stage_gains(pg2sdr_device *dev, unsigned *lna, unsigned *mix, unsigned *vga);
 
 /* Per-gain-stage gain configuration, in dB */
-int pg2sdr_set_lna_gain_db(pg2sdr_device_handle *dev, double gain_db);
-int pg2sdr_set_mix_gain_db(pg2sdr_device_handle *dev, double gain_db);
-int pg2sdr_set_vga_gain_db(pg2sdr_device_handle *dev, double gain_db);
-int pg2sdr_get_stage_gains_db(pg2sdr_device_handle *dev, double *lna_db, double *mix_db, double *vga_db);
+int pg2sdr_set_lna_gain_db(pg2sdr_device *dev, double gain_db);
+int pg2sdr_set_mix_gain_db(pg2sdr_device *dev, double gain_db);
+int pg2sdr_set_vga_gain_db(pg2sdr_device *dev, double gain_db);
+int pg2sdr_get_stage_gains_db(pg2sdr_device *dev, double *lna_db, double *mix_db, double *vga_db);
 
 /* Total gain configuration, in dB (uses all gain stages) */
-int pg2sdr_set_total_gain_db(pg2sdr_device_handle *dev, double gain_db);
-int pg2sdr_get_total_gain_db(pg2sdr_device_handle *dev, double *gain_db);
+int pg2sdr_set_total_gain_db(pg2sdr_device *dev, double gain_db);
+int pg2sdr_get_total_gain_db(pg2sdr_device *dev, double *gain_db);
 
 /* Gain table access */
 typedef struct {
@@ -395,12 +395,12 @@ typedef struct {
     unsigned mix_gain : 4;  /* Register 7 bits 3:0 */
     unsigned vga_gain : 4;  /* Register 12 bits 3:0 */
 } pg2sdr_gain_table_t;
-int pg2sdr_set_gain_tables(pg2sdr_device_handle *dev,
+int pg2sdr_set_gain_tables(pg2sdr_device *dev,
                            const pg2sdr_gain_table_t *gain_table, size_t gain_table_size,
                            const double *lna_table,
                            const double *mix_table,
                            const double *vga_table);
-int pg2sdr_get_gain_tables(pg2sdr_device_handle *dev,
+int pg2sdr_get_gain_tables(pg2sdr_device *dev,
                            pg2sdr_gain_table_t **gain_table,
                            size_t *gain_table_size,
                            double *lna_table,
@@ -420,15 +420,15 @@ typedef struct {
     unsigned lpf_fine : 4;   /* Register 10 bits 3:0 */
     unsigned lpf_q : 1;      /* Register 10 bit 4 */
 } pg2sdr_bandpass_table_t;
-int pg2sdr_set_bandpass_table(pg2sdr_device_handle *dev,
+int pg2sdr_set_bandpass_table(pg2sdr_device *dev,
                               const pg2sdr_bandpass_table_t *bandpass_table, size_t bandpass_table_size);
-int pg2sdr_get_bandpass_table(pg2sdr_device_handle *dev,
+int pg2sdr_get_bandpass_table(pg2sdr_device *dev,
                               pg2sdr_bandpass_table_t **bandpass_table,
                               size_t *bandpass_table_size);
 
 /* Streaming (stream.c) */
-int pg2sdr_stream_data(pg2sdr_device_handle *dev, pg2sdr_stream_callback callback, void *user_data, unsigned timeout_ms);
-int pg2sdr_stop_streaming(pg2sdr_device_handle *dev);
+int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void *user_data, unsigned timeout_ms);
+int pg2sdr_stop_streaming(pg2sdr_device *dev);
 void pg2sdr_release_buffer(pg2sdr_sample_buffer *buffer);
 
 #if defined(__cplusplus)
