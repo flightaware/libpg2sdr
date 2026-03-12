@@ -14,6 +14,8 @@ int pg2sdr__translate_libusb_error(int error)
         return PG2SDR_ERROR_TIMEOUT;
     case LIBUSB_ERROR_NO_MEM:
         return PG2SDR_ERROR_NO_MEMORY;
+    case LIBUSB_ERROR_ACCESS:
+        return PG2SDR_ERROR_ACCESS;
     }
 
     /* everything else, throw it into the generic "libusb error" range */
@@ -48,6 +50,8 @@ int pg2sdr__translate_errno(int error)
         return PG2SDR_SUCCESS;
     case ENOMEM:
         return PG2SDR_ERROR_NO_MEMORY;
+    case EACCES:
+        return PG2SDR_ERROR_ACCESS;
     }
 
     int converted = PG2SDR_ERROR_SYSTEM_MIN + error; /* nb: error (an errno value) is positive */
