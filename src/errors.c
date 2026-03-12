@@ -114,11 +114,11 @@ const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen)
     case PG2SDR_ERROR_NO_MEMORY:
         return "Memory allocation failed";
     case PG2SDR_ERROR_NOT_IMPLEMENTED:
-        return "Not implemented";
+        return "Operation not implemented";
     case PG2SDR_ERROR_FIRMWARE_MISMATCH:
         return "Host/firmware version mismatch";
     case PG2SDR_ERROR_MULTIPLE_DEVICES:
-        return "More than one device found";
+        return "More than one matching device found";
     case PG2SDR_ERROR_BUSY:
         return "Device already in use";
     case PG2SDR_ERROR_BAD_STATE:
@@ -126,32 +126,29 @@ const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen)
     case PG2SDR_ERROR_TIMEOUT:
         return "Operation timed out";
     case PG2SDR_ERROR_CORRUPTION:
-        return "Heap corruption or double-free detected";
-
-    case PG2SDR_ERROR_FWIMAGE_MISSING:
-        return "Firmware image not found";
-    case PG2SDR_ERROR_FWIMAGE_UPLOAD:
-        return "Firmware image DFU upload failed";
+        return "Heap corruption, double-free, or use-after-free detected";
+    case PG2SDR_ERROR_ACCESS:
+        return "Insufficient permissions to access device";
 
     case PG2SDR_ERROR_TRANSFER_OTHER:
-        return "Uncategorized bulk endpoint transfer error";
+        return "Unexpected libusb transfer status";
     case PG2SDR_ERROR_TRANSFER_STALL:
-        return "Bulk endpoint stall condition";
+        return "Bulk endpoint stalled";
     case PG2SDR_ERROR_TRANSFER_OVERFLOW:
-        return "Bulk endpoint transfer returned more data that expected";
+        return "Received unexpected data on bulk endpoint";
     case PG2SDR_ERROR_TRANSFER_FORMAT:
-        return "Malformed bulk endpoint data received";
+        return "Received malformed data on bulk endpoint";
 
     case PG2SDR_ERROR_TUNER_DETECT:
-        return "Could not detect tuner";
+        return "Tuner not present on I2C bus";
     case PG2SDR_ERROR_TUNER_PLL_LOCK:
-        return "Tuner PLL did not lock";
+        return "Tuner LO PLL did not lock";
     case PG2SDR_ERROR_TUNER_PLL_RANGE:
         return "Required tuner PLL frequency out of range";
     case PG2SDR_ERROR_TUNER_I2C:
-        return "Tuner I2C communication error";
+        return "Tuner I2C bus communication error";
     case PG2SDR_ERROR_ADC_RATE_RANGE:
-        return "Required ADC sampling rate out of range";
+        return "Required ADC sampling rate out of range for ADC hardware";
 
     case PG2SDR_ERROR_SYSTEM_MIN:
         return "Unknown system error";
@@ -169,5 +166,6 @@ const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen)
     /* this is deliberately not a default case, so we get compiler
      * complaints if we missed an enum value in the switch above
      */
-    return "Unknown error";
+    snprintf(buf, buflen, "Unknown error code %d", error);
+    return buf;
 }
