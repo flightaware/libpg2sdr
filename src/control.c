@@ -89,7 +89,7 @@ int pg2sdr__ctrl_stop_transfer(pg2sdr_device *dev)
 int pg2sdr__ctrl_get_status(pg2sdr_device *dev, ep0_in_board_status_t *out)
 {
     ep0_in_board_status_t status;
-    int error = control_in(dev->usb_handle, 
+    int error = control_in(dev->usb_handle,
                            EP0_IN_BOARD_STATUS,
                            0,
                            0,
@@ -163,7 +163,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
     int error;
     ep0_in_comms_check_t in_check;
 
-    if ((error = control_in(usb_handle, 
+    if ((error = control_in(usb_handle,
                             EP0_IN_COMMS_CHECK,
                             0,
                             0,
@@ -171,7 +171,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
                             sizeof(in_check))) < 0) {
         return error;
     }
-    
+
     if (le32toh(in_check.magic) != COMMS_CHECK_MAGIC)
         return PG2SDR_ERROR_FIRMWARE_MISMATCH;
 
@@ -190,7 +190,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
 }
 
 int pg2sdr__ctrl_tuner_update(pg2sdr_device *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
-{   
+{
     return convert_tuner_error(dev, control_out(dev->usb_handle,
                                                 EP0_OUT_TUNER_UPDATE,
                                                 first,

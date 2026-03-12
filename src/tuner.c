@@ -340,7 +340,7 @@ int pg2sdr__find_pll_parameters(double requested, double xtal, tuner_pll_config_
 int pg2sdr__start_pll(pg2sdr_device *dev, tuner_pll_config_t *params) {
     int error = PG2SDR_SUCCESS;
     int resp = 0;
-    
+
     if ((error = pg2sdr__configure_pll_settings(dev, params)) < 0)
         return error;
 
@@ -348,7 +348,7 @@ int pg2sdr__start_pll(pg2sdr_device *dev, tuner_pll_config_t *params) {
 
     for (unsigned i = 0; i < sizeof(vco_currents)/sizeof(vco_currents[0]); i++) {
         resp = pg2sdr__ctrl_update_tuner_lock(dev, vco_currents[i], 50);
-        
+
         if (resp < 0)
             return resp;
         else if (resp)
@@ -383,7 +383,7 @@ int pg2sdr__configure_pll_settings(pg2sdr_device *dev, tuner_pll_config_t *param
 
     uint8_t ni2c = (params->feedback_n - 13) / 4;
     uint8_t si2c = (params->feedback_n - 13) & 3;
-    
+
     uint8_t seldiv_lut[6] = {2, 4, 8, 16, 32, 64};
     uint8_t seldiv = 255;
     for (unsigned i = 0; i < sizeof(seldiv_lut)/ sizeof(seldiv_lut[0]); i++)

@@ -271,13 +271,13 @@ int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void
              dev->adc_pll_config.actual_fcco / 1e6,
              dev->adc_pll_config.actual_frequency / 1e6);
 
-    if ((error = pg2sdr__ctrl_start_transfer(dev, &dev->adc_pll_config)) < 0) {        
+    if ((error = pg2sdr__ctrl_start_transfer(dev, &dev->adc_pll_config)) < 0) {
         LOGDEBUG(dev, "pg2sdr_stream_data: start_transfer failed");
         goto cleanup;
     }
 
     if ((error = submit_transfers(dev)) < 0) {
-        LOGDEBUG(dev, "pg2sdr_stream_data: submit_transfers failed");        
+        LOGDEBUG(dev, "pg2sdr_stream_data: submit_transfers failed");
         goto drain;
     }
 

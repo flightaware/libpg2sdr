@@ -26,7 +26,7 @@ int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
 
     if (candidate->actual_fcco < adc_min_fcco || candidate->actual_fcco > adc_max_fcco)
         return false;
-    
+
     if (!candidate->fractional && (candidate->m < 1 || candidate->m > 1 << 15))
         return false;
 
