@@ -50,6 +50,48 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
         goto cleanup;
     }
 
+    /* verify we can talk to the device, grab metadata, check versions */
+    if ((error = pg2sdr__ctrl_comms_check(dev->usb_handle, /* timeout_ms */ 0)) < 0) {
+        LOGERROR(dev, "basic USB communications check failed, is this device really a PG2SDR?");
+        goto cleanup;
+    }
+
+    firmware_metadata_t meta;
+    if ((error = pg2sdr__ctrl_get_metadata(dev->usb_handle, &meta, /* timeout_ms */ 0)) < 0)
+        goto cleanup;
+
+    if (PG2_CURRENT_VERSION < meta.compat) {
+        LOGERROR(dev,
+                 "host library protocol %u.%u.%u.%u < firmware minimum compatible protocol %u.%u.%u.%u, upgrade host library",
+                 (PG2_CURRENT_VERSION >> 24) & 255,
+                 (PG2_CURRENT_VERSION >> 16) & 255,
+                 (PG2_CURRENT_VERSION >> 8) & 255,
+                 (PG2_CURRENT_VERSION >> 0) & 255,
+                 (meta.compat >> 24) & 255,
+                 (meta.compat >> 16) & 255,
+                 (meta.compat >> 8) & 255,
+                 (meta.compat >> 0) & 255);
+        error = PG2SDR_ERROR_FIRMWARE_MISMATCH;
+        goto cleanup;
+    }
+
+    if (meta.version < PG2_COMPAT_VERSION) {
+        LOGERROR(dev,
+                 "firmware protocol %u.%u.%u.%u < host library minimum compatible protocol %u.%u.%u.%u, upgrade firmware",
+                 (meta.version >> 24) & 255,
+                 (meta.version >> 16) & 255,
+                 (meta.version >> 8) & 255,
+                 (meta.version >> 0) & 255,
+                 (PG2_COMPAT_VERSION >> 24) & 255,
+                 (PG2_COMPAT_VERSION >> 16) & 255,
+                 (PG2_COMPAT_VERSION >> 8) & 255,
+                 (PG2_COMPAT_VERSION >> 0) & 255);
+        error = PG2SDR_ERROR_FIRMWARE_MISMATCH;
+        goto cleanup;
+    }
+
+    dev->control_timeout_ms = meta.control_timeout_ms;
+
     ep0_in_board_status_t status;
     if ((error = pg2sdr__ctrl_get_status(dev->usb_handle, &status, dev->control_timeout_ms)) < 0)
         goto cleanup;
