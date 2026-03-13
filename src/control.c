@@ -180,6 +180,30 @@ int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *ou
     return PG2SDR_SUCCESS;
 }
 
+int pg2sdr__ctrl_get_metadata(libusb_device_handle *dev, firmware_metadata_t *out, unsigned timeout_ms)
+{
+    firmware_metadata_t meta;
+    int error = control_in(dev,
+                           EP0_IN_METADATA,
+                           0,
+                           0,
+                           (unsigned char *)&meta,
+                           sizeof(meta),
+                           timeout_ms);
+    if (error < 0) {
+        return error;
+    }
+
+    /* byteswap all the things */
+    out->version = le32toh(meta.version);
+    out->compat = le32toh(meta.compat);
+    out->max_control_transfer = le16toh(meta.max_control_transfer);
+    out->control_timeout_ms = le16toh(meta.control_timeout_ms);
+    memcpy(out->build_type, meta.build_type, sizeof(meta.build_type));
+    out->build_type[sizeof(out->build_type)-1] = 0;
+
+    return PG2SDR_SUCCESS;
+}
 
 int pg2sdr__ctrl_comms_check(libusb_device_handle *dev, unsigned timeout_ms)
 {
