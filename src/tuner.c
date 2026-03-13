@@ -14,14 +14,14 @@ static int apply_tuner_changeset(pg2sdr_device *dev, change_set *cs)
     if (!payload_size)
         return PG2SDR_SUCCESS; /* no work to do */
 
-    return pg2sdr__ctrl_tuner_update(dev, first, payload, payload_size);
+    return pg2sdr__ctrl_tuner_update(dev->usb_handle, first, payload, payload_size, dev->control_timeout_ms);
 }
 
 int pg2sdr__read_tuner_bits(pg2sdr_device *dev, uint8_t reg, uint8_t mask, unsigned offset)
 {
     int error;
     uint8_t value;
-    if ((error = pg2sdr__ctrl_read_tuner_register(dev, reg, CACHE_NORMAL, &value, sizeof(value))) < 0)
+    if ((error = pg2sdr__ctrl_read_tuner_register(dev->usb_handle, reg, CACHE_NORMAL, &value, sizeof(value), dev->control_timeout_ms)) < 0)
         return error;
     return (value & mask) >> offset;
 }
@@ -93,7 +93,7 @@ int pg2sdr__init_tuner(pg2sdr_device *dev)
 {
     int error = PG2SDR_SUCCESS;
 
-    if ((error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_RESET)) < 0)
+    if ((error = pg2sdr__ctrl_set_rf_power(dev->usb_handle, RF_POWER_RESET, dev->control_timeout_ms)) < 0)
         return error;
 
     int tuner_id = read_tuner_bits(dev, TUNER_ID);
@@ -347,7 +347,7 @@ int pg2sdr__start_pll(pg2sdr_device *dev, tuner_pll_config_t *params) {
     uint16_t vco_currents[5] = {4, 3, 2, 1, 0};
 
     for (unsigned i = 0; i < sizeof(vco_currents)/sizeof(vco_currents[0]); i++) {
-        resp = pg2sdr__ctrl_update_tuner_lock(dev, vco_currents[i], 50);
+        resp = pg2sdr__ctrl_update_tuner_lock(dev->usb_handle, vco_currents[i], /* lock_timeout_ms */ 50, dev->control_timeout_ms);
 
         if (resp < 0)
             return resp;

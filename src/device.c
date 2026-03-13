@@ -51,7 +51,7 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
     }
 
     ep0_in_board_status_t status;
-    if ((error = pg2sdr__ctrl_get_status(dev, &status)) < 0)
+    if ((error = pg2sdr__ctrl_get_status(dev->usb_handle, &status, dev->control_timeout_ms)) < 0)
         goto cleanup;
 
     dev->conversion_mode = PG2SDR_MODE_LOWIF_REAL;
@@ -336,7 +336,7 @@ int pg2sdr_close_device(pg2sdr_device *dev)
         return PG2SDR_ERROR_BUSY;
     }
 
-    int error = pg2sdr__ctrl_set_rf_power(dev, RF_POWER_OFF);
+    int error = pg2sdr__ctrl_set_rf_power(dev->usb_handle, RF_POWER_OFF, dev->control_timeout_ms);
     if (error < 0) {
         char buf[1024];
         LOGERROR(dev, "warning: could not disable RF power on device close: %s", pg2sdr_strerror_r(error, buf, sizeof(buf)));

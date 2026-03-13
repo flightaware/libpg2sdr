@@ -5,11 +5,12 @@
 
 #include "internal.h"
 
-#define CONTROL_TIMEOUT 1000
+#define DEFAULT_CONTROL_TIMEOUT 1000
 
 static int control_in(libusb_device_handle *usb_handle,
                       uint8_t bRequest, uint16_t wValue, uint16_t wIndex, unsigned char *data,
-                      uint16_t wLength)
+                      uint16_t wLength,
+                      unsigned timeout_ms)
 {
     int count = libusb_control_transfer(usb_handle,
                                         LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN,
@@ -18,7 +19,7 @@ static int control_in(libusb_device_handle *usb_handle,
                                         wIndex,
                                         data,
                                         wLength,
-                                        CONTROL_TIMEOUT);
+                                        timeout_ms ? timeout_ms : DEFAULT_CONTROL_TIMEOUT);
     if (count < 0)
         return pg2sdr__translate_libusb_error(count);
     if (count != wLength)
@@ -28,7 +29,8 @@ static int control_in(libusb_device_handle *usb_handle,
 
 static int control_out(libusb_device_handle *usb_handle,
                        uint8_t bRequest, uint16_t wValue, uint16_t wIndex, const unsigned char *data,
-                       uint16_t wLength)
+                       uint16_t wLength,
+                       unsigned timeout_ms)
 {
     int count = libusb_control_transfer(usb_handle,
                                         LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT,
@@ -37,7 +39,7 @@ static int control_out(libusb_device_handle *usb_handle,
                                         wIndex,
                                         (unsigned char *)data,
                                         wLength,
-                                        CONTROL_TIMEOUT);
+                                        timeout_ms ? timeout_ms : DEFAULT_CONTROL_TIMEOUT);
     if (count < 0)
         return pg2sdr__translate_libusb_error(count);
     if (count != wLength)
@@ -46,19 +48,40 @@ static int control_out(libusb_device_handle *usb_handle,
 }
 
 /* For tuner-specific control transfers, try to refine LIBUSB_ERROR_PIPE */
-static int convert_tuner_error(pg2sdr_device *dev, int error)
+
+static int tuner_control_in(libusb_device_handle *usb_handle,
+                            uint8_t bRequest, uint16_t wValue, uint16_t wIndex, unsigned char *data,
+                            uint16_t wLength,
+                            unsigned timeout_ms)
 {
+    int error = control_in(usb_handle, bRequest, wValue, wIndex, data, wLength, timeout_ms);
     if (error == (PG2SDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
         /* check if an I2C error was seen */
         ep0_in_board_status_t status;
-        if (pg2sdr__ctrl_get_status(dev, &status) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
+        if (pg2sdr__ctrl_get_status(usb_handle, &status, timeout_ms) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
             return PG2SDR_ERROR_TUNER_I2C;
     }
 
     return error;
 }
 
-int pg2sdr__ctrl_start_transfer(pg2sdr_device *dev, const adc_pll_config_t *config)
+static int tuner_control_out(libusb_device_handle *usb_handle,
+                             uint8_t bRequest, uint16_t wValue, uint16_t wIndex, const unsigned char *data,
+                             uint16_t wLength,
+                             unsigned timeout_ms)
+{
+    int error = control_out(usb_handle, bRequest, wValue, wIndex, data, wLength, timeout_ms);
+    if (error == (PG2SDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
+        /* check if an I2C error was seen */
+        ep0_in_board_status_t status;
+        if (pg2sdr__ctrl_get_status(usb_handle, &status, timeout_ms) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
+            return PG2SDR_ERROR_TUNER_I2C;
+    }
+
+    return error;
+}
+
+int pg2sdr__ctrl_start_transfer(libusb_device_handle *dev, const adc_pll_config_t *config, unsigned timeout_ms)
 {
     ep0_out_start_transfer_t buffer = {
         .n_divisor = htole32(config->n),
@@ -68,33 +91,36 @@ int pg2sdr__ctrl_start_transfer(pg2sdr_device *dev, const adc_pll_config_t *conf
         .idiv_divisor = htole32(config->i)
     };
 
-    return control_out(dev->usb_handle,
+    return control_out(dev,
                        EP0_OUT_START_TRANSFER,
                        0,
                        0,
                        (unsigned char *)&buffer,
-                       sizeof(buffer));
+                       sizeof(buffer),
+                       timeout_ms);
 }
 
-int pg2sdr__ctrl_stop_transfer(pg2sdr_device *dev)
+int pg2sdr__ctrl_stop_transfer(libusb_device_handle *dev, unsigned timeout_ms)
 {
-    return control_out(dev->usb_handle,
+    return control_out(dev,
                        EP0_OUT_STOP_TRANSFER,
                        0,
                        0,
                        NULL,
-                       0);
+                       0,
+                       timeout_ms);
 }
 
-int pg2sdr__ctrl_get_status(pg2sdr_device *dev, ep0_in_board_status_t *out)
+int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *out, unsigned timeout_ms)
 {
     ep0_in_board_status_t status;
-    int error = control_in(dev->usb_handle,
+    int error = control_in(dev,
                            EP0_IN_BOARD_STATUS,
                            0,
                            0,
                            (unsigned char *)&status,
-                           sizeof(status));
+                           sizeof(status),
+                           timeout_ms);
     if (error < 0) {
         return error;
     }
@@ -154,21 +180,19 @@ int pg2sdr__ctrl_get_status(pg2sdr_device *dev, ep0_in_board_status_t *out)
     return PG2SDR_SUCCESS;
 }
 
-/* This one takes a libusb handle, since we'll be calling it during
- * device discovery/setup before we have a full pg2sdr_device
- * prepared
- */
-int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
+
+int pg2sdr__ctrl_comms_check(libusb_device_handle *dev, unsigned timeout_ms)
 {
     int error;
     ep0_in_comms_check_t in_check;
 
-    if ((error = control_in(usb_handle,
+    if ((error = control_in(dev,
                             EP0_IN_COMMS_CHECK,
                             0,
                             0,
                             (unsigned char *)&in_check,
-                            sizeof(in_check))) < 0) {
+                            sizeof(in_check),
+                            timeout_ms)) < 0) {
         return error;
     }
 
@@ -177,56 +201,61 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle)
 
     ep0_out_comms_check_t out_check;
     out_check.magic = htole32(COMMS_CHECK_MAGIC);
-    if ((error = control_out(usb_handle,
+    if ((error = control_out(dev,
                              EP0_OUT_COMMS_CHECK,
                              0,
                              0,
                              (unsigned char *)&out_check,
-                             sizeof(out_check))) < 0) {
+                             sizeof(out_check),
+                             timeout_ms)) < 0) {
         return error;
     }
 
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr__ctrl_tuner_update(pg2sdr_device *dev, uint16_t first, uint8_t *payload, uint16_t payload_size)
+int pg2sdr__ctrl_tuner_update(libusb_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size, unsigned timeout_ms)
 {
-    return convert_tuner_error(dev, control_out(dev->usb_handle,
-                                                EP0_OUT_TUNER_UPDATE,
-                                                first,
-                                                0,
-                                                (unsigned char *) payload,
-                                                payload_size));
+    return tuner_control_out(dev,
+                             EP0_OUT_TUNER_UPDATE,
+                             first,
+                             0,
+                             (unsigned char *) payload,
+                             payload_size,
+                             timeout_ms);
 }
 
-int pg2sdr__ctrl_set_rf_power(pg2sdr_device *dev, rf_power_mode_t mode)
+int pg2sdr__ctrl_set_rf_power(libusb_device_handle *dev, rf_power_mode_t mode, unsigned timeout_ms)
 {
-    return control_out(dev->usb_handle,
+    return control_out(dev,
                        EP0_OUT_SET_RF_POWER,
                        (uint16_t) mode,
                        0,
                        NULL,
-                       0);
+                       0,
+                       timeout_ms);
 }
 
-int pg2sdr__ctrl_read_tuner_register(pg2sdr_device *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size)
+int pg2sdr__ctrl_read_tuner_register(libusb_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size, unsigned timeout_ms)
 {
-    return convert_tuner_error(dev, control_in(dev->usb_handle,
-                                               EP0_IN_TUNER_READ,
-                                               first_reg,
-                                               (uint16_t) cache_mode,
-                                               buffer,
-                                               buffer_size));
+    return tuner_control_in(dev,
+                            EP0_IN_TUNER_READ,
+                            first_reg,
+                            (uint16_t) cache_mode,
+                            buffer,
+                            buffer_size,
+                            timeout_ms);
 }
 
-int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device *dev, uint16_t vco_current, uint16_t timeout) {
+int pg2sdr__ctrl_update_tuner_lock(libusb_device_handle *dev, uint16_t vco_current, uint16_t lock_timeout, unsigned timeout_ms) {
     ep0_in_tuner_lock_t out;
-    int error = convert_tuner_error(dev, control_in(dev->usb_handle,
-                                                    EP0_IN_TUNER_LOCK,
-                                                    vco_current,
-                                                    timeout,
-                                                    (unsigned char *) &out,
-                                                    sizeof(out)));
+    int error = tuner_control_in(dev,
+                                 EP0_IN_TUNER_LOCK,
+                                 vco_current,
+                                 lock_timeout,
+                                 (unsigned char *) &out,
+                                 sizeof(out),
+                                 timeout_ms);
 
     if (error < 0)
         return error;

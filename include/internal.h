@@ -67,6 +67,7 @@ struct pg2sdr__device {
     char *serial;
     char *ports;
 
+    unsigned control_timeout_ms;
     uint32_t usb_samples_per_block;
     uint32_t usb_bytes_per_block;
 
@@ -151,15 +152,15 @@ int pg2sdr__translate_libusb_error(int error);
 int pg2sdr__translate_libusb_transfer_status(enum libusb_transfer_status status);
 int pg2sdr__translate_errno(int error);
 
-//control transfers
-int pg2sdr__ctrl_get_status(pg2sdr_device *dev, ep0_in_board_status_t *status);
-int pg2sdr__ctrl_set_rf_power(pg2sdr_device *dev, rf_power_mode_t mode);
-int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle);
-int pg2sdr__ctrl_start_transfer(pg2sdr_device *dev, const adc_pll_config_t *config);
-int pg2sdr__ctrl_stop_transfer(pg2sdr_device *dev);
-int pg2sdr__ctrl_tuner_update(pg2sdr_device *dev, uint16_t first, uint8_t *payload, uint16_t payload_size);
-int pg2sdr__ctrl_read_tuner_register(pg2sdr_device *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size);
-int pg2sdr__ctrl_update_tuner_lock(pg2sdr_device *dev, uint16_t vco_current, uint16_t timeout);
+/* control.c */
+int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *status, unsigned timeout_ms);
+int pg2sdr__ctrl_set_rf_power(libusb_device_handle *dev, rf_power_mode_t mode, unsigned timeout_ms);
+int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle, unsigned timeout_ms);
+int pg2sdr__ctrl_start_transfer(libusb_device_handle *dev, const adc_pll_config_t *config, unsigned timeout_ms);
+int pg2sdr__ctrl_stop_transfer(libusb_device_handle *dev, unsigned timeout_ms);
+int pg2sdr__ctrl_tuner_update(libusb_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size, unsigned timeout_ms);
+int pg2sdr__ctrl_read_tuner_register(libusb_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size, unsigned timeout_ms);
+int pg2sdr__ctrl_update_tuner_lock(libusb_device_handle *dev, uint16_t vco_current, uint16_t lock_timeout_ms, unsigned timeout_ms);
 
 /* bandpass.c */
 const pg2sdr_bandpass_table_t *pg2sdr__select_bandpass_filter(pg2sdr_device *dev,
