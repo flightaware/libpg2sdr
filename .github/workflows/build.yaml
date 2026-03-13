@@ -1,0 +1,19 @@
+name: Build libpg2sdr on push
+
+on: push
+
+jobs:
+  build:
+    name: Build libpg2sdr
+    runs-on: self-hosted
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config python3-minimal libusb-1.0-0-dev libsoapysdr-dev
+      - name: Build it
+        run: make build
