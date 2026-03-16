@@ -289,3 +289,47 @@ int pg2sdr__ctrl_update_tuner_lock(libusb_device_handle *dev, uint16_t vco_curre
 
     return out.pll_locked;
 }
+
+int pg2sdr__ctrl_flash_read_quad(libusb_device_handle *dev, uint32_t address, uint8_t *buf, uint16_t len, unsigned timeout_ms)
+{
+    return control_in(dev,
+                      EP0_IN_FLASH_READ_QUAD,
+                      address & 0xFFFF,          /* wValue */
+                      address >> 16,             /* wIndex */
+                      buf,
+                      len,
+                      timeout_ms);
+}
+
+int pg2sdr__ctrl_flash_write(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms)
+{
+    return control_out(dev,
+                       EP0_OUT_FLASH_WRITE,
+                       address & 0xFFFF,          /* wValue */
+                       address >> 16,             /* wIndex */
+                       buf,
+                       len,
+                       timeout_ms);
+}
+
+int pg2sdr__ctrl_flash_erase(libusb_device_handle *dev, uint32_t address, unsigned timeout_ms)
+{
+    return control_out(dev,
+                       EP0_OUT_FLASH_ERASE,
+                       address & 0xFFFF,          /* wValue */
+                       address >> 16,             /* wIndex */
+                       NULL,                      /* buf */
+                       0,                         /* wLength */
+                       timeout_ms);
+}
+
+int pg2sdr__ctrl_load_image(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms)
+{
+    return control_out(dev,
+                       EP0_OUT_LOAD_IMAGE,
+                       address & 0xFFFF,          /* wValue */
+                       address >> 16,             /* wIndex */
+                       buf,
+                       len,
+                       timeout_ms);
+}

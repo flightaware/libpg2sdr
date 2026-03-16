@@ -16,5 +16,9 @@ int pg2sdr__ctrl_tuner_update(libusb_device_handle *dev, uint16_t first, uint8_t
 int pg2sdr__ctrl_read_tuner_register(libusb_device_handle *dev, uint16_t first_reg, tuner_cache_mode_t cache_mode, uint8_t *buffer, uint16_t buffer_size, unsigned timeout_ms);
 int pg2sdr__ctrl_update_tuner_lock(libusb_device_handle *dev, uint16_t vco_current, uint16_t lock_timeout_ms, unsigned timeout_ms);
 int pg2sdr__ctrl_get_metadata(libusb_device_handle *dev, firmware_metadata_t *out, unsigned timeout_ms);
+int pg2sdr__ctrl_flash_read_quad(libusb_device_handle *dev, uint32_t address, uint8_t *buf, uint16_t len, unsigned timeout_ms);
+int pg2sdr__ctrl_flash_write(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms);
+int pg2sdr__ctrl_flash_erase(libusb_device_handle *dev, uint32_t address, unsigned timeout_ms);
+int pg2sdr__ctrl_load_image(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms);
 
 #endif
