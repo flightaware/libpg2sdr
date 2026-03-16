@@ -6,28 +6,7 @@
 #include "log.h"
 #include "device.h"
 
-/* retrieve firmware metadata from active firmware */
-static int ctrl_get_metadata(libusb_device_handle *handle, firmware_metadata_t *metadata)
-{
-    int rc = libusb_control_transfer(handle,
-                                     LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN,
-                                     EP0_IN_METADATA,
-                                     0, /* wValue */
-                                     0, /* wIndex */
-                                     (unsigned char *)metadata,
-                                     sizeof(*metadata),
-                                     1000); /* timeout */
-    if (rc < 0)
-        return rc;
-
-    metadata->version = le32toh(metadata->version);
-    metadata->compat = le32toh(metadata->compat);
-    metadata->max_control_transfer = le16toh(metadata->max_control_transfer);
-    metadata->control_timeout_ms = le16toh(metadata->control_timeout_ms);
-    metadata->build_type[sizeof(metadata->build_type)-1] = 0;
-
-    return 0;
-}
+#include "internal/control.h"
 
 static void populate_active_meta(libusb_device *dev, port_metadata_t *meta)
 {
@@ -37,9 +16,9 @@ static void populate_active_meta(libusb_device *dev, port_metadata_t *meta)
     if (!handle)
         return;
 
-    int usb_error;
-    if ((usb_error = ctrl_get_metadata(handle, &meta->active_firmware)) < 0) {
-        log_perror_libusb(usb_error, "fetching firmware metadata failed");
+    int pg2_error;
+    if ((pg2_error = pg2sdr__ctrl_get_metadata(handle, &meta->active_firmware, 0)) < 0) {
+        log_perror_pg2sdr(pg2_error, "fetching firmware metadata failed");
         return;
     }
 
