@@ -1,9 +1,12 @@
+#include "internal/control.h"
+
 #include <math.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <endian.h>
 
-#include "internal/lib.h"
+#include "pg2sdr.h"
+#include "internal/errors.h"
 
 #define DEFAULT_CONTROL_TIMEOUT 1000
 
@@ -81,22 +84,22 @@ static int tuner_control_out(libusb_device_handle *usb_handle,
     return error;
 }
 
-int pg2sdr__ctrl_start_transfer(libusb_device_handle *dev, const adc_pll_config_t *config, unsigned timeout_ms)
+int pg2sdr__ctrl_start_transfer(libusb_device_handle *dev, const ep0_out_start_transfer_t *config, unsigned timeout_ms)
 {
-    ep0_out_start_transfer_t buffer = {
-        .n_divisor = htole32(config->n),
-        // Shift M divisor by 15
-        .m_divisor = htole32(round(config->m * 32768.0)),
-        .p_divisor = htole32(config->p),
-        .idiv_divisor = htole32(config->i)
+    /* byteswap all the things */
+    ep0_out_start_transfer_t swapped = {
+        .n_divisor = htole32(config->n_divisor),
+        .m_divisor = htole32(config->m_divisor),
+        .p_divisor = htole32(config->p_divisor),
+        .idiv_divisor = htole32(config->idiv_divisor)
     };
 
     return control_out(dev,
                        EP0_OUT_START_TRANSFER,
                        0,
                        0,
-                       (unsigned char *)&buffer,
-                       sizeof(buffer),
+                       (unsigned char *)&swapped,
+                       sizeof(swapped),
                        timeout_ms);
 }
 

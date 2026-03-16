@@ -271,7 +271,15 @@ int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void
              dev->adc_pll_config.actual_fcco / 1e6,
              dev->adc_pll_config.actual_frequency / 1e6);
 
-    if ((error = pg2sdr__ctrl_start_transfer(dev->usb_handle, &dev->adc_pll_config, dev->control_timeout_ms)) < 0) {
+
+    ep0_out_start_transfer_t start_params = {
+        .n_divisor = dev->adc_pll_config.n,
+        .m_divisor = round(dev->adc_pll_config.m * 32768.0),  // M divisor is Q15 fixed-point
+        .p_divisor = dev->adc_pll_config.p,
+        .idiv_divisor = dev->adc_pll_config.i
+    };
+
+    if ((error = pg2sdr__ctrl_start_transfer(dev->usb_handle, &start_params, dev->control_timeout_ms)) < 0) {
         LOGDEBUG(dev, "pg2sdr_stream_data: start_transfer failed");
         goto cleanup;
     }
