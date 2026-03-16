@@ -4,10 +4,11 @@
 #include "pg2sdr.h"
 #include "firmware/pg2sdr_protocol.h"
 #include "dsp/dsp.h"
-#include "internal/tuner.h"
-#include "internal/adc.h"
-#include "internal/errors.h"
-#include "internal/control.h"
+
+#include "tuner.h"
+#include "adc.h"
+#include "errors.h"
+#include "control.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
