@@ -7,6 +7,8 @@
 
 #include <libusb-1.0/libusb.h>
 
+#include "pg2sdr.h"
+
 const char *argv0 = NULL;
 bool verbose_logging = true;
 
@@ -50,6 +52,18 @@ void log_perror_libusb(int usb_error, const char *fmt, ...)
     va_end(ap);
 
     fprintf(stderr, ": %s\n", libusb_strerror(usb_error));
+}
+
+void log_perror_pg2sdr(int pg2_error, const char *fmt, ...)
+{
+    fprintf(stderr, "%s: ", argv0);
+
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+
+    fprintf(stderr, ": %s\n", pg2sdr_strerror(pg2_error));
 }
 
 void log_verbose(const char *fmt, ...)

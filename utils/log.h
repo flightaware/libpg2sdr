@@ -8,7 +8,8 @@ extern bool verbose_logging;
 
 void log_error(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 void log_perror(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
-void log_perror_libusb(int error, const char *fmt, ...)  __attribute__((format (printf, 2, 3)));
+void log_perror_libusb(int usb_error, const char *fmt, ...)  __attribute__((format (printf, 2, 3)));
+void log_perror_pg2sdr(int pg2_error, const char *fmt, ...)  __attribute__((format (printf, 2, 3)));
 void log_verbose(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 
 #endif
