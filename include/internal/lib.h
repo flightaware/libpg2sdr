@@ -12,11 +12,6 @@
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
 #define MAGIC_FREE 0xFEEE
-#define VID_ROM 0x1fc9
-#define PID_ROM 0x000c
-
-#define VID_PG2SDR 0xDEAD
-#define PID_PG2SDR 0xBEEF
 
 #define CHECK_CTX(ctx)                       \
     do {                                     \
