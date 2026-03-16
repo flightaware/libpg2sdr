@@ -358,7 +358,7 @@ int pg2sdr_open_device(pg2sdr_context *ctx, pg2sdr_usb_device *usb_device, pg2sd
     return build_device(ctx, usb_device->lu_device, strdup(usb_device->serial), strdup(usb_device->ports), device);
 }
 
-int pg2sdr_open_device_libusb(pg2sdr_context *ctx, libusb_device *lu_device, pg2sdr_device **device)
+int pg2sdr_open_libusb_device(pg2sdr_context *ctx, libusb_device *lu_device, pg2sdr_device **device)
 {
     CHECK_CTX(ctx);
 

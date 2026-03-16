@@ -406,7 +406,7 @@ int pg2sdr_open_device(pg2sdr_context *ctx, pg2sdr_usb_device *usb_device, pg2sd
  * \param[out] device Storage for the newly opened device instance
  * \return ::PG2SDR_SUCCESS on success, negative error code on failure
  */
-int pg2sdr_open_device_libusb(pg2sdr_context *ctx, libusb_device *lu_device, pg2sdr_device **device);
+int pg2sdr_open_libusb_device(pg2sdr_context *ctx, libusb_device *lu_device, pg2sdr_device **device);
 
 /**
  * \brief Open a single device by serial number or port path.
