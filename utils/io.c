@@ -1,7 +1,8 @@
 #include "io.h"
 #include "log.h"
 #include "device.h"
-#include "firmware/pg2sdr_protocol.h"
+
+#include "internal/control.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -9,9 +10,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-/* TODO: get this from the firmware or firmware/pg2sdr_protocol.h */
-#define CONTROL_TIMEOUT 1000
 
 static void flash_close(firmware_io_t *io);
 static bool flash_read(firmware_io_t *io, unsigned start, uint8_t *buf, unsigned len);
@@ -161,21 +159,10 @@ static bool flash_read(firmware_io_t *io, unsigned start, uint8_t *buf, unsigned
         if (page_len > len)
             page_len = len;
 
-        int count = libusb_control_transfer(flash->handle,
-                                            LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN,
-                                            EP0_IN_FLASH_READ_QUAD,  /* bRequest */
-                                            start & 0xFFFF,          /* wValue */
-                                            start >> 16,             /* wIndex */
-                                            buf,
-                                            page_len,                /* wLength */
-                                            CONTROL_TIMEOUT);
-        if (count < 0) {
-            log_perror_libusb(count, "%s: libusb_control_transfer(EP0_IN_FLASH_READ_QUAD)", io->what);
-            return false;
-        }
-
-        if (count < page_len) {
-            log_error("%s: short read (read %d bytes, expected %u bytes)", io->what, count, page_len);
+        /* todo: timeout from firmware */
+        int pg2_error = pg2sdr__ctrl_flash_read_quad(flash->handle, start, buf, page_len, /* timeout */ 0);
+        if (pg2_error < 0) {
+            log_perror_pg2sdr(pg2_error, "%s: FLASH_READ_QUAD", io->what);
             return false;
         }
 
@@ -196,16 +183,15 @@ static bool flash_write_page(firmware_io_t *io, unsigned start, const uint8_t *b
     }
 
     io_flash_t *flash = (io_flash_t*) io;
-    int usb_error = libusb_control_transfer(flash->handle,
-                                            LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT,
-                                            EP0_OUT_FLASH_WRITE,     /* bRequest */
-                                            start & 0xFFFF,          /* wValue */
-                                            start >> 16,             /* wIndex */
-                                            (uint8_t*)buf,
-                                            FLASH_PAGE_SIZE,         /* wLength */
-                                            CONTROL_TIMEOUT);
-    if (usb_error < 0) {
-        log_perror_libusb(usb_error, "%s: libusb_control_transfer(EP0_OUT_FLASH_WRITE)", io->what);
+
+    /* todo: timeout from firmware */
+    int pg2_error = pg2sdr__ctrl_flash_write(flash->handle,
+                                             start,
+                                             buf,
+                                             FLASH_PAGE_SIZE,         /* wLength */
+                                             0);                      /* timeout */
+    if (pg2_error < 0) {
+        log_perror_pg2sdr(pg2_error, "%s: FLASH_WRITE", io->what);
         return false;
     }
 
@@ -227,16 +213,11 @@ static bool flash_erase_sector(firmware_io_t *io, unsigned start)
     }
 
     io_flash_t *flash = (io_flash_t*) io;
-    int usb_error = libusb_control_transfer(flash->handle,
-                                            LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT,
-                                            EP0_OUT_FLASH_ERASE,     /* bRequest */
-                                            start & 0xFFFF,          /* wValue */
-                                            start >> 16,             /* wIndex */
-                                            NULL,
-                                            0,                       /* wLength */
-                                            CONTROL_TIMEOUT);
-    if (usb_error < 0) {
-        log_perror_libusb(usb_error, "%s: EP0_OUT_FLASH_ERASE", io->what);
+
+    /* todo: timeout from firmware */
+    int pg2_error = pg2sdr__ctrl_flash_erase(flash->handle, start, /* timeout */ 0);
+    if (pg2_error < 0) {
+        log_perror_pg2sdr(pg2_error, "%s: FLASH_ERASE", io->what);
         return false;
     }
 
