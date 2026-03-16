@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dsp.h"
+#include "dsp/dsp.h"
 #include "starch.h"
 
 #define memset_elements(_dst, _val, _count) memset((_dst), (_val), (_count) * sizeof((_dst)[0]))

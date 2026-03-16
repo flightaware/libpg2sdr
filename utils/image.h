@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "io.h"
-#include "pg2sdr_protocol.h"
+#include "firmware/pg2sdr_protocol.h"
 
 typedef struct {
     /* total image size size, including header/suffix */

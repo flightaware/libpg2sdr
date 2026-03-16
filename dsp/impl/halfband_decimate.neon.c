@@ -1,4 +1,4 @@
-#include "dsp.h"
+#include "dsp/dsp.h"
 
 #ifndef __ARM_NEON
 #  error Neon intrinsics are not available

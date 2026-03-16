@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <assert.h>
 
-#include "internal.h"
+#include "internal/lib.h"
 #include "starch.h"
 
 #define memory_barrier() atomic_thread_fence(memory_order_acq_rel)

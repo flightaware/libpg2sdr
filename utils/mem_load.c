@@ -2,7 +2,7 @@
 #include "log.h"
 #include "reset.h"
 #include "device.h"
-#include "pg2sdr_protocol.h"
+#include "firmware/pg2sdr_protocol.h"
 
 /* TODO: get this from the firmware */
 #define CONTROL_TIMEOUT 1000

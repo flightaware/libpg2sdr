@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <endian.h>
 
-#include "internal.h"
+#include "internal/lib.h"
 
 #define DEFAULT_CONTROL_TIMEOUT 1000
 

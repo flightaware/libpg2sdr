@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "dsp.h"
+#include "dsp/dsp.h"
 
 void STARCH_BENCHMARK(unpack_raw_adc_data) (void)
 {

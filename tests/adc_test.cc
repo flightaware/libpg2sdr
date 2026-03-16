@@ -6,7 +6,7 @@ using namespace testing;
 using namespace std;
 
 extern "C" {
-    #include "internal.h"
+    #include "internal/lib.h"
 }
 
 

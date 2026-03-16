@@ -1,6 +1,6 @@
 #include <pthread.h>
 
-#include "internal.h"
+#include "internal/lib.h"
 
 /* -- Bandpass table access -- */
 

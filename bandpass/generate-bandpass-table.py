@@ -61,7 +61,7 @@ def write_c_table(path, entries):
         print(f"""
 /* Generated code, don't edit */
 
-#include "internal.h"
+#include "internal/lib.h"
 
 const size_t pg2sdr__default_bandpass_table_size = {len(entries)};
 const pg2sdr_bandpass_table_t pg2sdr__default_bandpass_table[] = {{

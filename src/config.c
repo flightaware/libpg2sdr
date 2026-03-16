@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <assert.h>
 
-#include "internal.h"
+#include "internal/lib.h"
 
 static double actual_sample_rate(pg2sdr_device *dev);
 static double actual_frequency(pg2sdr_device *dev);

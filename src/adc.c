@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#include "internal.h"
-#include "adc.h"
+#include "internal/lib.h"
+#include "internal/adc.h"
 
 static adc_p_i_tuple_t *p_i_table = NULL; /* Call init_p_i_table before use */
 static void init_p_i_table_once()

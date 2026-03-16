@@ -19,7 +19,7 @@ def main():
                     output_dir = args.output_dir,
                     symbol_prefix = args.symbol_prefix)
 
-    gen.add_include('"dsp.h"')
+    gen.add_include('"dsp/dsp.h"')
 
     gen.add_function(name = 'halfband_decimate_block',
                      argtypes = ['const dsp_halfband_decimate_state_t *', 'const cs16_t *', 'uint32_t', 'cs16_t *'],

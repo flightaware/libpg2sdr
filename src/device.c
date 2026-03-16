@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
-#include "internal.h"
+#include "internal/lib.h"
 
 static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *serial, char *ports, pg2sdr_device **out)
 {

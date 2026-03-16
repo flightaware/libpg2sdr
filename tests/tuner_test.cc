@@ -1,6 +1,6 @@
 #include "util.h"
 
-#include "tuner-regs.h"
+#include "internal/tuner-regs.h"
 
 using namespace testing;
 

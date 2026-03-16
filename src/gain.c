@@ -1,6 +1,6 @@
 #include <pthread.h>
 
-#include "internal.h"
+#include "internal/lib.h"
 
 /* Generic helpers, to reduce duplication needed for code that's the same shape for lna/mix/vga */
 

@@ -50,7 +50,7 @@ def write_c_tables(path, lna_table, mix_table, vga_table, gain_curve):
         print(f"""
 /* Generated code, don't edit */
 
-#include "internal.h"
+#include "internal/lib.h"
 
 const double pg2sdr__default_lna_table[16] = {{
 {make_c_array(lna_table, 4, format, '5.2f')}

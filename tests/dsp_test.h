@@ -6,7 +6,7 @@ using namespace testing;
 #include <string>
 
 extern "C" {
-    #include "internal.h"
+    #include "internal/lib.h"
 }
 
 string print_cs16_t(cs16_t v);

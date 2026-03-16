@@ -2,10 +2,10 @@
 #define PG2SDR_INTERNAL_H
 
 #include "pg2sdr.h"
-#include "pg2sdr_protocol.h"
-#include "dsp.h"
-#include "tuner.h"
-#include "adc.h"
+#include "firmware/pg2sdr_protocol.h"
+#include "dsp/dsp.h"
+#include "internal/tuner.h"
+#include "internal/adc.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD

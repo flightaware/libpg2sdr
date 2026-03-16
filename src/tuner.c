@@ -1,8 +1,8 @@
 #include <pthread.h>
 #include <math.h>
 
-#include "internal.h"
-#include "tuner-regs.h"
+#include "internal/lib.h"
+#include "internal/tuner-regs.h"
 
 static int apply_tuner_changeset(pg2sdr_device *dev, change_set *cs)
 {

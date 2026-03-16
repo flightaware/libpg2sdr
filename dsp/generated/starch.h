@@ -1,7 +1,7 @@
 
 /* starch generated code. Do not edit. */
 
-#include "dsp.h"
+#include "dsp/dsp.h"
 
 /* mixes */
 

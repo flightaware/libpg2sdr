@@ -7,7 +7,7 @@
 #include <string>
 
 extern "C" {
-    #include "internal.h"
+    #include "internal/lib.h"
 }
 
 class Context {

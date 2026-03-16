@@ -87,7 +87,7 @@ firmware_io_t *io_open_file(const char *path);
  */
 firmware_io_t *io_open_flash(libusb_device *dev, bool dryrun);
 
-/* TODO: this should probably be in pg2sdr_protocol.h? */
+/* TODO: this should probably be in firmware/pg2sdr_protocol.h? */
 #define FLASH_PAGE_SIZE 256
 #define FLASH_SECTOR_SIZE 4096
 

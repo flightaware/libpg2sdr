@@ -1,7 +1,7 @@
 #ifndef PG2_META_H
 #define PG2_META_H
 
-#include "pg2sdr_protocol.h"
+#include "firmware/pg2sdr_protocol.h"
 #include "image.h"
 
 typedef enum {

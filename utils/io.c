@@ -1,7 +1,7 @@
 #include "io.h"
 #include "log.h"
 #include "device.h"
-#include "pg2sdr_protocol.h"
+#include "firmware/pg2sdr_protocol.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-/* TODO: get this from the firmware or pg2sdr_protocol.h */
+/* TODO: get this from the firmware or firmware/pg2sdr_protocol.h */
 #define CONTROL_TIMEOUT 1000
 
 static void flash_close(firmware_io_t *io);

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 using namespace testing;
 
-#include "dsp.h"
+#include "dsp/dsp.h"
 
 TEST(DSPTests, DataTypes)
 {
