@@ -347,8 +347,6 @@ typedef struct {
  */
 typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_data);
 
-/* Library context (context.c) */
-
 /* Device discovery and open/close (device.c) */
 
 /**
@@ -358,18 +356,27 @@ typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_
  * Enumerates available devices and creates an array of pg2sdr_usb_device *,
  * one per discovered device.
  *
+ * Optionally, a serial prefix and/or port path can be provided to
+ * limit the search to only devices matching that prefix or path.
+ *
  * Caller should eventually call pg2sdr_free_device_list(*usb_device_list)
  * to free storage associated with the device list.
  *
  * \param[in] ctx A library context.
- *
+ * \param[in] match_serial_prefix if not NULL, an ASCIIZ serial number
+ *   prefix to match devices against
+ * \param[in] match_ports if not NULL, an ASCIIZ port path to match
+ *   devices against
  * \param[out] usb_device_list Storage for a pointer to an array of
  *   pg2sdr_usb_device
  *
  * \return the number of discovered devices in the returned list, or a
  *   negative error code on failure
  */
-ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***usb_device_list);
+ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx,
+                                const char *match_serial_prefix,
+                                const char *match_ports,
+                                pg2sdr_usb_device ***usb_device_list);
 
 /**
  * \brief Free a device list previously allocated by pg2sdr_discover_devices.
@@ -422,8 +429,8 @@ int pg2sdr_open_libusb_device(pg2sdr_context *ctx, libusb_device *lu_device, pg2
  * The search must be unambiguous -- exactly one device should match
  * the given criteria.  In most cases, there will only be a single
  * pg2sdr device connected, so no special criteria are needed. If more
- * than one device is connected, then serial_prefix or port must be
- * provided to select a single device.
+ * than one device is connected, then match_serial_prefix or match_ports
+ * must be provided to select a single device.
  *
  * If no devices match, ::PG2SDR_ERROR_NOT_FOUND is
  * returned.  If more than one device matches,

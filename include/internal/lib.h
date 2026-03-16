@@ -9,6 +9,7 @@
 #include "adc.h"
 #include "errors.h"
 #include "control.h"
+#include "device.h"
 
 #define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD

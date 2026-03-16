@@ -125,7 +125,7 @@ class DeviceList
         int error;
         pg2sdr_usb_device **newlist;
 
-        if ((error = pg2sdr_discover_devices(ctx, &newlist)) < 0) {
+        if ((error = pg2sdr_discover_devices(ctx, NULL, NULL, &newlist)) < 0) {
             SoapySDR::log(SOAPY_SDR_ERROR, "PG2SDR: could not enumerate PG2SDR devices: " + pg2sdr_strerror_string(error));
             return DeviceList(nullptr);
         }

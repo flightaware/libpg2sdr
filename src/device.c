@@ -159,6 +159,7 @@ void pg2sdr_free_device_list(pg2sdr_usb_device **device_list)
     if (!device_list)
         return;
 
+    /* device_list has a NULL sentinel at the end (see pg2sdr__discover_matching) */
     for (int i = 0; device_list[i]; ++i) {
         if (!device_list[i])
             continue;
@@ -184,7 +185,7 @@ static int sort_devices(const void *l, const void *r)
     return strcmp(left->serial, right->serial);
 }
 
-static char *get_serial(pg2sdr_context *ctx, libusb_device *usb_dev)
+char *pg2sdr__strdup_serial(pg2sdr_context *ctx, libusb_device *usb_dev)
 {
     char serial[33];
     memset(serial, 0, sizeof(serial));
@@ -217,7 +218,7 @@ static char *get_serial(pg2sdr_context *ctx, libusb_device *usb_dev)
     return strdup(serial);
 }
 
-static char *get_ports(pg2sdr_context *ctx, libusb_device *usb_dev)
+char *pg2sdr__strdup_ports(pg2sdr_context *ctx, libusb_device *usb_dev)
 {
     char port_string[33];
     char *out = port_string;
@@ -238,7 +239,39 @@ static char *get_ports(pg2sdr_context *ctx, libusb_device *usb_dev)
     return strdup(port_string);
 }
 
-ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***device_list)
+int pg2sdr__identify_device(libusb_device *lu_dev)
+{
+    struct libusb_device_descriptor desc;
+
+    /* libusb docs: "Note since libusb-1.0.16, LIBUSBX_API_VERSION >= 0x01000102, this function always succeeds." */
+    static_assert(LIBUSBX_API_VERSION >= 0x01000102);
+    (void) libusb_get_device_descriptor(lu_dev, &desc);
+
+    /* todo: once we have settled on a new, stable, VID/PID, make the old values
+     * return DEVTYPE_LEGACY
+     */
+    if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
+        return DEVTYPE_PG2SDR;
+    } else if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM) {
+        return DEVTYPE_RECOVERY;
+    } else {
+        return DEVTYPE_OTHER;
+    }
+}
+
+static bool prefix_match(const char *prefix, const char *candidate)
+{
+    size_t len = strlen(prefix);
+    if (strlen(candidate) < len)
+        return false;
+    return !strncmp(prefix, candidate, len);
+}
+
+ssize_t pg2sdr__discover_matching(pg2sdr_context *ctx,
+                                  const char *match_serial_prefix,
+                                  const char *match_ports,
+                                  int match_types,
+                                  pg2sdr_usb_device ***device_list)
 {
     CHECK_CTX(ctx);
 
@@ -252,6 +285,8 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***device
 
     int error = PG2SDR_SUCCESS;
     pg2sdr_usb_device **matched_device_list = NULL;
+
+    /* Allocate +1 entry, pg2sdr_free_device_list expects a sentinel NULL at the end of the list */
     if (!(matched_device_list = calloc(device_count + 1, sizeof(*matched_device_list)))) {
         error = PG2SDR_ERROR_NO_MEMORY;
         goto failed;
@@ -259,40 +294,39 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx, pg2sdr_usb_device ***device
 
     int matched = 0;
     for (ssize_t i = 0; i < device_count; ++i) {
-        int usb_error;
-        struct libusb_device_descriptor desc;
         libusb_device *lu_dev = lu_device_list[i];
 
-        if ((usb_error = libusb_get_device_descriptor(lu_dev, &desc)) < 0) {
-            pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "error getting device descriptor for USB bus %d device %u: %s",
-                        libusb_get_bus_number(lu_dev),
-                        libusb_get_device_address(lu_dev),
-                        libusb_strerror(usb_error));
+        int type = pg2sdr__identify_device(lu_dev);
+        if (!(type & match_types))
             continue;
+
+        char *serial = pg2sdr__strdup_serial(ctx, lu_dev);
+        char *ports = pg2sdr__strdup_ports(ctx, lu_dev);
+        if (!serial || !ports) {
+            free(serial);
+            free(ports);
+            error = PG2SDR_ERROR_NO_MEMORY;
+            goto failed;
         }
 
-        if (desc.idVendor != VID_PG2SDR || desc.idProduct != PID_PG2SDR) {
-            continue; /* not a PG2SDR */
+        if ( (match_serial_prefix && !prefix_match(match_serial_prefix, serial)) ||
+             (match_ports && strcmp(ports, match_ports) != 0) ) {
+            free(serial);
+            free(ports);
+            continue;
         }
 
         pg2sdr_usb_device *pg2_dev;
         if (!(pg2_dev = calloc(sizeof(*pg2_dev), 1))) {
+            free(serial);
+            free(ports);
             error = PG2SDR_ERROR_NO_MEMORY;
             goto failed;
         }
 
         matched_device_list[matched++] = pg2_dev;
-
-        if (!(pg2_dev->serial = get_serial(ctx, lu_dev))) {
-            error = PG2SDR_ERROR_NO_MEMORY;
-            goto failed;
-        }
-
-        if (!(pg2_dev->ports = get_ports(ctx, lu_dev))) {
-            error = PG2SDR_ERROR_NO_MEMORY;
-            goto failed;
-        }
-
+        pg2_dev->serial = serial;
+        pg2_dev->ports = ports;
         pg2_dev->lu_device = libusb_ref_device(lu_dev);
     }
 
@@ -311,37 +345,38 @@ failed:
     return error;
 }
 
-int pg2sdr_open_single_device(pg2sdr_context *ctx, const char *serial_prefix, const char *ports, pg2sdr_device **device)
+ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx,
+                                const char *match_serial_prefix,
+                                const char *match_ports,
+                                pg2sdr_usb_device ***device_list)
+{
+    return pg2sdr__discover_matching(ctx,
+                                     match_serial_prefix,
+                                     match_ports,
+                                     DEVTYPE_PG2SDR,
+                                     device_list);
+}
+
+int pg2sdr_open_single_device(pg2sdr_context *ctx, const char *match_serial_prefix, const char *match_ports, pg2sdr_device **device)
 {
     int error = PG2SDR_SUCCESS;
     pg2sdr_usb_device **devices;
 
-    ssize_t device_count = pg2sdr_discover_devices(ctx, &devices);
+    ssize_t device_count = pg2sdr_discover_devices(ctx, match_serial_prefix, match_ports, &devices);
     if (device_count < 0)
         return device_count;
 
-    int match_index = -1;
-    for (int i = 0; i < device_count; ++i) {
-        if (ports && strcmp(ports, devices[i]->ports) != 0)
-            continue;
-        if (serial_prefix &&
-            (strlen(serial_prefix) > strlen(devices[i]->serial) ||
-             strncmp(serial_prefix, devices[i]->serial, strlen(serial_prefix)) != 0))
-            continue;
-
-        if (match_index != -1) {
-            error = PG2SDR_ERROR_MULTIPLE_DEVICES;
-            goto cleanup;
-        }
-    }
-
-    if (match_index == -1) {
+    if (device_count == 0) {
         error = PG2SDR_ERROR_NOT_FOUND;
         goto cleanup;
     }
 
-    if ((error = pg2sdr_open_device(ctx, devices[match_index], device)) < 0)
+    if (device_count > 1) {
+        error = PG2SDR_ERROR_MULTIPLE_DEVICES;
         goto cleanup;
+    }
+
+    error = pg2sdr_open_device(ctx, devices[0], device);
 
 cleanup:
     pg2sdr_free_device_list(devices);
@@ -365,7 +400,7 @@ int pg2sdr_open_libusb_device(pg2sdr_context *ctx, libusb_device *lu_device, pg2
     if (!lu_device || !device)
         return PG2SDR_ERROR_BAD_ARGUMENT;
 
-    return build_device(ctx, lu_device, get_serial(ctx, lu_device), get_ports(ctx, lu_device), device);
+    return build_device(ctx, lu_device, pg2sdr__strdup_serial(ctx, lu_device), pg2sdr__strdup_ports(ctx, lu_device), device);
 }
 
 int pg2sdr_close_device(pg2sdr_device *dev)
