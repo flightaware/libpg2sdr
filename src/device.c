@@ -242,7 +242,7 @@ char *pg2sdr__strdup_ports(pg2sdr_context *ctx, libusb_device *usb_dev)
     return strdup(port_string);
 }
 
-int pg2sdr__identify_device(libusb_device *lu_dev)
+device_type_t pg2sdr__identify_device(libusb_device *lu_dev)
 {
     struct libusb_device_descriptor desc;
 
@@ -273,7 +273,7 @@ static bool prefix_match(const char *prefix, const char *candidate)
 ssize_t pg2sdr__discover_matching(pg2sdr_context *ctx,
                                   const char *match_serial_prefix,
                                   const char *match_ports,
-                                  int match_types,
+                                  device_type_t match_types,
                                   pg2sdr_usb_device ***device_list)
 {
     CHECK_CTX(ctx);
@@ -299,7 +299,7 @@ ssize_t pg2sdr__discover_matching(pg2sdr_context *ctx,
     for (ssize_t i = 0; i < device_count; ++i) {
         libusb_device *lu_dev = lu_device_list[i];
 
-        int type = pg2sdr__identify_device(lu_dev);
+        device_type_t type = pg2sdr__identify_device(lu_dev);
         if (!(type & match_types))
             continue;
 
