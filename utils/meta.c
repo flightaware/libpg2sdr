@@ -6,6 +6,8 @@
 #include "log.h"
 #include "device.h"
 
+#include "pg2sdr.h"
+#include "internal/device.h"
 #include "internal/control.h"
 
 static void populate_active_meta(libusb_device *dev, port_metadata_t *meta)
@@ -66,21 +68,19 @@ port_metadata_t *meta_query(libusb_device *dev)
         return NULL;
     }
 
-    meta->port = strdup(device_ports(dev));
-
-    if (device_is_dfu(dev)) {
-        meta->device_type = DEVICE_DFU;
-    } else if (device_is_pg2(dev)) {
-        meta->device_type = DEVICE_PG2;
-
-        const char *serial = device_serial(dev);
-        if (serial)
-            meta->serial = strdup(serial);
-
+    meta->port = pg2sdr__strdup_ports(NULL, dev);
+    meta->device_type = pg2sdr__identify_device(dev);
+    switch (meta->device_type) {
+    case DEVTYPE_PG2SDR:
+    case DEVTYPE_LEGACY:
+        meta->serial = pg2sdr__strdup_serial(NULL, dev);
         populate_active_meta(dev, meta);
         populate_flash_meta(dev, meta);
-    } else {
-        meta->device_type = DEVICE_OTHER;
+        break;
+
+    default:
+        /* nothing extra */
+        break;
     }
 
     return meta;

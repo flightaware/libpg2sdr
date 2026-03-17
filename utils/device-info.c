@@ -7,6 +7,9 @@
 #include "nanojson.h"
 #include "meta.h"
 
+#include "pg2sdr.h"
+#include "internal/device.h"
+
 static void show_device_info_help();
 int subcommand_device_info(int argc, char * const argv[]);
 
@@ -85,20 +88,20 @@ int subcommand_device_info(int argc, char * const argv[])
     return do_device_info(serial_prefix, port_path, json_output) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static bool do_device_info(const char *serial_prefix, const char *port_path, bool json_output)
+static bool do_device_info(const char *match_serial_prefix, const char *match_ports, bool json_output)
 {
     /* scan for suitable devices and call show_device_info on each */
 
-    int usb_error;
-    if ((usb_error = libusb_init(NULL)) < 0) {
-        log_perror_libusb(usb_error, "libusb_init");
+    if (setup_shared_ctx() < 0) {
         return false;
     }
 
-    libusb_device **devlist = NULL;
-    ssize_t count = libusb_get_device_list(NULL, &devlist);
-    if (count < 0) {
-        log_perror_libusb(count, "libusb_get_device_list");
+    pg2sdr_usb_device **devices = NULL;
+    ssize_t device_count;
+    if ((device_count = pg2sdr__discover_matching(shared_ctx, match_serial_prefix, match_ports,
+                                                  DEVTYPE_PG2SDR|DEVTYPE_LEGACY|DEVTYPE_RECOVERY,
+                                                  &devices)) < 0) {
+        log_perror_pg2sdr(device_count, "could not enumerate USB devices");
         return false;
     }
 
@@ -109,43 +112,8 @@ static bool do_device_info(const char *serial_prefix, const char *port_path, boo
 
     unsigned found = 0;
     bool errors = false;
-    for (size_t i = 0; i < count; ++i) {
-        libusb_device *dev = devlist[i];
-
-        struct libusb_device_descriptor ddesc;
-        (void) libusb_get_device_descriptor(dev, &ddesc); /* always succeeds */
-
-        if (port_path) {
-            if (strcmp(port_path, device_ports(dev)) != 0) {
-                /* port doesn't match */
-                continue;
-            }
-        }
-
-        if (serial_prefix) {
-            /* only consider serial numbers on PG2 devices with loaded firmware */
-            if (!device_is_pg2(dev))
-                continue;
-
-            const char *serial = device_serial(dev);
-            if (!serial)
-                continue;
-
-            if (strlen(serial_prefix) > strlen(serial) ||
-                strncmp(serial, serial_prefix, strlen(serial_prefix)) != 0) {
-                /* serial prefix doesn't match */
-                continue;
-            }
-        }
-
-        /* if neither option was given, match anything that looks suitable */
-        if (!port_path && !serial_prefix) {
-            if (!device_is_pg2(dev) && !device_is_dfu(dev))
-                continue;
-        }
-
-        /* suitable device, process it */
-        if (!show_device_info(dev, json_output))
+    for (size_t i = 0; i < device_count; ++i) {
+        if (!show_device_info(devices[i]->lu_device, json_output))
             errors = true;
         else
             ++found;
@@ -161,7 +129,7 @@ static bool do_device_info(const char *serial_prefix, const char *port_path, boo
             log_verbose("%u matching device%s found", found, (found == 1) ? "" : "s");
     }
 
-    libusb_free_device_list(devlist, /* unref_devices */ 1);
+    pg2sdr_free_device_list(devices);
     return !errors;
 }
 
@@ -184,10 +152,16 @@ static bool show_device_info(libusb_device *dev, bool json_output)
 static void show_port_metadata(port_metadata_t *meta)
 {
     fprintf(stdout, "Port %s:\n", meta->port);
-    fprintf(stdout, "  Device type:          %s\n",
-            (meta->device_type == DEVICE_DFU) ? "ProStick Gen 2 (recovery mode)" :
-            (meta->device_type == DEVICE_PG2) ? "ProStick Gen 2" :
-            "Non-ProStick Gen 2 device");
+
+    const char *typestr;
+    switch (meta->device_type) {
+    case DEVTYPE_PG2SDR:   typestr = "ProStick Gen 2"; break;
+    case DEVTYPE_LEGACY:   typestr = "ProStick Gen 2 (legacy VID/PID)"; break;
+    case DEVTYPE_RECOVERY: typestr = "ProStick Gen 2 (recovery mode)"; break;
+    default:               typestr = "Non-ProStick Gen 2 device"; break;
+    }
+
+    fprintf(stdout, "  Device type:          %s\n", typestr);
 
     if (meta->serial)
         fprintf(stdout, "  Serial number:        %s\n", meta->serial);
@@ -207,9 +181,17 @@ static void json_port_metadata(port_metadata_t *meta)
 {
     json_start_object();
     json_key("port"); json_string(meta->port);
-    json_key("type"); json_string((meta->device_type == DEVICE_DFU) ? "dfu" :
-                                  (meta->device_type == DEVICE_PG2) ? "pg2sdr" :
-                                  "other");
+
+    const char *typestr;
+    switch (meta->device_type) {
+    case DEVTYPE_PG2SDR:   typestr = "pg2sdr"; break;
+    case DEVTYPE_LEGACY:   typestr = "legacy"; break;
+    case DEVTYPE_RECOVERY: typestr = "recovery"; break;
+    default:               typestr = "other"; break;
+    }
+
+    json_key("type"); json_string(typestr);
+
     if (meta->serial) {
         json_key("serial"); json_string(meta->serial);
     }

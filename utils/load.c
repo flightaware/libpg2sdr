@@ -99,7 +99,7 @@ static bool do_load(const char *image_path, const char *serial_prefix, const cha
     if (!(image = image_read(io)))
         goto cleanup;
 
-    dev = device_search(serial_prefix, port_path, SEARCH_DFU | SEARCH_PG2);
+    dev = device_search(serial_prefix, port_path, SEARCH_PG2SDR | SEARCH_RECOVERY);
     if (!dev) {
         log_error("no suitable USB device found");
         goto cleanup;

@@ -4,6 +4,9 @@
 #include "device.h"
 #include "dfu_load.h"
 
+#include "pg2sdr.h"
+#include "internal/device.h"
+
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
@@ -189,7 +192,7 @@ static bool do_write_verify(const char *image_path, const char *serial_prefix, c
     if (!(image = image_read(file_io)))
         goto cleanup;
 
-    dev = device_search(serial_prefix, port_path, SEARCH_DFU | SEARCH_PG2);
+    dev = device_search(serial_prefix, port_path, SEARCH_PG2SDR | SEARCH_RECOVERY);
     if (!dev) {
         log_error("no suitable USB device found");
         goto cleanup;
