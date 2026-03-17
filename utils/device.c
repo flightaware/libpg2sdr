@@ -13,6 +13,44 @@ static libusb_device *cache_dev = NULL;            /* device we're caching for (
 static libusb_device_handle *cache_handle = NULL;  /* opened/configured handle for cache_dev */
 static bool cache_handle_in_use = false;           /* true if cache_handle is currently in use (i.e. still waiting for a call to device_close) */
 
+/* a shared pg2sdr_context */
+pg2sdr_context *shared_ctx = NULL;
+
+static void log_callback(pg2sdr_context *context,
+                         pg2sdr_log_level level,
+                         const char *message)
+{
+    if (level <= PG2SDR_LOG_DEBUG)
+        return;
+
+    if (level <= PG2SDR_LOG_INFO)
+        log_verbose("libpg2sdr: %s", message);
+    else
+        log_error("libpg2sdr: %s", message);
+}
+
+int setup_shared_ctx()
+{
+    if (!shared_ctx) {
+        int error;
+        pg2sdr_context *ctx = NULL;
+        if ((error = pg2sdr_init(&ctx)) < 0) {
+            log_perror_pg2sdr(error, "pg2sdr_init");
+            return error;
+        }
+
+        if ((error = pg2sdr_set_log_callback(ctx, log_callback)) < 0) {
+            log_perror_pg2sdr(error, "pg2sdr_set_log_callback");
+            pg2sdr_exit(ctx);
+            return error;
+        }
+
+        shared_ctx = ctx;
+    }
+
+    return PG2SDR_SUCCESS;
+}
+
 libusb_device_handle *device_open(libusb_device *dev, bool claim_interface)
 {
     int usb_error;
