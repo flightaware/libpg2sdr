@@ -2,6 +2,8 @@
 #include "log.h"
 #include "device.h"
 
+#include "internal/device.h"
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -58,16 +60,19 @@ static int hotplug_callback(libusb_context *usb_ctx, libusb_device *dev, libusb_
     }
 
     /* Activity on some other port */
-    if (device_is_pg2(dev) || device_is_dfu(dev)) {
+    switch (pg2sdr__identify_device(dev)) {
+    case DEVTYPE_PG2SDR:
+    case DEVTYPE_LEGACY:
+    case DEVTYPE_RECOVERY:
         /* PG2-like hardware enumerated on a different port, remember the first one as a "maybe match" */
         if (!state->maybe_device) {
             state->maybe_device = libusb_ref_device(dev);
         }
         return 0;
+    default:
+        /* Anything else, don't care */
+        return 0;
     }
-
-    /* Anything else, don't care */
-    return 0;
 }
 
 firmware_reset_state *reset_prepare(libusb_device *dev)
@@ -170,18 +175,20 @@ libusb_device *reset_await(firmware_reset_state *state)
         return NULL;
     }
 
-    if (device_is_dfu(post_reset)) {
-        log_error("Device re-enumerated on port %s in bootloader mode (firmware startup failed)", device_ports(post_reset));
+    switch (pg2sdr__identify_device(post_reset)) {
+    case DEVTYPE_PG2SDR:
+    case DEVTYPE_LEGACY:
+        log_verbose("Device re-enumerated on port %s", device_ports(post_reset));
+        return libusb_ref_device(post_reset);
+
+    case DEVTYPE_RECOVERY:
+        log_error("Device re-enumerated on port %s in recovery mode (firmware startup failed)", device_ports(post_reset));
+        return NULL;
+
+    default:
+        log_error("Device re-enumerated on port %s with an unexpected VID/PID", device_ports(post_reset));
         return NULL;
     }
-
-    if (!device_is_pg2(post_reset)) {
-        log_error("Device re-enumerated on port %s with an unexpected VID/PID: %s", device_ports(post_reset), device_string(post_reset));
-        return NULL;
-    }
-
-    log_verbose("Device re-enumerated on port %s: %s", device_ports(post_reset), device_string(post_reset));
-    return libusb_ref_device(post_reset);
 }
 
 void reset_cleanup(firmware_reset_state *state)

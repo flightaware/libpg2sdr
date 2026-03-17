@@ -11,6 +11,9 @@
 #include "dfu_load.h"
 #include "mem_load.h"
 
+#include "pg2sdr.h"
+#include "internal/device.h"
+
 static bool do_load(const char *image_path, const char *serial_prefix, const char *port_path);
 static void show_load_help();
 int subcommand_load(int argc, char * const argv[]);
@@ -104,14 +107,18 @@ static bool do_load(const char *image_path, const char *serial_prefix, const cha
 
     log_verbose("Loading firmware to device on port %s: %s", device_ports(dev), device_string(dev));
 
-    if (device_is_dfu(dev)) {
+    switch (pg2sdr__identify_device(dev)) {
+    case DEVTYPE_RECOVERY:
         success = dfu_load(image, dev, NULL);
-    } else if (device_is_pg2(dev)) {
+        break;
+    case DEVTYPE_PG2SDR:
+    case DEVTYPE_LEGACY:
         success = mem_load(image, dev, NULL);
-    } else {
-        log_error("device at %s does not seem to be a ProStick Gen 2",
-                  device_ports(dev));
+        break;
+    default:
+        log_error("device does not seem to be a ProStick Gen 2");
         success = false;
+        break;
     }
 
  cleanup:

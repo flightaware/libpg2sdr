@@ -195,23 +195,31 @@ static bool do_write_verify(const char *image_path, const char *serial_prefix, c
         goto cleanup;
     }
 
-    if (device_is_dfu(dev)) {
-        /* To write firmware to flash on a device in recovery mode, we need to get running firmware onto it via DFU first */
-        log_verbose("Loading firmware to device on port %s: %s", device_ports(dev), device_string(dev));
+    switch (pg2sdr__identify_device(dev)) {
+    case DEVTYPE_RECOVERY:
+        {
+            /* To write firmware to flash on a device in recovery mode, we need to get running firmware onto it via DFU first */
+            log_verbose("Loading firmware to device on port %s: %s", device_ports(dev), device_string(dev));
 
-        libusb_device *new_dev = NULL;
-        if (!dfu_load(image, dev, &new_dev))
-            goto cleanup;
-        libusb_unref_device(dev);
-        dev = new_dev;
-    }
+            libusb_device *new_dev = NULL;
+            if (!dfu_load(image, dev, &new_dev))
+                goto cleanup;
 
-    if (!device_is_pg2(dev)) {
-        log_error("device at %s does not seem to be a ProStick Gen 2",
-                  device_ports(dev));
+            libusb_unref_device(dev);
+            dev = new_dev;
+
+            break;
+        }
+
+    case DEVTYPE_PG2SDR:
+    case DEVTYPE_LEGACY:
+        /* no extra work needed */
+        break;
+
+    default:
+        log_error("device at %s does not seem to be a ProStick Gen 2", device_ports(dev));
         goto cleanup;
     }
-
 
     if (!(flash_io = io_open_flash(dev, dryrun)))
         goto cleanup;

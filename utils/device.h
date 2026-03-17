@@ -16,10 +16,6 @@ libusb_device_handle *device_open(libusb_device *dev, bool claim_interface);
 void device_close(libusb_device_handle *handle);
 
 const char *device_serial(libusb_device *dev);
-
-bool device_is_pg2(libusb_device *dev);
-bool device_is_dfu(libusb_device *dev);
-
 const char *device_string(libusb_device *dev);
 const char *device_ports(libusb_device *dev);
 

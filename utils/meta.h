@@ -2,17 +2,12 @@
 #define PG2_META_H
 
 #include "firmware/pg2sdr_protocol.h"
-#include "image.h"
 
-typedef enum {
-    DEVICE_OTHER,  /* non-PG2 device connected */
-    DEVICE_DFU,    /* PG2 or other LPC device in DFU mode */
-    DEVICE_PG2     /* PG2 with loaded firmware */
-} device_type_t;
+#include "image.h"
 
 typedef struct {
     const char *port;   /* strdup'd bus-port[.port[.port ...]] */
-    device_type_t device_type;
+    int device_type;
     const char *serial; /* strdup'd PG2 serial number, or NULL if unavailable */
 
     bool active_firmware_valid;
