@@ -204,12 +204,14 @@ char *pg2sdr__strdup_serial(pg2sdr_context *ctx, libusb_device *usb_dev)
      */
     libusb_device_handle *handle = NULL;
     if ((usb_error = libusb_open(usb_dev, &handle)) != LIBUSB_SUCCESS) {
-        pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "warning: could not open device to fetch serial number: %s", libusb_strerror(usb_error));
+        if (ctx)
+            pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "warning: could not open device to fetch serial number: %s", libusb_strerror(usb_error));
         return strdup("");
     }
 
     if ((usb_error = libusb_get_string_descriptor_ascii(handle, desc.iSerialNumber, (unsigned char *)serial, sizeof(serial))) < 0) {
-        pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "warning: could not fetch serial number descriptor: %s", libusb_strerror(usb_error));
+        if (ctx)
+            pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "warning: could not fetch serial number descriptor: %s", libusb_strerror(usb_error));
         libusb_close(handle);
         return strdup("");
     }
@@ -228,7 +230,8 @@ char *pg2sdr__strdup_ports(pg2sdr_context *ctx, libusb_device *usb_dev)
     uint8_t ports[7];
     int port_count = libusb_get_port_numbers(usb_dev, ports, sizeof(ports));
     if (port_count < 1) {
-        pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "warning: could not fetch USB ports: %s", libusb_strerror(port_count));
+        if (ctx)
+            pg2sdr__log(ctx, PG2SDR_LOG_ERROR, "warning: could not fetch USB ports: %s", libusb_strerror(port_count));
         return strdup("");
     }
 

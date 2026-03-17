@@ -3,7 +3,10 @@
 
 /* device.c */
 
+/* ctx may be NULL, at the cost of no error logging */
 char *pg2sdr__strdup_serial(pg2sdr_context *ctx, libusb_device *usb_dev);
+
+/* ctx may be NULL, at the cost of no error logging */
 char *pg2sdr__strdup_ports(pg2sdr_context *ctx, libusb_device *usb_dev);
 
 /* this is also used as a bitmask */
