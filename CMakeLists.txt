@@ -11,6 +11,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(CMAKE_BUILD_TYPE Debug)
 
+
 # Fetch GoogleTest framework and build it
 include(FetchContent)
 FetchContent_Declare(
@@ -32,6 +33,7 @@ enable_testing()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Add subdirectories
+add_subdirectory(corelib)
 add_subdirectory(src)
 add_subdirectory(dsp)
 add_subdirectory(tests)
