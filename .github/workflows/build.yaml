@@ -16,4 +16,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cmake pkg-config python3-minimal libusb-1.0-0-dev libsoapysdr-dev
       - name: Build it
-        run: make build
+        run: make build-tests
