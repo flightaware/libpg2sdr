@@ -33,7 +33,7 @@ static void show_write_help()
                 "unaffected until the device is reset or disconnected.\n"
                 "\n"
                 "If the ProStick is currently in recovery mode, the provided firmware will\n"
-                "first be downloaded to the device (as if 'pg2-firmware load' had been used)\n"
+                "first be downloaded to the device (as if 'pg2-util load' had been used)\n"
                 "before writing the new firmware to flash storage.\n"
                 "\n"
                 "Available options:\n"

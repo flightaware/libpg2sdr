@@ -31,19 +31,19 @@ static const subcommand_t subcommands[] = {
     },
 
     {
-        .name = "load",
+        .name = "load-firmware",
         .brief = "Download a firmware image to a ProStick, once",
         .handler = subcommand_load,
     },
 
     {
-        .name = "write",
+        .name = "write-firmware",
         .brief = "Write a firmware image to ProStick flash storage",
         .handler = subcommand_write,
     },
 
     {
-        .name = "verify",
+        .name = "verify-firmware",
         .brief = "Compare a firmware image to the contents of ProStick flash storage",
         .handler = subcommand_verify,
     },
@@ -62,7 +62,7 @@ static const subcommand_t subcommands[] = {
 };
 
 static void usage() {
-    log_verbose("pg2-firmware: utility to manage ProStick Gen 2 firmware images\n");
+    log_verbose("pg2-util: utility to manage ProStick Gen 2 firmware images\n");
     log_verbose("Usage: %s <subcommand> [options..]\n", base_argv0);
     log_verbose("Available subcommands (try '%s help <subcommand>' for details):", base_argv0);
 
@@ -105,7 +105,7 @@ static int dispatch_subcommand(const char *subcommand_name, int argc, char *argv
         return EXIT_FAILURE;
     }
 
-    /* tweak argv[0] to include the subcommand name i.e. "pg2-firmware load" */
+    /* tweak argv[0] to include the subcommand name i.e. "pg2-util load" */
     size_t argv0_len = strlen(base_argv0) + strlen(sc->name) + 2;
     argv[0] = malloc(argv0_len);
     if (!argv[0]) {
@@ -120,7 +120,7 @@ static int dispatch_subcommand(const char *subcommand_name, int argc, char *argv
 int subcommand_help(int argc, char * const argv[])
 {
     /*
-     *  pg2-firmware help [subcommand]
+     *  pg2-util help [subcommand]
      */
 
     struct option options[] = {
@@ -141,7 +141,7 @@ int subcommand_help(int argc, char * const argv[])
     }
 
     if (optind >= argc) {
-        /* "pg2-firmware help", no subcommand given */
+        /* "pg2-util help", no subcommand given */
         usage();
         return EXIT_SUCCESS;
     }

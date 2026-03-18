@@ -45,30 +45,34 @@ switch to normal mode.
  * Connect a new device
  * New device starts in recovery mode and appears on USB as a DFU device
  * Download the latest firmware, temporarily, over DFU:
-      `pg2-firmware load [-p port] /path/to/firmware.bin`
+      `pg2-util load-firmware [-p port] /path/to/firmware.bin`
  * The device will re-enumerate in normal mode. Now we have flash access and
    know the serial number.
  * Write the latest firmware to flash:
-      `pg2-firmware write [-p port] /path/to/firmware.bin`
+      `pg2-util write-firmware [-p port] /path/to/firmware.bin`
  * Disconnect the device
  * Ensure the recovery switch is set to normal mode
  * Proceed with whatever other QA is needed
 
 # CLI <-> Armada interface
 
-`pg2-firmware` provides "load" and "write" subcommands (as above) to,
-respectively, load firmware temporarily and write firmware to flash.
-Armada should invoke these when needed.
+`pg2-util` provides "load-firmware" and "write-firmware" subcommands
+(as above) to, respectively, load firmware temporarily and write
+firmware to flash.  Armada should invoke these when needed.
 
 These commands can accept a `-p` option to operate on a specific USB port
 only. They'll otherwise operate on a single device if there's only one device,
 or complain if there are multiple devices. So armada should always pass a
 `-p` option.
 
-To work out what updates each device needs, armada can monitor the state of all
-connected devices using `pg2-firmware device-info --json`. This will produce
-machine-readable output in json format on stdout, describing all connected
-PG2SDR devices and their current state, including:
+Commands that produce output default to producing human-readable output,
+but Armada can pass `-j` or `--json` to get machine-readable json output
+instead.
+
+To work out what updates each device needs, armada can monitor the
+state of all connected devices using `pg2-util device-info`. This will
+produce output describing all connected PG2SDR devices and their
+current state, including:
 
  * the physical USB port identifier the device is connected to 
  * whether they're in normal mode or recovery mode
@@ -77,34 +81,57 @@ PG2SDR devices and their current state, including:
    * the version of firmware they're currently running
    * the version of firmware, if any, stored on flash
 
-`pg2-firmware image-info --json` can be used to extract version information
+`pg2-util image-info` can be used to extract version information
 from a firmware image file.
 
 ## Example device-info output
 
 ```
-$ ./build/pg2-firmware device-info -j | jq .
+$ ~/git/libpg2sdr/build/pg2-util device-info
+Port 1-8:
+  Device type:          ProStick Gen 2
+  Serial number:        38265463986061DC
+  Active firmware:
+    Version:            0.9.3.0
+    Compat:             0.9.0.0
+    Max control xfer:   512 bytes
+    Control timeout:    1000 ms
+    Build type:         release pg2sdr
+  Flash firmware:
+    Version:            0.9.3.0
+    Compat:             0.9.0.0
+    Max control xfer:   512 bytes
+    Control timeout:    1000 ms
+    Build type:         release pg2sdr
+    Total image size:   12320 bytes
+    DFU release number: 0930
+    DFU CRC:            8aebf1e6
+1 matching device found
+```
+
+```
+$ ~/git/libpg2sdr/build/pg2-util device-info -j | jq .
 [
   {
     "port": "1-8",
     "type": "pg2sdr",
     "serial": "38265463986061DC",
     "active": {
-      "version": "0.9.0.0",
+      "version": "0.9.3.0",
       "compat": "0.9.0.0",
       "max_control_transfer": 512,
       "control_timeout_ms": 1000,
-      "build_type": "debug pg2sdr"
+      "build_type": "release pg2sdr"
     },
     "flash": {
-      "version": "0.9.0.0",
+      "version": "0.9.3.0",
       "compat": "0.9.0.0",
       "max_control_transfer": 512,
       "control_timeout_ms": 1000,
-      "build_type": "debug pg2sdr",
-      "image_size": 26144,
-      "dfu_release": "0000",
-      "dfu_crc": "ddbc8567"
+      "build_type": "release pg2sdr",
+      "image_size": 12320,
+      "dfu_release": "0930",
+      "dfu_crc": "8aebf1e6"
     }
   }
 ]
@@ -117,25 +144,25 @@ The armada internals might look something like this:
 
 On startup:
  * find the firmware image we want to use somehow (configuration, etc)
- * read the firmware version number using `pg2-firmware image-info`
+ * read the firmware version number using `pg2-util image-info`
 
 Periodically:
- * Poll for device state by running `pg2-firmware device-info`
+ * Poll for device state by running `pg2-util device-info`
  * Go through each device and decide what to do with it.
 
 For each device:
- * If it is in DFU mode, use `pg2-firmware load -p port firmware.bin` to
+ * If it is in DFU mode, use `pg2-util load -p port firmware.bin` to
    temporarily load firmware. On the next poll, it should show up as a
    PG2SDR in normal mode, and we can inspect the flash state.
  * If it is in normal mode:
    * If the active/running firmware version is older than our target firmware,
-     then use `pg2-firmware load` as above to update the running version.
+     then use `pg2-util load` as above to update the running version.
    * If the active/running firmware version is newer than our target firmware,
      something is janky and we should stop here.
    * Otherwise, the running firmware is okay and we should proceed to look
      at the flash firmware:
      * If the flash firmware is missing or older than our target firmware,
-       then use `pg2-firmware -p port write firmware.bin` to update it. On
+       then use `pg2-util -p port write firmware.bin` to update it. On
        the next poll, we'll confirm the updated version.
      * If the flash firmware is newer than our target firmware, something is
        janky and we should stop here.
