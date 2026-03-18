@@ -58,7 +58,7 @@ libusb_device_handle *device_open(libusb_device *dev, bool claim_interface)
     int usb_error;
     libusb_device_handle *handle = NULL;
 
-    if (cache_handle != NULL && !cache_handle_in_use && cache_dev == dev) {
+    if (!claim_interface && cache_handle != NULL && !cache_handle_in_use && cache_dev == dev) {
         cache_handle_in_use = true;
         handle = cache_handle;
     } else {
@@ -88,26 +88,28 @@ libusb_device_handle *device_open(libusb_device *dev, bool claim_interface)
         }
     }
 
-    if (cache_handle != NULL) {
-        if (!cache_handle_in_use) /* cache entry is idle */
-            libusb_close(cache_handle);
+    if (!claim_interface) {
+        if (cache_handle != NULL) {
+            if (!cache_handle_in_use) /* cache entry is idle */
+                libusb_close(cache_handle);
 
-        /* we discard the cache regardless. If the cached handle was actually
-         * in use, it stays open and will be closed by device_close() later.
-         */
-        cache_handle_in_use = false;
-        cache_handle = NULL;
-    }
+            /* we discard the cache regardless. If the cached handle was actually
+             * in use, it stays open and will be closed by device_close() later.
+             */
+            cache_handle_in_use = false;
+            cache_handle = NULL;
+        }
 
-    if (cache_dev) {
-        libusb_unref_device(cache_dev);
-        cache_dev = NULL;
-    }
+        if (cache_dev) {
+            libusb_unref_device(cache_dev);
+            cache_dev = NULL;
+        }
 
-    if (!cache_handle) {
-        cache_dev = libusb_ref_device(dev);
-        cache_handle = handle;
-        cache_handle_in_use = true;
+        if (!cache_handle) {
+            cache_dev = libusb_ref_device(dev);
+            cache_handle = handle;
+            cache_handle_in_use = true;
+        }
     }
 
     return handle;
