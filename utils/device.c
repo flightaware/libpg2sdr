@@ -15,44 +15,6 @@ static libusb_device *cache_dev = NULL;            /* device we're caching for (
 static libusb_device_handle *cache_handle = NULL;  /* opened/configured handle for cache_dev */
 static bool cache_handle_in_use = false;           /* true if cache_handle is currently in use (i.e. still waiting for a call to device_close) */
 
-/* a shared pg2sdr_context */
-pg2sdr_context *shared_ctx = NULL;
-
-static void log_callback(pg2sdr_context *context,
-                         pg2sdr_log_level level,
-                         const char *message)
-{
-    if (level <= PG2SDR_LOG_DEBUG)
-        return;
-
-    if (level <= PG2SDR_LOG_INFO)
-        log_verbose("libpg2sdr: %s", message);
-    else
-        log_error("libpg2sdr: %s", message);
-}
-
-int setup_shared_ctx()
-{
-    if (!shared_ctx) {
-        int error;
-        pg2sdr_context *ctx = NULL;
-        if ((error = pg2sdr_init(&ctx)) < 0) {
-            log_perror_pg2sdr(error, "pg2sdr_init");
-            return error;
-        }
-
-        if ((error = pg2sdr_set_log_callback(ctx, log_callback)) < 0) {
-            log_perror_pg2sdr(error, "pg2sdr_set_log_callback");
-            pg2sdr_exit(ctx);
-            return error;
-        }
-
-        shared_ctx = ctx;
-    }
-
-    return PG2SDR_SUCCESS;
-}
-
 libusb_device_handle *device_open(libusb_device *dev, bool claim_interface)
 {
     int usb_error;
@@ -134,11 +96,8 @@ const char *device_ports(libusb_device *dev)
 {
     static char *ports = NULL;
 
-    if (setup_shared_ctx() < 0)
-        return "<error>";
-
     free(ports);
-    ports = pg2sdr__strdup_ports(shared_ctx, dev);
+    ports = pg2sdr__strdup_ports(shared_pg2sdr_ctx, dev);
     return ports;
 }
 
@@ -146,11 +105,8 @@ const char *device_serial(libusb_device *dev)
 {
     static char *serial = NULL;
 
-    if (setup_shared_ctx() < 0)
-        return "<error>";
-
     free(serial);
-    serial = pg2sdr__strdup_serial(shared_ctx, dev);
+    serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
     return serial;
 }
 
@@ -162,7 +118,7 @@ const char *device_string(libusb_device *dev)
     switch (type) {
     case DEVTYPE_PG2SDR:
         {
-            char *serial = pg2sdr__strdup_serial(NULL, dev);
+            char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
             snprintf(buf, sizeof(buf), "ProStick Gen 2 serial %s",
                      serial ? serial : "<unknown>");
             free(serial);
@@ -171,7 +127,7 @@ const char *device_string(libusb_device *dev)
 
     case DEVTYPE_LEGACY:
         {
-            char *serial = pg2sdr__strdup_serial(NULL, dev);
+            char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
             snprintf(buf, sizeof(buf), "ProStick Gen 2 (legacy VID/PID) serial %s",
                      serial ? serial : "<unknown>");
             free(serial);
@@ -196,12 +152,7 @@ const char *device_string(libusb_device *dev)
 libusb_device *device_search(const char *match_serial_prefix, const char *match_ports, unsigned flags)
 {
     libusb_device *found = NULL;
-    pg2sdr_context *ctx = NULL;     /* temporary context just for the duration of this function */
     pg2sdr_usb_device **devices = NULL;
-    int error;
-
-    if ((error = setup_shared_ctx()) < 0)
-        goto cleanup;
 
     /* bitmask of DEVTYPE_* device types we are interested in */
     const int typemask =
@@ -209,7 +160,7 @@ libusb_device *device_search(const char *match_serial_prefix, const char *match_
         ((flags & SEARCH_RECOVERY) ? DEVTYPE_RECOVERY : 0);
 
     ssize_t device_count;
-    if ((device_count = pg2sdr__discover_matching(shared_ctx, match_serial_prefix, match_ports, typemask, &devices)) < 0) {
+    if ((device_count = pg2sdr__discover_matching(shared_pg2sdr_ctx, match_serial_prefix, match_ports, typemask, &devices)) < 0) {
         log_perror_pg2sdr(device_count, "could not enumerate USB devices");
         goto cleanup;
     }
@@ -221,7 +172,7 @@ libusb_device *device_search(const char *match_serial_prefix, const char *match_
         /* multiple matching devices, bail out */
         log_error("More than one suitable device was found, select exactly one with the -p or -s options");
         for (size_t i = 0; i < device_count; ++i) {
-            char *ports = pg2sdr__strdup_ports(ctx, devices[i]->lu_device);
+            char *ports = pg2sdr__strdup_ports(shared_pg2sdr_ctx, devices[i]->lu_device);
             log_verbose("  port %s: %s", ports, device_string(devices[i]->lu_device));
             free(ports);
         }
@@ -235,8 +186,6 @@ libusb_device *device_search(const char *match_serial_prefix, const char *match_
  cleanup:
     if (devices)
         pg2sdr_free_device_list(devices);
-    if (ctx)
-        pg2sdr_exit(ctx);
 
     return found;
 }

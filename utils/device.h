@@ -17,8 +17,6 @@ const char *device_ports(libusb_device *dev);
 #define SEARCH_PG2SDR 2
 libusb_device *device_search(const char *serial_prefix, const char *port_path, unsigned flags);
 
-extern pg2sdr_context *shared_ctx;
-int setup_shared_ctx();
-
+extern pg2sdr_context *shared_pg2sdr_ctx;
 
 #endif

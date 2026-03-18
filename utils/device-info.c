@@ -90,13 +90,9 @@ static bool do_device_info(const char *match_serial_prefix, const char *match_po
 {
     /* scan for suitable devices and call show_device_info on each */
 
-    if (setup_shared_ctx() < 0) {
-        return false;
-    }
-
     pg2sdr_usb_device **devices = NULL;
     ssize_t device_count;
-    if ((device_count = pg2sdr__discover_matching(shared_ctx, match_serial_prefix, match_ports,
+    if ((device_count = pg2sdr__discover_matching(shared_pg2sdr_ctx, match_serial_prefix, match_ports,
                                                   DEVTYPE_PG2SDR|DEVTYPE_LEGACY|DEVTYPE_RECOVERY,
                                                   &devices)) < 0) {
         log_perror_pg2sdr(device_count, "could not enumerate USB devices");

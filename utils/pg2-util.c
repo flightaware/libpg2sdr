@@ -1,3 +1,6 @@
+#include "internal/core.h"
+#include "log.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,8 +8,6 @@
 
 #include <getopt.h>
 #include <libgen.h>
-
-#include "log.h"
 
 typedef struct {
     const char *name;
@@ -24,6 +25,48 @@ int subcommand_reset(int argc, char * const argv[]);
 int subcommand_standby(int argc, char * const argv[]);
 
 static const char *base_argv0;
+
+/* shared pg2sdr_context */
+pg2sdr_context *shared_pg2sdr_ctx = NULL;
+
+static void log_callback(pg2sdr_context *context,
+                         pg2sdr_log_level level,
+                         const char *message)
+{
+    if (level <= PG2SDR_LOG_DEBUG)
+        return;
+
+    if (level <= PG2SDR_LOG_INFO)
+        log_verbose("libpg2sdr: %s", message);
+    else
+        log_error("libpg2sdr: %s", message);
+}
+
+static bool setup_shared_ctx()
+{
+    int error;
+    pg2sdr_context *ctx = NULL;
+    if ((error = pg2sdr_init(&ctx)) < 0) {
+        log_perror_pg2sdr(error, "pg2sdr_init");
+        return false;
+    }
+
+    if ((error = pg2sdr_set_log_callback(ctx, log_callback)) < 0) {
+        log_perror_pg2sdr(error, "pg2sdr_set_log_callback");
+        pg2sdr_exit(ctx);
+        return false;
+    }
+
+    shared_pg2sdr_ctx = ctx;
+    return true;
+}
+
+static void cleanup_shared_ctx()
+{
+    if (shared_pg2sdr_ctx)
+        pg2sdr_exit(shared_pg2sdr_ctx);
+    shared_pg2sdr_ctx = NULL;
+}
 
 static const subcommand_t subcommands[] = {
     {
@@ -203,5 +246,11 @@ int main(int argc, char * const argv[])
         return EXIT_FAILURE;
     }
 
-    return dispatch_subcommand(subcommand_name, argc - 1, sub_argv);
+    /* init shared context (for logging, etc) before doing anything further */
+    if (!setup_shared_ctx())
+        return EXIT_FAILURE;
+
+    int rc = dispatch_subcommand(subcommand_name, argc - 1, sub_argv);
+    cleanup_shared_ctx();
+    return rc;
 }
