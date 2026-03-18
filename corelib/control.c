@@ -330,3 +330,14 @@ int pg2sdr__ctrl_load_image(libusb_device_handle *dev, uint32_t address, const u
                        len,
                        timeout_ms);
 }
+
+int pg2sdr__ctrl_reset(libusb_device_handle *dev, unsigned timeout_ms)
+{
+    return control_out(dev,
+                       EP0_OUT_RESET,
+                       0,    /* wValue */
+                       0,    /* wIndex */
+                       NULL, /* buf */
+                       0,    /* wLength */
+                       timeout_ms);
+}

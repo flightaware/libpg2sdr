@@ -20,6 +20,7 @@ int subcommand_write(int argc, char * const argv[]);
 int subcommand_verify(int argc, char * const argv[]);
 int subcommand_device_info(int argc, char * const argv[]);
 int subcommand_image_info(int argc, char * const argv[]);
+int subcommand_reset(int argc, char * const argv[]);
 
 static const char *base_argv0;
 
@@ -58,6 +59,12 @@ static const subcommand_t subcommands[] = {
         .name = "image-info",
         .brief = "Show information about a firmware image file",
         .handler = subcommand_image_info
+    },
+
+    {
+        .name = "reset",
+        .brief = "Reset a ProStick device",
+        .handler = subcommand_reset
     },
 };
 

@@ -74,7 +74,6 @@ int pg2sdr__ctrl_flash_read_quad(libusb_device_handle *dev, uint32_t address, ui
 int pg2sdr__ctrl_flash_write(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms);
 int pg2sdr__ctrl_flash_erase(libusb_device_handle *dev, uint32_t address, unsigned timeout_ms);
 int pg2sdr__ctrl_load_image(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms);
-
-
+int pg2sdr__ctrl_reset(libusb_device_handle *dev, unsigned timeout_ms);
 
 #endif
