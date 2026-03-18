@@ -162,7 +162,19 @@ static void show_port_metadata(port_metadata_t *meta)
     fprintf(stdout, "  Device type:          %s\n", typestr);
 
     if (meta->serial)
-        fprintf(stdout, "  Serial number:        %s\n", meta->serial);
+        fprintf(stdout, "  Serial number:        %s\n",
+                meta->serial);
+
+    if (meta->status_valid) {
+        fprintf(stdout, "  Recovery switch:      %s\n",
+                meta->recovery_switch_on ? "recovery mode" : "normal");
+        fprintf(stdout, "  RF power:             %s\n",
+                meta->rf_power_on ? "on" : "off");
+        fprintf(stdout, "  ADC data stream:      %s\n",
+                meta->adc_on ? "active" : "not active");
+        fprintf(stdout, "  Hardware type:        %s\n",
+                meta->hw_type);
+    }
 
     if (meta->active_firmware_valid) {
         fprintf(stdout, "  Active firmware:\n");
@@ -193,6 +205,14 @@ static void json_port_metadata(port_metadata_t *meta)
     if (meta->serial) {
         json_key("serial"); json_string(meta->serial);
     }
+
+    if (meta->status_valid) {
+        json_key("recovery_switch_on"); json_bool(meta->recovery_switch_on);
+        json_key("rf_power_on"); json_bool(meta->rf_power_on);
+        json_key("adc_on"); json_bool(meta->adc_on);
+        json_key("hw_type"); json_string(meta->hw_type);
+    }
+
     if (meta->active_firmware_valid) {
         json_key("active");
         json_start_object();
