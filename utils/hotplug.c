@@ -1,8 +1,8 @@
 #include "hotplug.h"
+
+#include "internal/core.h"
 #include "log.h"
 #include "device.h"
-
-#include "internal/device.h"
 
 #include <string.h>
 #include <stdlib.h>

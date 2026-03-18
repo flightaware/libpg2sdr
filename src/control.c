@@ -1,12 +1,9 @@
-#include "internal/control.h"
+#include "internal/core.h"
 
 #include <math.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <endian.h>
-
-#include "pg2sdr.h"
-#include "internal/errors.h"
 
 #define DEFAULT_CONTROL_TIMEOUT 1000
 

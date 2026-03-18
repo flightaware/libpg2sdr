@@ -1,4 +1,4 @@
-#include "internal/lib.h"
+#include "internal/core.h"
 
 int pg2sdr__translate_libusb_error(int error)
 {

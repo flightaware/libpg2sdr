@@ -1,11 +1,10 @@
 #include "device.h"
 
-#include <string.h>
-#include <stdio.h>
+#include "internal/core.h"
 #include "log.h"
 
-#include "pg2sdr.h"
-#include "internal/device.h"
+#include <string.h>
+#include <stdio.h>
 
 //
 // USB device helpers

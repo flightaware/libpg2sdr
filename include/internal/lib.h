@@ -2,26 +2,15 @@
 #define PG2SDR_INTERNAL_H
 
 #include "pg2sdr.h"
+#include "core.h"
+
 #include "firmware/pg2sdr_protocol.h"
 #include "dsp/dsp.h"
 
 #include "tuner.h"
 #include "adc.h"
-#include "errors.h"
-#include "control.h"
-#include "device.h"
 
-#define MAGIC_CTX 0x18273645
 #define MAGIC_DEV 0xABCD
-#define MAGIC_FREE 0xFEEE
-
-#define CHECK_CTX(ctx)                       \
-    do {                                     \
-        if (!ctx)                            \
-            return PG2SDR_ERROR_BAD_ARGUMENT;\
-        if (ctx->magic != MAGIC_CTX)         \
-            return PG2SDR_ERROR_CORRUPTION;  \
-    } while (0)
 
 #define CHECK_DEV(dev)                                                            \
     do {                                                                          \
@@ -37,13 +26,6 @@
 #define LOGDEBUG(dev,fmt,...) pg2sdr__log((dev)->ctx,PG2SDR_LOG_DEBUG,(fmt) __VA_OPT__(,) __VA_ARGS__)
 #define LOGINFO(dev,fmt,...) pg2sdr__log((dev)->ctx,PG2SDR_LOG_INFO,(fmt) __VA_OPT__(,) __VA_ARGS__)
 #define LOGERROR(dev,fmt,...) pg2sdr__log((dev)->ctx,PG2SDR_LOG_ERROR,(fmt) __VA_OPT__(,) __VA_ARGS__)
-
-struct pg2sdr__context {
-    int magic;
-    libusb_context *libusb_ctx;
-    char *firmware_path;
-    pg2sdr_log_callback log_cb;
-};
 
 typedef struct pg2sdr__transfer_state {
     pg2sdr_device *dev; /* owning device */
@@ -139,9 +121,6 @@ struct pg2sdr__device {
     dsp_halfband_decimate_state_t *post_decimators[PG2SDR_DECIMATION_MAX]; /* Chain of decimators for extra decimation following downconversion */
     int16_t *work_buffer[2];                 /* ping-pong work buffers */
 };
-
-/* context.c */
-void pg2sdr__log(pg2sdr_context *ctx, pg2sdr_log_level level, const char *format, ...) __attribute__((format(printf, 3, 4)));
 
 /* boot.c */
 int pg2sdr__boot_firmware(pg2sdr_context *ctx, libusb_device *original_dev, libusb_device **reenumerated_dev);

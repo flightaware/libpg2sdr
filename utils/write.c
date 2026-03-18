@@ -1,11 +1,9 @@
+#include "internal/core.h"
 #include "io.h"
 #include "image.h"
 #include "log.h"
 #include "device.h"
 #include "dfu_load.h"
-
-#include "pg2sdr.h"
-#include "internal/device.h"
 
 #include <stdlib.h>
 #include <assert.h>

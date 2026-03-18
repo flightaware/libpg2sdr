@@ -1,9 +1,4 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <getopt.h>
-
+#include "internal/core.h"
 #include "log.h"
 #include "device.h"
 #include "io.h"
@@ -11,8 +6,11 @@
 #include "dfu_load.h"
 #include "mem_load.h"
 
-#include "pg2sdr.h"
-#include "internal/device.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <getopt.h>
 
 static bool do_load(const char *image_path, const char *serial_prefix, const char *port_path);
 static void show_load_help();

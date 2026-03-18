@@ -1,9 +1,9 @@
+#include "internal/core.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-
-#include "internal/lib.h"
 
 static void default_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char *message)
 {

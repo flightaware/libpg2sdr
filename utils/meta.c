@@ -1,14 +1,11 @@
 #include "meta.h"
 
-#include <stdlib.h>
-#include <string.h>
-
+#include "internal/core.h"
 #include "log.h"
 #include "device.h"
 
-#include "pg2sdr.h"
-#include "internal/device.h"
-#include "internal/control.h"
+#include <stdlib.h>
+#include <string.h>
 
 static void populate_active_meta(libusb_device *dev, port_metadata_t *meta)
 {

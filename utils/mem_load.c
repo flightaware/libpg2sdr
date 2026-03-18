@@ -1,9 +1,9 @@
 #include "mem_load.h"
+
+#include "internal/core.h"
 #include "log.h"
 #include "hotplug.h"
 #include "device.h"
-
-#include "internal/control.h"
 
 /* TODO: get this from the firmware */
 #define CONTROL_TIMEOUT 1000

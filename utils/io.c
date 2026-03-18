@@ -1,8 +1,8 @@
 #include "io.h"
+
+#include "internal/core.h"
 #include "log.h"
 #include "device.h"
-
-#include "internal/control.h"
 
 #include <stdlib.h>
 #include <string.h>

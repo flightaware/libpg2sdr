@@ -1,14 +1,12 @@
-#include <stdlib.h>
-#include <string.h>
-#include <getopt.h>
-
+#include "internal/core.h"
 #include "log.h"
 #include "device.h"
 #include "nanojson.h"
 #include "meta.h"
 
-#include "pg2sdr.h"
-#include "internal/device.h"
+#include <stdlib.h>
+#include <string.h>
+#include <getopt.h>
 
 static void show_device_info_help();
 int subcommand_device_info(int argc, char * const argv[]);
