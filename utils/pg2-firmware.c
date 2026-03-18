@@ -76,12 +76,24 @@ static void usage() {
 
 static const subcommand_t *find_subcommand(const char *name)
 {
+    bool ambiguous = false;
+    const subcommand_t *prefix_match = NULL;
+
     for (size_t i = 0; i < sizeof(subcommands)/sizeof(subcommands[0]); ++i) {
+        /* exact match always wins */
         if (!strcasecmp(name, subcommands[i].name))
             return &subcommands[i];
+
+        /* prefix matching on subcommand names, only succeed if the prefix is unambiguous */
+        if (!ambiguous && strlen(name) < strlen(subcommands[i].name) && !strncasecmp(name, subcommands[i].name, strlen(name))) {
+            if (prefix_match)
+                ambiguous = true;
+            else
+                prefix_match = &subcommands[i];
+        }
     }
 
-    return NULL;
+    return ambiguous ? NULL : prefix_match;
 }
 
 static int dispatch_subcommand(const char *subcommand_name, int argc, char *argv[])
@@ -94,13 +106,13 @@ static int dispatch_subcommand(const char *subcommand_name, int argc, char *argv
     }
 
     /* tweak argv[0] to include the subcommand name i.e. "pg2-firmware load" */
-    size_t argv0_len = strlen(base_argv0) + strlen(subcommand_name) + 2;
+    size_t argv0_len = strlen(base_argv0) + strlen(sc->name) + 2;
     argv[0] = malloc(argv0_len);
     if (!argv[0]) {
         log_perror("malloc");
         return EXIT_FAILURE;
     }
-    snprintf(argv[0], argv0_len, "%s %s", base_argv0, subcommand_name);
+    snprintf(argv[0], argv0_len, "%s %s", base_argv0, sc->name);
     argv0 = argv[0];
     return sc->handler(argc, argv);
 }
