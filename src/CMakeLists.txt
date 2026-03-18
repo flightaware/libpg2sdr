@@ -32,7 +32,7 @@ add_custom_command(
     ${CMAKE_SOURCE_DIR}/bandpass/generate-bandpass-table.py
     ${BANDPASS_METRICS})
 
-add_library(pg2sdr STATIC
+add_library(pg2sdr SHARED
   device.c adc.c stream.c tuner.c config.c gain.c bandpass.c
   ${CMAKE_CURRENT_BINARY_DIR}/gain-tables.gen.c
   ${CMAKE_CURRENT_BINARY_DIR}/bandpass-table.gen.c)
