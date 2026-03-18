@@ -11,24 +11,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 set(CMAKE_BUILD_TYPE Debug)
 
-
-# Fetch GoogleTest framework and build it
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
-        URL_HASH SHA256=65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
-        DOWNLOAD_NO_PROGRESS TRUE
-      )
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-# Tests
-include(CTest)
-include(GoogleTest)
-
-enable_testing()
+option(ENABLE_TESTING "Enable building the test code")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
@@ -36,6 +19,27 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 add_subdirectory(corelib)
 add_subdirectory(src)
 add_subdirectory(dsp)
-add_subdirectory(tests)
 add_subdirectory(soapy)
 add_subdirectory(utils)
+
+if(ENABLE_TESTING)
+  # Fetch GoogleTest framework and build it
+  include(FetchContent)
+  FetchContent_Declare(
+          googletest
+            URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
+          URL_HASH SHA256=65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
+          PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
+          DOWNLOAD_NO_PROGRESS TRUE
+        )
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  # Tests
+  include(CTest)
+  include(GoogleTest)
+
+  enable_testing()
+  add_subdirectory(tests)
+endif()
+

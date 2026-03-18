@@ -9,10 +9,14 @@ build:
 	cmake -B ./build -S ./
 	make -C build
 
-run-unit-tests: build
+build-tests:
+	cmake -B ./build -S ./ -DENABLE_TESTING=ON
+	make -C build
+
+run-unit-tests: build-tests
 	cd build && ctest -L "Unit" --output-on-failure
 
-run-stream-integration-tests: build
+run-stream-integration-tests: build-tests
 	cd build && ctest -L "Integration" --output-on-failure
 
 regenerate-starch:
