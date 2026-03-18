@@ -23,6 +23,7 @@ int subcommand_device_info(int argc, char * const argv[]);
 int subcommand_image_info(int argc, char * const argv[]);
 int subcommand_reset(int argc, char * const argv[]);
 int subcommand_standby(int argc, char * const argv[]);
+int subcommand_blink(int argc, char * const argv[]);
 
 static const char *base_argv0;
 
@@ -115,6 +116,12 @@ static const subcommand_t subcommands[] = {
         .name = "standby",
         .brief = "Put a ProStick device into standby mode",
         .handler = subcommand_standby
+    },
+
+    {
+        .name = "blink",
+        .brief = "Blink ProStick LEDs in a pattern",
+        .handler = subcommand_blink
     },
 };
 

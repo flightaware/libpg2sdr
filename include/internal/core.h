@@ -75,5 +75,6 @@ int pg2sdr__ctrl_flash_write(libusb_device_handle *dev, uint32_t address, const 
 int pg2sdr__ctrl_flash_erase(libusb_device_handle *dev, uint32_t address, unsigned timeout_ms);
 int pg2sdr__ctrl_load_image(libusb_device_handle *dev, uint32_t address, const uint8_t *buf, uint16_t len, unsigned timeout_ms);
 int pg2sdr__ctrl_reset(libusb_device_handle *dev, unsigned timeout_ms);
+int pg2sdr__ctrl_led_pattern(libusb_device_handle *dev, uint32_t pattern, unsigned timeout_ms);
 
 #endif

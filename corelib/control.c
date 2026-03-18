@@ -341,3 +341,14 @@ int pg2sdr__ctrl_reset(libusb_device_handle *dev, unsigned timeout_ms)
                        0,    /* wLength */
                        timeout_ms);
 }
+
+int pg2sdr__ctrl_led_pattern(libusb_device_handle *dev, uint32_t pattern, unsigned timeout_ms)
+{
+    return control_out(dev,
+                       EP0_OUT_LED_PATTERN,
+                       pattern & 0xFFFF, /* wValue */
+                       pattern >> 16,    /* wIndex */
+                       NULL, /* buf */
+                       0,    /* wLength */
+                       timeout_ms);
+}
