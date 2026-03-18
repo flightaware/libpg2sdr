@@ -66,9 +66,16 @@ static void usage() {
     log_verbose("Usage: %s <subcommand> [options..]\n", base_argv0);
     log_verbose("Available subcommands (try '%s help <subcommand>' for details):", base_argv0);
 
+    int longest = 0;
     for (size_t i = 0; i < sizeof(subcommands)/sizeof(subcommands[0]); ++i) {
-        log_verbose("  %s %-10s  %s",
+        if (strlen(subcommands[i].name) > longest)
+            longest = strlen(subcommands[i].name);
+    }
+
+    for (size_t i = 0; i < sizeof(subcommands)/sizeof(subcommands[0]); ++i) {
+        log_verbose("  %s %-*s  %s",
                     base_argv0,
+                    longest,
                     subcommands[i].name,
                     subcommands[i].brief);
     }
