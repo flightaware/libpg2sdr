@@ -1,6 +1,6 @@
 #include "mem_load.h"
 #include "log.h"
-#include "reset.h"
+#include "hotplug.h"
 #include "device.h"
 
 #include "internal/control.h"
@@ -46,8 +46,8 @@ static bool load_image_end(libusb_device_handle *handle, unsigned load_size, uns
 bool mem_load(const firmware_image_t *image, libusb_device *dev, libusb_device **loaded_device)
 {
     libusb_device_handle *handle = NULL;
-    firmware_reset_state *reset_state = NULL;
-    libusb_device *post_reset = NULL;
+    firmware_hotplug_state *hotplug_state = NULL;
+    libusb_device *post_hotplug = NULL;
 
     if (!(handle = device_open(dev, true)))
         goto cleanup;
@@ -59,7 +59,7 @@ bool mem_load(const firmware_image_t *image, libusb_device *dev, libusb_device *
         goto cleanup;
 
     /* set up the hotplug callback now, before triggering the new firmware */
-    if (!(reset_state = reset_prepare(dev)))
+    if (!(hotplug_state = hotplug_prepare(dev)))
         goto cleanup;
 
     /* relocate and start the new firmware */
@@ -72,17 +72,17 @@ bool mem_load(const firmware_image_t *image, libusb_device *dev, libusb_device *
     handle = NULL;
 
     /* wait for the new device to appear */
-    post_reset = reset_await(reset_state);
+    post_hotplug = hotplug_await(hotplug_state);
     if (loaded_device)
-        *loaded_device = libusb_ref_device(post_reset);
+        *loaded_device = libusb_ref_device(post_hotplug);
 
  cleanup:
     if (handle)
         device_close(handle);
-    if (post_reset)
-        libusb_unref_device(post_reset);
-    if (reset_state)
-        reset_cleanup(reset_state);
+    if (post_hotplug)
+        libusb_unref_device(post_hotplug);
+    if (hotplug_state)
+        hotplug_cleanup(hotplug_state);
 
-    return (post_reset != NULL);
+    return (post_hotplug != NULL);
 }

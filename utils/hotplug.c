@@ -1,4 +1,4 @@
-#include "reset.h"
+#include "hotplug.h"
 #include "log.h"
 #include "device.h"
 
@@ -14,28 +14,28 @@
 //
 // The general flow of control is:
 //
-//   call reset_prepare() with the existing USB device
+//   call hotplug_prepare() with the existing USB device
 //   tell the existing device to start the new firmware via whatever mechanism
-//   call reset_await(), which waits for re-enumeration and returns the re-enumerated device or NULL
-//   call reset_cleanup() to clean up
+//   call hotplug_await(), which waits for re-enumeration and returns the re-enumerated device or NULL
+//   call hotplug_cleanup() to clean up
 //
 
-/* our internal state preserved over reset_* */
-struct firmware_reset_state_s {
+/* our internal state preserved over hotplug_* */
+struct firmware_hotplug_state_s {
     int completed;                              /* libusb completion flag */
     libusb_hotplug_callback_handle cb_handle;   /* libusb hotplug callback handle for registered hotplug handler */
     libusb_device *device;                      /* newly appeared USB device on the port we were monitoring (owns a device reference, call libusb_unref_device to free) */
     libusb_device *maybe_device;                /* newly appeared USB device on some other port (for the VM case) (owns a device reference, call libusb_unref_device to free) */
 
-    uint8_t match_bus;                          /* bus number of the original pre-reset device */
-    uint8_t match_ports[7];                     /* port path of the original pre-reset device */
+    uint8_t match_bus;                          /* bus number of the original pre-hotplug device */
+    uint8_t match_ports[7];                     /* port path of the original pre-hotplug device */
     int match_ports_count;                      /* size of match_ports */
 };
 
-/* Callback from libusb when a new USB device enumerates. user_data points to our firmware_reset_state_t */
+/* Callback from libusb when a new USB device enumerates. user_data points to our firmware_hotplug_state_t */
 static int hotplug_callback(libusb_context *usb_ctx, libusb_device *dev, libusb_hotplug_event event, void *user_data)
 {
-    firmware_reset_state *state = (firmware_reset_state *)user_data;
+    firmware_hotplug_state *state = (firmware_hotplug_state *)user_data;
 
     /* get triggering device bus / ports */
     uint8_t bus = libusb_get_bus_number(dev);
@@ -75,9 +75,9 @@ static int hotplug_callback(libusb_context *usb_ctx, libusb_device *dev, libusb_
     }
 }
 
-firmware_reset_state *reset_prepare(libusb_device *dev)
+firmware_hotplug_state *hotplug_prepare(libusb_device *dev)
 {
-    firmware_reset_state *state;
+    firmware_hotplug_state *state;
 
     if (!(state = calloc(1, sizeof(*state)))) {
         log_perror("calloc");
@@ -115,7 +115,7 @@ firmware_reset_state *reset_prepare(libusb_device *dev)
     return state;
 }
 
-libusb_device *reset_await(firmware_reset_state *state)
+libusb_device *hotplug_await(firmware_hotplug_state *state)
 {
     log_verbose("Waiting for new firmware to start");
 
@@ -160,38 +160,38 @@ libusb_device *reset_await(firmware_reset_state *state)
 
     /* either the completion flag got set (exact device match), or we timed out */
 
-    libusb_device *post_reset;
+    libusb_device *post_hotplug;
     if (state->device) {
         /* exact match */
-        post_reset = state->device;
+        post_hotplug = state->device;
     } else if (state->maybe_device) {
         /* timeout on the old port, but we saw a new PG2 appear on a different port */
         log_verbose("Device moved to different port %s (maybe this is a VM?)",
                     device_ports(state->maybe_device));
-        post_reset = state->maybe_device;
+        post_hotplug = state->maybe_device;
     } else {
         /* timeout with no matches */
         log_error("Timed out waiting for firmware startup");
         return NULL;
     }
 
-    switch (pg2sdr__identify_device(post_reset)) {
+    switch (pg2sdr__identify_device(post_hotplug)) {
     case DEVTYPE_PG2SDR:
     case DEVTYPE_LEGACY:
-        log_verbose("Device re-enumerated on port %s", device_ports(post_reset));
-        return libusb_ref_device(post_reset);
+        log_verbose("Device re-enumerated on port %s", device_ports(post_hotplug));
+        return libusb_ref_device(post_hotplug);
 
     case DEVTYPE_RECOVERY:
-        log_error("Device re-enumerated on port %s in recovery mode (firmware startup failed)", device_ports(post_reset));
+        log_error("Device re-enumerated on port %s in recovery mode (firmware startup failed)", device_ports(post_hotplug));
         return NULL;
 
     default:
-        log_error("Device re-enumerated on port %s with an unexpected VID/PID", device_ports(post_reset));
+        log_error("Device re-enumerated on port %s with an unexpected VID/PID", device_ports(post_hotplug));
         return NULL;
     }
 }
 
-void reset_cleanup(firmware_reset_state *state)
+void hotplug_cleanup(firmware_hotplug_state *state)
 {
     if (!state)
         return;

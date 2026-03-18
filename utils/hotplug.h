@@ -1,5 +1,5 @@
-#ifndef PG2_RESET_H
-#define PG2_RESET_H
+#ifndef PG2_HOTPLUG_H
+#define PG2_HOTPLUG_H
 
 #include <libusb-1.0/libusb.h>
 
@@ -8,19 +8,19 @@
  * USB reset triggered when the new firmware is started
  */
 
-/* opaque type that holds state over the reset process */
-typedef struct firmware_reset_state_s firmware_reset_state;
+/* opaque type that holds state over the hotplug process */
+typedef struct firmware_hotplug_state_s firmware_hotplug_state;
 
 /* Prepare to handle a firmware reset on device `dev`.
  * This sets up a hotplug handler to watch for new USB
  * devices, and should be called immediately before
  * triggering the reset.
  *
- * Returns a new reset-state object that should be passed
- * to reset_await, or NULL on error. reset_cleanup should
+ * Returns a new hotplug-state object that should be passed
+ * to hotplug_await, or NULL on error. hotplug_cleanup should
  * eventually be called to free this object.
  */
-firmware_reset_state *reset_prepare(libusb_device *dev);
+firmware_hotplug_state *hotplug_prepare(libusb_device *dev);
 
 /* Wait for a previously prepared device to complete
  * firmware reset and re-enumerate. This should be called
@@ -31,14 +31,14 @@ firmware_reset_state *reset_prepare(libusb_device *dev);
  * or NULL on error (including when no suitable device
  * re-enumerated within the timeout)
  */
-libusb_device *reset_await(firmware_reset_state *state);
+libusb_device *hotplug_await(firmware_hotplug_state *state);
 
-/* Finish using a reset-state object previously created
- * by reset_prepare, unregistering the hotplug handler
+/* Finish using a hotplug-state object previously created
+ * by hotplug_prepare, unregistering the hotplug handler
  * and releasing resources.
  *
  * It's safe to pass a NULL state.
  */
-void reset_cleanup(firmware_reset_state *state);
+void hotplug_cleanup(firmware_hotplug_state *state);
 
 #endif
