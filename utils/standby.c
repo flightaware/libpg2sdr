@@ -69,8 +69,8 @@ int subcommand_standby(int argc, char * const argv[])
         }
     }
 
-    if (optind + 1 < argc) {
-        log_error("unexpected trailing arguments");
+    if (optind < argc) {
+        log_error("did not expect any non-option arguments");
         return EXIT_FAILURE;
     }
 
