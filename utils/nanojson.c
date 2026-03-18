@@ -59,6 +59,11 @@ void json_number(unsigned i)
     json_value_fmt("%u", i);
 }
 
+void json_bool(bool x)
+{
+    json_value_fmt("%s", x ? "true" : "false");
+}
+
 void json_string_fmt(const char *fmt, ...)
 {
     static char buf[256];

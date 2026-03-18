@@ -1,6 +1,7 @@
 #ifndef PG2_NANOJSON_H
 #define PG2_NANOJSON_H
 
+#include <stdbool.h>
 #include <stdio.h>
 
 /* a tiny tiny json output-only implementation
@@ -34,6 +35,9 @@ void json_string_fmt(const char *fmt, ...)
 
 /* Emit an unsigned int as a json value  */
 void json_number(unsigned i);
+
+/* Emit a boolean as a json value  */
+void json_bool(bool x);
 
 /* Emit an arbitary json value, by applying printf-like formatting to 'fmt'. The result is _not_ quoted. */
 void json_value_fmt(const char *fmt, ...)
