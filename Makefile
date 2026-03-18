@@ -9,6 +9,10 @@ build:
 	cmake -B ./build -S ./
 	make -C build
 
+verbose:
+	cmake -B ./build -S ./ -DCMAKE_VERBOSE_MAKEFILE=ON
+	make -C build
+
 build-tests:
 	cmake -B ./build -S ./ -DENABLE_TESTING=ON
 	make -C build
