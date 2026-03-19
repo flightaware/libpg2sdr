@@ -1,0 +1,46 @@
+Source: libpg2sdr
+Section: embedded
+Priority: extra
+Maintainer: FlightAware ADS-B Developers <adsb-devs@flightaware.com>
+Build-Depends: debhelper, debhelper-compat (= 13),
+ cmake (>= 3.15), dh-cmake, dh-cmake-compat (= 1), dh-sequence-cmake,
+ libusb-1.0-0-dev, libsoapysdr-dev, python3-minimal
+
+Package: libpg2sdr
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ProStick Gen 2 SDR host library
+ libpg2sdr is a host-side library for configuring
+ and receiving data from the FlightAware ProStick
+ Gen 2 software defined radio.
+ .
+ This package contains the shared library needed at
+ runtime, and udev rules needed to access the
+ device.
+
+Package: libpg2sdr-dev
+Architecture: any
+Depends: libpg2sdr (= ${binary:Version}), ${misc:Depends}
+Description: ProStick Gen 2 SDR library development files
+ libpg2sdr is a host-side library for configuring
+ and receiving data from the FlightAware ProStick
+ Gen 2 software defined radio.
+ .
+ This package contains the development files for the
+ library.
+
+Package: pg2sdr-tools
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ProStick Gen 2 CLI tools
+ This package contains pg2-util, a command-line tool for
+ configuring and inspecting the FlightAware ProStick
+ Gen 2 software defined radio.
+
+Package: soapy-module-pg2sdr
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ProStick Gen 2 device support for SoapySDR
+ This package provides a SoapySDR hardware support
+ module for the FlightAware ProStick Gen 2 software
+ defined radio.
