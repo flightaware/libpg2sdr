@@ -13,7 +13,7 @@ verbose:
 	cmake -B ./build -S ./ -DCMAKE_VERBOSE_MAKEFILE=ON
 	make -C build
 
-build-tests:
+build-with-tests:
 	cmake -B ./build -S ./ -DENABLE_TESTING=ON
 	make -C build
 
