@@ -4,3 +4,9 @@ add_executable(pg2-util
   pg2-util.c)
 target_compile_options(pg2-util PRIVATE -O3 -Wall -Wmissing-declarations -Werror)
 target_link_libraries(pg2-util pg2sdr_core)
+
+include(GNUInstallDirs)
+install(
+  TARGETS pg2-util
+    COMPONENT Binaries
+)
