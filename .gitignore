@@ -5,3 +5,13 @@
 build/
 debug/
 local_build/
+obj-*/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/*.substvars
+debian/tmp/
+debian/libpg2sdr/
+debian/libpg2sdr-dev/
+debian/pg2sdr-tools/
+debian/soapy-module-pg2sdr/
