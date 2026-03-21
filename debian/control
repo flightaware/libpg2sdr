@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: FlightAware ADS-B Developers <adsb-devs@flightaware.com>
 Build-Depends: debhelper, debhelper-compat (= 13),
  cmake (>= 3.15), dh-cmake, dh-cmake-compat (= 1), dh-sequence-cmake,
- libusb-1.0-0-dev, libsoapysdr-dev, python3-minimal
+ pkg-config, libusb-1.0-0-dev, libsoapysdr-dev, python3-minimal
 
 Package: libpg2sdr
 Architecture: any
