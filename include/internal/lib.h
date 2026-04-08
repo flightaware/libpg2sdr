@@ -40,6 +40,29 @@ typedef struct pg2sdr__transfer_state {
     struct pg2sdr__transfer_state *next; /* next transfer in the list */
 } pg2sdr__transfer_state;
 
+#ifdef ENABLE_INSTRUMENTATION
+#include <time.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdarg.h>
+
+typedef struct {
+    struct timespec last;
+    uint64_t elapsed;
+    uint64_t samples;
+} pg2sdr__profile;
+
+static inline void pg2sdr__profile_start(pg2sdr__profile *p, unsigned count);
+static inline void pg2sdr__profile_end(pg2sdr__profile *p, unsigned count);
+static inline void pg2sdr__profile_reset(pg2sdr__profile *p);
+static inline void pg2sdr__profile_log(pg2sdr_device *dev, pg2sdr__profile *p, const char *fmt, ...)  __attribute__((format(printf,3,4)));
+#else
+# define pg2sdr__profile_start(p,count) do {} while(0)
+# define pg2sdr__profile_end(p,count) do {} while(0)
+# define pg2sdr__profile_reset(p) do {} while(0)
+# define pg2sdr__profile_log(dev,p,fmt,...) do {} while(0)
+#endif
+
 struct pg2sdr__device {
     unsigned magic;
     pthread_mutex_t mutex;
@@ -120,6 +143,12 @@ struct pg2sdr__device {
     dsp_downconvert_state_t *downconverter;  /* Fs/4 downconvertor+decimator */
     dsp_halfband_decimate_state_t *post_decimators[PG2SDR_DECIMATION_MAX]; /* Chain of decimators for extra decimation following downconversion */
     int16_t *work_buffer[2];                 /* ping-pong work buffers */
+
+#ifdef ENABLE_INSTRUMENTATION
+    pg2sdr__profile profile_unpack;
+    pg2sdr__profile profile_downconverter;
+    pg2sdr__profile profile_decimator[PG2SDR_DECIMATION_MAX];
+#endif
 };
 
 /* boot.c */
@@ -142,5 +171,42 @@ extern const pg2sdr_gain_table_t pg2sdr__default_gain_table[];
 /* bandpass-table.gen.c (generated code) */
 extern const size_t pg2sdr__default_bandpass_table_size;
 extern const pg2sdr_bandpass_table_t pg2sdr__default_bandpass_table[];
+
+#ifdef ENABLE_INSTRUMENTATION
+/* instrumentation */
+static inline void pg2sdr__profile_start(pg2sdr__profile *p, unsigned count)
+{
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &p->last);
+    p->samples += count;
+}
+
+static inline void pg2sdr__profile_end(pg2sdr__profile *p, unsigned count)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
+    p->elapsed += ((uint64_t)(now.tv_sec - p->last.tv_sec) * 1000000000U + (uint64_t)now.tv_nsec - (uint64_t)p->last.tv_nsec);
+    p->samples += count;
+}
+
+static inline void pg2sdr__profile_reset(pg2sdr__profile *p)
+{
+    p->elapsed = 0;
+    p->samples = 0;
+    p->last.tv_sec = 0;
+    p->last.tv_nsec = 0;
+}
+
+static inline void pg2sdr__profile_log(pg2sdr_device *dev, pg2sdr__profile *p, const char *fmt, ...)
+{
+    char buf[512];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+
+    LOGDEBUG(dev, "%s: %" PRIu64 " samples in %" PRIu64 ".%09" PRIu64 " s", buf, p->samples, p->elapsed/1000000000U, p->elapsed%1000000000U);
+}
+#endif
 
 #endif /* PG2SDR_INTERNAL_H */

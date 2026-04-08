@@ -37,7 +37,8 @@ add_library(pg2sdr SHARED
   ${CMAKE_CURRENT_BINARY_DIR}/gain-tables.gen.c
   ${CMAKE_CURRENT_BINARY_DIR}/bandpass-table.gen.c)
 
-target_compile_options(pg2sdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror -D_DEFAULT_SOURCE)
+target_compile_options(pg2sdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror)
+target_compile_definitions(pg2sdr PRIVATE _DEFAULT_SOURCE $<$<CONFIG:DEBUG>:ENABLE_INSTRUMENTATION>)
 target_include_directories(pg2sdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(pg2sdr pg2sdr_core pg2sdr_dsp m)
 set_target_properties(pg2sdr PROPERTIES

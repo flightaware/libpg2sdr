@@ -93,8 +93,10 @@ static size_t convert_adc_blocks(pg2sdr_device *dev, const uint8_t *data, size_t
         {
             /* unpack ADC data into out directly */
             unsigned count = 0;
+            pg2sdr__profile_start(&dev->profile_unpack, 0);
             for (unsigned i = 0; i < length; i += bpb, count += spb)
                 pg2sdr__starch_unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, out + count);
+            pg2sdr__profile_end(&dev->profile_unpack, count);
             return count;
         }
 
@@ -102,6 +104,7 @@ static size_t convert_adc_blocks(pg2sdr_device *dev, const uint8_t *data, size_t
         {
             /* unpack ADC data into work_buffer[0] */
             unsigned count = 0;
+            pg2sdr__profile_start(&dev->profile_unpack, 0);
             if (!inverted_spectrum) {
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
                     pg2sdr__starch_unpack_raw_adc_data((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
@@ -109,12 +112,15 @@ static size_t convert_adc_blocks(pg2sdr_device *dev, const uint8_t *data, size_t
                 for (unsigned i = 0; i < length; i += bpb, count += spb)
                     pg2sdr__starch_unpack_raw_adc_data_invert((const uint32_t*) (data + i + sizeof(ep1_header_t)), swpb, (int16_t*)dev->work_buffer[0] + count);
             }
+            pg2sdr__profile_end(&dev->profile_unpack, count);
 
             /* work_buffer[0] now contains uninverted-spectrum ADC data, with the signal we want centered at Fs/4 */
 
             if (dev->post_decimation) {
                 /* do downconversion from work_buffer[0] -> work_buffer[1] */
+                pg2sdr__profile_start(&dev->profile_downconverter, count);
                 count = pg2sdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)dev->work_buffer[1]);
+                pg2sdr__profile_end(&dev->profile_downconverter, 0);
 
                 /* work_buffer[1] now contains complex baseband data, with the signal we want centered at 0Hz,
                  * but at a higher sampling rate than the user requested. Decimate to bring the sampling rate
@@ -125,15 +131,21 @@ static size_t convert_adc_blocks(pg2sdr_device *dev, const uint8_t *data, size_t
                 unsigned work_in = 1;
                 for (unsigned i = 0; i < (dev->post_decimation - 1); ++i) {
                     unsigned work_out = !work_in;
+                    pg2sdr__profile_start(&dev->profile_decimator[i], count);
                     count = pg2sdr__dsp_halfband_decimate_process(dev->post_decimators[i], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)dev->work_buffer[work_out]);
+                    pg2sdr__profile_end(&dev->profile_decimator[i], 0);
                     work_in = work_out;
                 }
 
                 /* do final decimate-by-2 step directly to out */
+                pg2sdr__profile_start(&dev->profile_decimator[dev->post_decimation - 1], count);
                 count = pg2sdr__dsp_halfband_decimate_process(dev->post_decimators[dev->post_decimation - 1], (cs16_t*)dev->work_buffer[work_in], count, (cs16_t*)out);
+                pg2sdr__profile_end(&dev->profile_decimator[dev->post_decimation - 1], 0);
             } else {
                 /* No extra decimation, do downconversion from work_buffer[0] -> out */
+                pg2sdr__profile_start(&dev->profile_downconverter, count);
                 count = pg2sdr__dsp_downconvert_process(dev->downconverter, (int16_t*)dev->work_buffer[0], count, (cs16_t*)out);
+                pg2sdr__profile_end(&dev->profile_downconverter, 0);
             }
 
             /* out now contains complex baseband data, with the signal we want centered at 0Hz, at the user's requested sample rate */
@@ -247,6 +259,11 @@ int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void
         }
     }
 
+    pg2sdr__profile_reset(&dev->profile_unpack);
+    pg2sdr__profile_reset(&dev->profile_downconverter);
+    for (unsigned i = 0; i < PG2SDR_DECIMATION_MAX; ++i)
+        pg2sdr__profile_reset(&dev->profile_decimator[i]);
+
     dev->partial_samples = 0;
 
     /* clear any endpoint halt first */
@@ -354,6 +371,13 @@ int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void
     }
 
  cleanup:
+    pg2sdr__profile_log(dev, &dev->profile_unpack, "profile: unpack");
+    pg2sdr__profile_log(dev, &dev->profile_downconverter, "profile: downconverter");
+    for (unsigned i = 0; i < PG2SDR_DECIMATION_MAX; ++i) {
+        if (dev->post_decimators[i])
+            pg2sdr__profile_log(dev, &dev->profile_decimator[i], "profile: decimator[%u]", i);
+    }
+
     for (unsigned i = 0; i < PG2SDR_DECIMATION_MAX; ++i) {
         pg2sdr__dsp_halfband_decimate_free(dev->post_decimators[i]);
         dev->post_decimators[i] = NULL;
