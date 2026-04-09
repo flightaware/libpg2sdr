@@ -171,11 +171,11 @@ int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, int undersampling_mode)
+int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, unsigned undersampling_mode)
 {
     CHECK_DEV(dev);
 
-    if (undersampling_mode <= 0)
+    if (undersampling_mode < 1)
         return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
@@ -188,7 +188,7 @@ int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, int undersampling_mode)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, int *undersampling_mode)
+int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, unsigned *undersampling_mode)
 {
     CHECK_DEV(dev);
 
