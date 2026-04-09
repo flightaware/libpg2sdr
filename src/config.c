@@ -500,7 +500,7 @@ static int apply_rate_change(pg2sdr_device *dev)
                 scaled *= 2;
             }
         } else if (dev->decimation_mode == PG2SDR_DECIMATION_AUTO_MAX) {
-            /* Scale up sample rate as far as possible (given fADC <= 20MHz) */
+            /* Scale up sample rate as far as possible (given fADC <= limit) */
             double scaled = dev->requested_sample_rate;
             post_decimation = 0;
             while (scaled * 4 <= dev->adc_limit && post_decimation < PG2SDR_DECIMATION_MAX) {

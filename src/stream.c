@@ -560,10 +560,12 @@ static int dispatch_transfer(pg2sdr_device *dev, pg2sdr__transfer_state *dev_tra
         return PG2SDR_ERROR_TRANSFER_FORMAT;
     }
 
-    /* scan through the received data, validating headers and looking for sequence discontinuities.
-     * Each user callback provides only a single sample timestamp, so if there are any discontinuities,
-     * we need to do a separate callback for each range of contiguous sequence numbers so the user code
-     * can see the gaps.
+    /* scan through the received data, validating headers and looking
+     * for sequence discontinuities.  We give each user callback only
+     * a single sample timestamp for the start of samples given to the
+     * callback, so if there are any discontinuities, we need to do a
+     * separate callback for each range of contiguous sequence numbers
+     * so the user code can see the gaps.
      */
     ep1_header_t h;
     uint32_t expected_sequence = 0;
