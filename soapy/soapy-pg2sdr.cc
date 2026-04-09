@@ -623,10 +623,12 @@ void PG2SDRDevice::writeSetting(const std::string &key, const std::string &value
         }
     } else if (key == setting_undersampling) {
         int mode = std::stoi(value);
+        if (mode <= 0)
+            throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
 
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(pg2sdr_set_undersampling_mode, mode);
+            LIBCALL(pg2sdr_set_undersampling_mode, (unsigned) mode);
         }
     } else if (key == setting_sideband) {
         bool sideband;
@@ -692,7 +694,7 @@ std::string PG2SDRDevice::readSetting(const std::string &key) const
             throw std::runtime_error("bad gain_element_mode_ value");
         }
     } else if (key == setting_undersampling) {
-        int mode;
+        unsigned mode;
         LIBCALL(pg2sdr_get_undersampling_mode, &mode);
         return std::to_string(mode);
     } else if (key == setting_sideband) {
