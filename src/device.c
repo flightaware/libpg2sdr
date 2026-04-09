@@ -96,7 +96,7 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
     if ((error = pg2sdr__ctrl_get_status(dev->usb_handle, &status, dev->control_timeout_ms)) < 0)
         goto cleanup;
 
-    dev->conversion_mode = PG2SDR_MODE_LOWIF_REAL;
+    dev->conversion_mode = PG2SDR_MODE_BASEBAND;
 
     dev->adc_limit = 28e6;
 
