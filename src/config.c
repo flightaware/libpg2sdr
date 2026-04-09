@@ -26,26 +26,28 @@ int pg2sdr_set_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t mode
     pthread_mutex_lock(&dev->mutex);
     int error = PG2SDR_SUCCESS;
 
-    if (dev->streaming) {
-        error = PG2SDR_ERROR_BAD_STATE;
-        goto done;
+    if (mode != dev->conversion_mode) {
+        if (dev->streaming) {
+            error = PG2SDR_ERROR_BAD_STATE;
+            goto done;
+        }
+
+        switch (mode) {
+        case PG2SDR_MODE_LOWIF_REAL:
+        case PG2SDR_MODE_BASEBAND:
+            /* okay */
+            break;
+
+        default:
+            error = PG2SDR_ERROR_BAD_ARGUMENT;
+            goto done;
+        }
+
+        dev->conversion_mode = mode;
+        dev->changing_rate = true;
+        dev->changing_freq = true;
+        dev->changing_bandpass = true;
     }
-
-    switch (mode) {
-    case PG2SDR_MODE_LOWIF_REAL:
-    case PG2SDR_MODE_BASEBAND:
-        /* okay */
-        break;
-
-    default:
-        error = PG2SDR_ERROR_BAD_ARGUMENT;
-        goto done;
-    }
-
-    dev->conversion_mode = mode;
-    dev->changing_rate = true;
-    dev->changing_freq = true;
-    dev->changing_bandpass = true;
 
  done:
     pthread_mutex_unlock(&dev->mutex);
