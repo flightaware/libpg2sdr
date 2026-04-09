@@ -73,12 +73,12 @@ int pg2sdr_set_buffer_size(pg2sdr_device *dev, size_t buffer_size)
     pthread_mutex_lock(&dev->mutex);
     int error = PG2SDR_SUCCESS;
 
-    if (dev->streaming) {
-        error = PG2SDR_ERROR_BAD_STATE;
-        goto done;
-    }
-
     if (dev->buffer_size != buffer_size) {
+        if (dev->streaming) {
+            error = PG2SDR_ERROR_BAD_STATE;
+            goto done;
+        }
+
         dev->buffer_size = buffer_size;
         dev->changing_rate = true; // we need to recalculate buffer sizes that depend on sample rate + buffer size
     }
