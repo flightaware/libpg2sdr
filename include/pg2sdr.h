@@ -55,7 +55,7 @@ extern "C" {
 typedef struct pg2sdr__context pg2sdr_context;
 
 /**
- * \brief Severity of log messages passed to ::pg2sdr_log_callback.
+ * \brief Severity of log messages passed to pg2sdr_log_callback()
  * \ingroup context
  */
 typedef enum {
@@ -65,7 +65,7 @@ typedef enum {
 } pg2sdr_log_level;
 
 /**
- * \brief Callback function passed to \ref pg2sdr_set_log_callback.
+ * \brief Callback function passed to pg2sdr_set_log_callback()
  * \ingroup context
  *
  * \param context the library context associated with this log message
@@ -101,7 +101,8 @@ int pg2sdr_init(pg2sdr_context **ctx);
  * should not be used.
  *
  * \param[in] ctx The context to free
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negaive error code on failure
  */
 int pg2sdr_exit(pg2sdr_context *ctx);
 
@@ -123,7 +124,8 @@ int pg2sdr_exit(pg2sdr_context *ctx);
  *
  * \param[in] ctx The library context to change
  * \param[in] callback The callback to call for each log message
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negaive error code on failure
  */
 int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
 
@@ -147,6 +149,14 @@ int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
  * preserving the underlying error. pg2sdr_strerror() knows how to
  * interpret values in this range by calling strerror() or
  * libusb_strerror() as needed.
+ *
+ * All functions that return an error code might return
+ * ::PG2SDR_ERROR_BAD_ARGUMENT or ::PG2SDR_ERROR_CORRUPTION if
+ * called with invalid or NULL device or context arguments,
+ * in addition to other documented error returns. This is a
+ * courtesy to user code to try to proactively detect bad uses
+ * of device/context arguments; user code should not rely on
+ * libpg2sdr detecting this in all cases.
  */
 
 /**
@@ -154,19 +164,19 @@ int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
  * \ingroup errors
  *
  * libpg2sdr API functions return an integer error code, where values
- * >= 0 indicate success and values <0 indicate errors. This
- * enumeration describes those error codes.
+ * >= 0 indicate success and values <0 indicate errors. The
+ * ::pg2sdr_error enumeration describes those error codes.
  */
 enum pg2sdr_error {
     PG2SDR_SUCCESS = 0,                    /**< no error */
 
-    PG2SDR_ERROR_NOT_FOUND = -1,           /**< \ref pg2sdr_open_single_device found no matching devices */
+    PG2SDR_ERROR_NOT_FOUND = -1,           /**< pg2sdr_open_single_device() found no matching devices */
     PG2SDR_ERROR_DISCONNECTED = -2,        /**< Device unexpectedly disconnected */
     PG2SDR_ERROR_BAD_ARGUMENT = -3,        /**< Bad argument to API call */
     PG2SDR_ERROR_NO_MEMORY = -4,           /**< Memory allocation failed */
     PG2SDR_ERROR_NOT_IMPLEMENTED = -5,     /**< Operation not implemented */
     PG2SDR_ERROR_FIRMWARE_MISMATCH = -6,   /**< Host/firmware version mismatch */
-    PG2SDR_ERROR_MULTIPLE_DEVICES = -7,    /**< \ref pg2sdr_open_single_device found more than one matching device */
+    PG2SDR_ERROR_MULTIPLE_DEVICES = -7,    /**< pg2sdr_open_single_device() found more than one matching device */
     PG2SDR_ERROR_BUSY = -8,                /**< Device already in use */
     PG2SDR_ERROR_BAD_STATE = -9,           /**< Operation not possible in this state */
     PG2SDR_ERROR_TIMEOUT = -10,            /**< Operation timed out */
@@ -187,8 +197,8 @@ enum pg2sdr_error {
     PG2SDR_ERROR_SYSTEM_MAX = -1000,       /**< Upper end of remapped errno range */
     PG2SDR_ERROR_SYSTEM_MIN = -1999,       /**< Lower end of remapped errno range */
 
-    PG2SDR_ERROR_LIBUSB_MAX = -2000,      /**< Upper end of remapped libusb error range */
-    PG2SDR_ERROR_LIBUSB_MIN = -2999,      /**< Lower end of remapped libusb error range */
+    PG2SDR_ERROR_LIBUSB_MAX = -2000,       /**< Upper end of remapped libusb error range */
+    PG2SDR_ERROR_LIBUSB_MIN = -2999,       /**< Lower end of remapped libusb error range */
 };
 
 /**
@@ -215,12 +225,9 @@ const char *pg2sdr_strerror(int error);
  * used and a pointer to the fixed error message is returned directly.
  *
  * \param[in] error an error code returned by the PG2SDR API
- *
  * \param[in] buf a buffer to use if a non-static error message needs
  *   to be generated
- *
  * \param[in] buflen the size of \p buf
- *
  * \return an ASCIIZ error message, that may point within \p buf
  */
 const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen);
@@ -228,7 +235,24 @@ const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen);
 /**
  * \defgroup device Device discovery and management
  *
- * description goes here
+ * This group of functions allow a libpg2sdr user to enumerate
+ * available PG2SDR devices, and open them for streaming.
+ *
+ * Two main datatypes are used by the library:
+ *
+ * pg2sdr_usb_device describes a single device available on the USB
+ * bus, without actively opening the device for streaming data. Arrays
+ * of pg2sdr_usb_device are created by pg2sdr_discover_devices()
+ * during device discovery, and should be freed by calling
+ * pg2sdr_free_device_list() when no longer required.
+ *
+ * pg2sdr_device is an opaque type used after device discovery has
+ * completed, to represent a device that has been actively opened for
+ * use, together with the associated library state. Instances of
+ * pg2sdr_device are allocated by pg2sdr_open_device(),
+ * pg2sdr_open_libusb_device(), or pg2sdr_open_single_device(), and
+ * should be closed/freed by calling pg2sdr_close_device() when no
+ * longer required.
  */
  
 /**
@@ -239,6 +263,7 @@ const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen);
  * of the library deal only in terms of pointers to this type.
  *
  * \sa pg2sdr_open_device()
+ * \sa pg2sdr_open_libusb_device()
  * \sa pg2sdr_open_single_device()
  * \sa pg2sdr_close_device()
  */
@@ -326,7 +351,7 @@ typedef struct {
  * \brief Callback type that receives sample buffers
  * \ingroup streaming
  *
- * While streaming data via pg2sdr_stream_data(), this callback is
+ * While streaming data with pg2sdr_stream_data(), this callback is
  * repeatedly called as samples are received.
  *
  * If the callback returns true (non-zero), the provided buffer is
@@ -339,11 +364,10 @@ typedef struct {
  * \param[in] buffer Newly received samples to be processed. This
  *   buffer remains valid until either the callback function returns
  *   non-zero, or pg2sdr_release_buffer() is called.
- *
  * \param[in] user_data The opaque user_data value passed to
  *   pg2sdr_stream_data()
- *
- * \return non-zero to automatically release the provided buffer.
+ * \retval 0 caller will not free \p buffer
+ * \retval 1 caller will automatically free \p buffer
  */
 typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_data);
 
@@ -359,8 +383,13 @@ typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_
  * Optionally, a serial prefix and/or port path can be provided to
  * limit the search to only devices matching that prefix or path.
  *
- * Caller should eventually call pg2sdr_free_device_list(*usb_device_list)
- * to free storage associated with the device list.
+ * The caller should not modify the returned device list. Once the
+ * device list is no longer required, pg2sdr_free_device_list() should
+ * be called to free storage associated with the list.
+ *
+ * The final value in the array is a sentinel NULL pointer. The return
+ * value indicates the number of devices in the array (possibly zero),
+ * not including the sentinel.
  *
  * \param[in] ctx A library context.
  * \param[in] match_serial_prefix if not NULL, an ASCIIZ serial number
@@ -369,9 +398,11 @@ typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_
  *   devices against
  * \param[out] usb_device_list Storage for a pointer to an array of
  *   pg2sdr_usb_device
+ * \retval >=0 success, return value indicates size of returned array
+ * \retval <0 failure, negative error code
  *
- * \return the number of discovered devices in the returned list, or a
- *   negative error code on failure
+ * \sa pg2sdr_free_device_list
+ * \sa pg2sdr_open_device
  */
 ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx,
                                 const char *match_serial_prefix,
@@ -379,25 +410,30 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx,
                                 pg2sdr_usb_device ***usb_device_list);
 
 /**
- * \brief Free a device list previously allocated by pg2sdr_discover_devices.
+ * \brief Free a device list previously allocated by pg2sdr_discover_devices()
  * \ingroup device
  *
  * After a device list is freed, the individual ::pg2sdr_usb_device
  * instances in the list should not be used.
  *
  * \param[in] usb_device_list The device list to free
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
  */
 void pg2sdr_free_device_list(pg2sdr_usb_device **usb_device_list);
 
 /**
- * \brief Open a device previously discovered by pg2sdr_discover_devices.
+ * \brief Open a device previously discovered by pg2sdr_discover_devices()
  * \ingroup device
  *
  * \param[in] ctx The library context that allocated the device
  * \param[in] usb_device The USB device to open
  * \param[out] device Storage for the newly opened device instance
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BUSY device is already in use by another process
+ * \retval ::PG2SDR_ERROR_ACCESS insufficient permissions to open device
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_discover_devices()
+ * \sa pg2sdr_close_device()
  */
 int pg2sdr_open_device(pg2sdr_context *ctx, pg2sdr_usb_device *usb_device, pg2sdr_device **device);
 
@@ -411,7 +447,12 @@ int pg2sdr_open_device(pg2sdr_context *ctx, pg2sdr_usb_device *usb_device, pg2sd
  * \param[in] ctx The library context that allocated the device
  * \param[in] lu_device The libusb device to open
  * \param[out] device Storage for the newly opened device instance
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BUSY device is already in use by another process
+ * \retval ::PG2SDR_ERROR_ACCESS insufficient permissions to open device
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_close_device()
  */
 int pg2sdr_open_libusb_device(pg2sdr_context *ctx, libusb_device *lu_device, pg2sdr_device **device);
 
@@ -432,16 +473,19 @@ int pg2sdr_open_libusb_device(pg2sdr_context *ctx, libusb_device *lu_device, pg2
  * than one device is connected, then match_serial_prefix or match_ports
  * must be provided to select a single device.
  *
- * If no devices match, ::PG2SDR_ERROR_NOT_FOUND is
- * returned.  If more than one device matches,
- * ::PG2SDR_ERROR_MULTIPLE_DEVICES is returned.
- *
  * \param[in] ctx The library context to use to open the device
  * \param[in] serial_prefix if not NULL, an ASCIIZ serial number
  *   prefix to match devices against
  * \param[in] ports if not NULL, an ASCIIZ port path to match devices against
  * \param[out] device Storage for the newly opened device instance
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_NOT_FOUND no matching device found
+ * \retval ::PG2SDR_ERROR_MULTIPLE_DEVICES more than one matching device found
+ * \retval ::PG2SDR_ERROR_BUSY device is already in use by another process
+ * \retval ::PG2SDR_ERROR_ACCESS insufficient permissions to open device
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_close_device()
  */
 int pg2sdr_open_single_device(pg2sdr_context *ctx,
                               const char *serial_prefix,
@@ -453,14 +497,16 @@ int pg2sdr_open_single_device(pg2sdr_context *ctx,
  * \ingroup device
  *
  * If the device is currently streaming data,
- * ::PG2SDR_ERROR_BUSY will be returned. To avoid this,
+ * ::PG2SDR_ERROR_BAD_STATE will be returned. To avoid this,
  * call pg2sdr_stop_streaming() and wait for pg2sdr_stream_data() to
  * return before calling pg2sdr_close_device().
  *
  * The device handle should not be used after being closed.
  *
  * \param[in] dev the device to close
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_STATE device is currently streaming data, cannot close
+ * \retval <0 negative error code on failure
  */
 int pg2sdr_close_device(pg2sdr_device *dev);
 
@@ -472,7 +518,6 @@ int pg2sdr_close_device(pg2sdr_device *dev);
  * should not be modified or freed, or used after the device is closed.
  *
  * \param[in] dev the device to query
- *
  * \return pointer to an ASCIIZ string, or NULL if the given device is
  * not valid.
  */
@@ -491,166 +536,399 @@ const char *pg2sdr_get_serial(pg2sdr_device *dev);
  * device is closed.
  *
  * \param[in] dev the device to query
- *
- * \return pointer to an ASCIIZ string, or NULL if the given device is
- * not valid.
+ * \return pointer to an ASCIIZ string, or NULL if the given device is not valid.
  */
 const char *pg2sdr_get_ports(pg2sdr_device *dev);
 
-/* Device configuration (config.c) */
-
-/*
- * Conversion mode, sample rate, center frequency, sideband, bandpass,
- * decimation mode: changes made to these parameters can interact, and
- * need a call to pg2sdr_apply_changes to take effect after you've
- * completed all the changes you want.
+/**
+ * \defgroup config Device configuration
+ *
+ * This group of functions control the capture configuration of an
+ * opened device: tuned frequency and bandwidth, sample rate and
+ * format, gain settings, etc.
+ *
+ * Most changes to configuration settings require a subsequent call to
+ * pg2sdr_apply_changes() before taking effect. pg2sdr_apply_changes()
+ * is implicitly called by pg2sdr_stream_data(), so for simple cases
+ * where the configuration does not change at runtime, it's sufficient
+ * to just configure the device in advance of calling
+ * pg2sdr_stream_data().
+ *
+ * In cases where configuration settings interact, it is possible that
+ * out-of-range combinations of configuration settings are discovered
+ * only when pg2sdr_apply_changes() is called. It is also possible
+ * that, when several settings need to be changed, the intermediate
+ * configurations after each individual setting change are
+ * out-of-range, even if the final combination of all changes is
+ * valid. If you have several settings to change, call
+ * pg2sdr_apply_changes() once after all changes have been made, to
+ * avoid trying to apply an intermediate configuration that may
+ * be out-of-range.
+ *
+ * Some configuration settings cannot be changed while streaming is
+ * active. In these cases, ::PG2SDR_ERROR_BAD_STATE is returned, and
+ * changes are not applied.
  */
 
 /**
- * \brief Set the format of sample data.
+ * \brief Set the conversion mode for sample data received by user callbacks
+ * \ingroup config
  *
- * Sets the current conversion mode, controlling the format of data
- * returned (low-IF versus baseband).
+ * Sets the current conversion mode, controlling how raw ADC data is
+ * converted into samples passed to the user callback (user samples).
  *
- * If \p mode is ::PG2SDR_MODE_BASEBAND,
- * then user samples are complex baseband, with two int16_t values
- * (I/Q, or real/imaginary) per sample. The resulting signal, centered
- * around 0Hz, corresponds to the RF signal centered around the
- * configured center frequency. This is the mode that most SDR clients
- * will want to use.
+ * If \p mode is ::PG2SDR_MODE_BASEBAND, then ADC data is converted to
+ * a complex baseband representation. A user sample is two int16_t
+ * values (I/Q, or real/imaginary).  The complex baseband signal,
+ * centered around 0Hz, corresponds to the RF signal centered around
+ * the configured center frequency. This is the default mode, and the
+ * mode that most SDR clients will want to use.
  *
- * If \p mode is ::PG2SDR_MODE_LOWIF_REAL,
- * then user samples are the real-valued output of the ADC, with one
- * int16_t value per sample. The resulting signal corresponds to one
- * sideband of the RF spectrum, either above or below the configured
- * frequency depending on the configured sideband mode. The configured
- * RF frequency maps to 0Hz (though there will not be anything useful
- * there, due to both the limits of the tuner bandpass filter, and LO
+ * If \p mode is ::PG2SDR_MODE_LOWIF_REAL, then ADC data from the
+ * hardware is scaled to 16 bits, but is otherwise unmodified. Each
+ * user sample is a single int16_t value, with the full signed 16-bit
+ * range used. These samples are a digitization of the low-IF signal
+ * produced by the tuner, corresponding to one sideband of the RF
+ * input, either above or below the configured frequency depending on
+ * the configured sideband mode. The configured RF frequency maps to
+ * an IF frequency of 0Hz (though there will not be a useful signal at
+ * 0Hz, due to both the limits of the tuner bandpass filter, and LO
  * leakage). This mode is mostly for lower-level debugging of the
  * PG2SDR hardware or software itself, where direct inspection of the
  * ADC data is useful.
  *
- * May not be called while streaming; will return
- * ::PG2SDR_ERROR_BAD_STATE if this is attempted.
+ * The conversion mode may not be changed while streaming is active.
  *
- * Call pg2sdr_apply_changes() to complete the configuration change.
+ * Call pg2sdr_apply_changes() to complete a change in conversion mode.
  *
  * \param[in] dev the device to configure
  * \param[in] mode the new conversion mode to set
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS Success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p mode is not a recognized conversion mode
+ * \retval ::PG2SDR_ERROR_BAD_STATE cannot change conversion mode while streaming is active
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_conversion_mode()
+ * \sa pg2sdr_apply_changes()
  */
 int pg2sdr_set_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t mode);
 
-/* Get the current conversion mode and store it in *mode. */
+/**
+ * \brief Get the current sample conversion mode
+ * \ingroup config
+ *
+ * This returns the currently requested mode, i.e. the mode
+ * passed to the last successful call to
+ * pg2sdr_set_conversion_mode(), even if pg2sdr_apply_changes() has
+ * not yet been called.
+ *
+ * \param[in] dev the device to query
+ * \param[out] mode a non-NULL pointer where the current format will be stored on success
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_conversion_mode()
+ * \sa pg2sdr_apply_changes()
+ */
 int pg2sdr_get_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t *mode);
 
-/* Set the user buffer size to "buffer_size" samples. This controls the maximum number of samples contained
- * in each pg2sdr_sample_buffer passed to the user callback while pg2sdr_stream_data is running.
+/**
+ * \brief Set size of sample buffer passed to user callbacks.
+ * \ingroup config
  *
- * May not be called while streaming; will return PG2SDR_ERROR_BAD_STATE if this is attempted.
+ * Set the user buffer size to \p buffer_size user samples. The user
+ * buffer size controls the maximum number of samples contained in
+ * each pg2sdr_sample_buffer passed to the user callback while
+ * pg2sdr_stream_data is running.
+ *
+ * This setting also influences the size of internally allocated USB
+ * buffers. Setting large values may exceed system limits on USB
+ * buffer size and return an error.
+ *
+ * The buffer size may not be changed while streaming is active.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] buffer_size the user buffer size, in samples
+ * \retval ::PG2SDR_SUCCESS Success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p buffer_size is out of range
+ * \retval ::PG2SDR_ERROR_BAD_STATE cannot change buffer size while streaming is active
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_buffer_size()
  */
 int pg2sdr_set_buffer_size(pg2sdr_device *dev, size_t buffer_size);
 
-/* Get the current user buffer size and store it in *buffer_size */
+/**
+ * \brief Get size of sample buffer passed to user callbacks.
+ * \ingroup config
+ *
+ * \param[in] dev the device to query
+ * \param[out] buffer_size a non-NULL pointer where the current buffer size will be stored on success
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p buffer_size is NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_buffer_size()
+ */
 int pg2sdr_get_buffer_size(pg2sdr_device *dev, size_t *buffer_size);
 
-/* Set the current requested sample rate to "rate".
+/**
+ * \brief Set the current requested user sampling rate
+ * \ingroup config
  *
- * May be called at any time; does not affect the sample rate of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * Change the requested user sampling rate. The user sampling rate is
+ * the effective sampling rate seen by the user-provided callback: it
+ * is the rate at which user samples are provided, \p rate user
+ * samples per second. The actual ADC sampling rate may be higher than
+ * the user sampling rate, with libpg2sdr providing decimation down to
+ * the user sampling rate.
+ *
+ * As a broad sanity check, libpg2sdr will immediately reject sample rates
+ * that are <1kHz or >100MHz. Sample rate support is still limited by
+ * hardware support, and rates that are accepted by this function may
+ * later be rejected by pg2sdr_apply_changes().
+ *
+ * May be called at any time; does not affect the sample rate of any
+ * currently active stream.  Call pg2sdr_apply_changes() while not
+ * streaming data to complete the configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] rate the new sampling rate, in Hz
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p rate is out of range
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_sample_rate()
  */
 int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate);
 
-/* Get current sample rate configuration.
+/**
+ * \brief Get current user sampling rate
+ * \ingroup config
  *
- * The currently requested sample rate is stored in *requested (if not NULL)
+ * Gets the currently requested user sampling rate, and/or the actual
+ * effective sampling rate in use.
  *
- * The actual configured sample rate is stored in *actual (if not NULL), or 0 if sample
- * rate configuration is still waiting to be applied. The actual rate reflects the effective
- * rate that the hardware is configured for, and may differ slightly from the requested rate
- * due to limitations of the hardware.
+ * The requested user sampling rate is the rate set by calling
+ * pg2sdr_set_sample_rate.
+ *
+ * The actual effective sampling rate is the effective sampling rate
+ * in use by the hardware, and may vary slightly from the requested
+ * rate due to hardware limitations (not all sampling rates can be
+ * exactly supported).
+ *
+ * If the requested sampling rate has been changed by calling
+ * pg2sdr_set_sample_rate(), but pg2sdr_apply_changes() has not yet
+ * been called, then the actual sampling rate has not yet been
+ * determined, and will return 0.
+ *
+ * \param[in] dev the device to query
+ * \param[out] requested if not NULL, location to store the requested user sampling rate
+ * \param[out] actual if not NULL, location to store the actual user sampling rate
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if both \p requested and \p actual are NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_sample_rate()
  */
 int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual);
 
-/* Set the current decimation mode to "decimation_mode". This controls additional, transparent,
- * ADC sample rate scaling and decimation performed in the receive path. In all cases, the user
- * callback still receives data at the requested sample rate.
+/**
+ * \brief Decimation mode that performs no additional decimation.
+ * \ingroup config
  *
- * Extra decimation can provide lower noise or better bandpass filtering characteristics, at the
- * cost of needing to run the ADC at a higher sample rate and transfer more data over the USB
- * bus.
+ * \sa pg2sdr_set_decimation_mode()
+ */
+#define PG2SDR_DECIMATION_NONE (0)
+
+/**
+ * \brief Maximum number of decimation steps available.
+ * \ingroup config
  *
- * decimation_mode may be one of:
- *
- *   0:    do not do any extra decimation of the received signal;
- *
- *   1..PG2SDR_DECIMATION_MAX: scale the ADC sample rate by 2**N. Decimate received data by 2**N.
- *
- *   PG2SDR_DECIMATION_AUTO: use power-of-two ADC scaling and decimation to move the
- *    intermediate frequency range used by the received signal away from 0Hz. This avoids
- *    problems with the effective bandwidth being limited by tuner filtering near 0Hz,
- *    an issue that mostly affects lower sample rates. Won't increase the ADC frequency past
- *    20MHz. This is the default setting.
- *
- *   PG2SDR_DECIMATION_AUTO_MAX: use the largest possible power-of-two ADC scaling
- *    and decimation. Won't increase the ADC frequency past 20MHz.
- *
- * May be called at any time; does not affect the configuration of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * \sa pg2sdr_set_decimation_mode()
  */
 #define PG2SDR_DECIMATION_MAX (8)
+
+/**
+ * \brief Decimation mode that auto-selects decimation to avoid bandpass filter issues
+ * \ingroup config
+ *
+ * This decimation mode adds decimation steps, if needed, to avoid the
+ * received signal falling into the high-pass filter region of the
+ * tuner bandpass filter. This avoids problems with the effective
+ * bandwidth being limited by the available tuner bandpass settings
+ * near 0Hz, an issue that mostly affects lower sample rates. This is
+ * the default decimation mode.
+ *
+ * \sa pg2sdr_set_decimation_mode()
+ */
 #define PG2SDR_DECIMATION_AUTO (-1)
+
+/**
+ * \brief Decimation mode that auto-selects the largest available decimation.
+ * \ingroup config
+ *
+ * This decimation mode selects the largest number of decimation steps
+ * possible without exceeding the configured ADC sampling rate limit.
+ *
+ * \sa pg2sdr_set_decimation_mode()
+ */
 #define PG2SDR_DECIMATION_AUTO_MAX (-2)
+
+/**
+ * \brief Set current decimation mode
+ * \ingroup config
+ *
+ * Configures the decimation mode, which controls additional,
+ * transparent, ADC sampling rate scaling and decimation performed in
+ * the receive path. In all cases, the user callback still receives
+ * data at the requested user sampling rate.
+ *
+ * Extra decimation can provide lower noise or better bandpass
+ * filtering characteristics, at the cost of needing to run the ADC at
+ * a higher sample rate and transfer more data over the USB bus.
+ *
+ * If \p decimation_mode is positive, it is interpreted as the number
+ * of decimate-by-2 stages (at most ::PG2SDR_DECIMATION_MAX) to use,
+ * i.e.  the total decimation factor is 2**decimation_node. The ADC
+ * sampling rate is scaled correspondingly.
+ *
+ * Otherwise, \p decimation_mode should be one of ::PG2SDR_DECIMATION_NONE,
+ * ::PG2SDR_DECIMATION_AUTO (the default), or ::PG2SDR_DECIMATION_AUTO_MAX.
+ *
+ * May be called at any time; does not affect the decimation of any
+ * currently active stream.  Call pg2sdr_apply_changes() while not
+ * streaming data to complete the configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] decimation_mode the new decimation mode to set
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p decimation_mode is not a valid decimation mode
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_decimation_mode()
+ */
 int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode);
 
-/* Get the currently requested decimation mode and store it in *decimation_mode */
+/**
+ * \brief Get current decimation mode
+ * \ingroup config
+ *
+ * \param[in] dev the device to query
+ * \param[out] decimation_mode a non-NULL pointer where the current decimation mode will be stored on success
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p decimation_mode is NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_decimation_mode()
+ */
 int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode);
 
-/* Set the current undersampling mode.
+/**
+ * \brief Set the current undersampling mode.
  *
- * The default mode (1) corresponds to the normal case where the ADC samples at
- * some rate Fs, and we arrange for the IF signal to be contained between 0 .. Fs/2
+ * Experimental, use with caution.
  *
- * For values N>1, the ADC will sample at Fs but the IF signal will be contained
- * between (N-1)*Fs/2 and N*Fs/2. For example, N=2 places the IF signal between
- * Fs/2 and Fs.
+ * libpg2sdr can be configured to run the ADC at a sampling rate that
+ * is less than the Nyquist rate of the IF signal, and deliberately
+ * capture parts of the signal above the Nyquist rate as aliases.
  *
- * N>1 causes undersampling or bandpass sampling to happen - the IF signal is above
- * the Nyquist frequency for the ADC's sample rate. One of the spectral replicas
- * of the IF signal will lie between 0..Fs/2, and it is this replica/alias that is
- * captured by the ADC.
+ * The default mode (N=1) corresponds to the normal case where the ADC
+ * sampling rate is Fs, and we arrange for the IF signal to be
+ * contained between 0 .. Fs/2
  *
- * Undersampling can help in cases where there's no suitable tuner bandpass filter
- * available for f < Fs/2. There are tradeoffs, notably increased noise.
+ * For values N>1, we arrange for the IF signal to be placed between
+ * (N-1)*Fs/2 and N*Fs/2. For example, N=2 places the IF signal
+ * between Fs/2 and Fs. This causes undersampling (a.k.a. bandpass
+ * sampling) to happen. The IF signal is above the Nyquist frequency
+ * for the ADC's sampling rate. One of the spectral replicas of the IF
+ * signal will lie between 0..Fs/2, and it is this replica/alias that
+ * is captured by the ADC.
  *
- * May be called at any time; does not affect the configuration of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * Undersampling with N>1 can help in cases where there's no suitable
+ * tuner bandpass filter available for f < Fs/2. There are tradeoffs,
+ * notably increased noise.
+ *
+ * May be called at any time; does not affect the configuration of any
+ * currently active stream.  Call pg2sdr_apply_changes() to complete
+ * the configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] undersampling_mode the new undersampling mode (value of N) to set
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p undersampling_mode is out of range
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_undersampling_mode()
  */
-int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, int undersampling_mode);
+int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, unsigned undersampling_mode);
 
-/* Get the current undersampling mode, and place in *undersampling_mode */
-int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, int *undersampling_mode);
+/**
+ * \brief Get current undersampling mode
+ * \ingroup config
+ *
+ * \param[in] dev the device to query
+ * \param[out] undersampling_mode a non-NULL pointer where the current undersampling mode will be stored on success
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p undersampling_mode is NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_undersampling_mode()
+ */
+int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, unsigned *undersampling_mode);
 
-/* Set the ADC sampling rate limit, in Hz. libpg2sdr will not set the ADC to a rate higher
- * than this limit.
+/**
+ * \brief Set hardware ADC sampling rate limit
  *
- * Limiting the ADC rate implicitly limits the available sampling rates. In LOWIF_REAL mode,
- * the sampling rate is limited to the ADC rate. In BASEBAND mode, the complex sampling rate
- * is limited to one-half of the ADC rate.
+ * libpg2sdr will only select ADC sampling rates that are less than
+ * the configured sampling rate limit.
  *
- * The ADC sampling rate defaults to 28MHz. Higher limits can be set, but they are not very
- * useful as the limiting factor becomes the speed of the USB bus.
+ * Limiting the ADC sampling rate implicitly limits the available user
+ * sampling rates. In ::PG2SDR_MODE_LOWIF_REAL conversion mode, the
+ * user sampling rate is limited to the ADC rate. In
+ * ::PG2SDR_MODE_BASEBAND conversion mode, the user sampling rate is
+ * limited to one-half of the ADC rate. If additional decimation is
+ * requested (see pg2sdr_set_decimation_mode()) then this increases
+ * the required ADC sampling rate for a given user sampling rate.
  *
- * Setting a lower limit can be useful to limit the USB bandwidth used by a single device,
- * if it is sharing a USB bus with other devices. Setting a lower limit also reduces the
- * maximum CPU work required on the host.
+ * The ADC limit defaults to 28MHz, which is close to the limit for
+ * what most USB 2.0 host controllers can support on a single USB 2.0
+ * bus. Higher limits can be set, up to the ADC hardware limit of
+ * 80MHz, but anything above 28MHz is likely to start dropping data
+ * due to USB bus bandwidth limits.
  *
- * May be called at any time; does not affect the configuration of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * Setting a lower limit can be useful to limit the USB bandwidth used
+ * by a single device, if it is sharing a USB bus with other
+ * devices. Setting a lower limit also reduces power consumption, and
+ * reduces the amount of CPU work needed to process the received
+ * samples on the host.
+ *
+ * May be called at any time; does not affect the configuration of any
+ * currently active stream.  Call pg2sdr_apply_changes() to complete
+ * the configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] adc_limit the maximum ADC sampling rate to allow, in Hz
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p adc_limit is out of range
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_adc_limit()
  */
 int pg2sdr_set_adc_limit(pg2sdr_device *dev, double adc_limit);
 
-/* Get the current ADC limit, and place in *adc_limit */
+/**
+ * \brief Get current hardware ADC sampling rate limit
+ * \ingroup config
+ *
+ * \param[in] dev the device to query
+ * \param[out] adc_limit a non-NULL pointer where the current sampling rate limit will be stored on success
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p adc_limit is NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_adc_limit()
+ */
 int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit);
 
 /* Set the current sideband tuning mode.
