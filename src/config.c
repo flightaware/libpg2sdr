@@ -102,6 +102,9 @@ int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate)
 {
     CHECK_DEV(dev);
 
+    if (rate <= 1e3 || rate > 100e6)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+    
     pthread_mutex_lock(&dev->mutex);
 
     if (rate != dev->requested_sample_rate) {
