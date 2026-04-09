@@ -219,7 +219,7 @@ int pg2sdr_close_device(pg2sdr_device *dev)
     pthread_mutex_lock(&dev->mutex);
     if (dev->streaming) {
         pthread_mutex_unlock(&dev->mutex);
-        return PG2SDR_ERROR_BUSY;
+        return PG2SDR_ERROR_BAD_STATE;
     }
 
     int error = pg2sdr__ctrl_set_rf_power(dev->usb_handle, RF_POWER_OFF, dev->control_timeout_ms);
