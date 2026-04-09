@@ -58,6 +58,9 @@ int pg2sdr_get_conversion_mode(pg2sdr_device *dev, pg2sdr_conversion_mode_t *mod
 {
     CHECK_DEV(dev);
 
+    if (!mode)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     *mode = dev->conversion_mode;
     pthread_mutex_unlock(&dev->mutex);
@@ -92,6 +95,9 @@ int pg2sdr_get_buffer_size(pg2sdr_device *dev, size_t *buffer_size)
 {
     CHECK_DEV(dev);
 
+    if (!buffer_size)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     *buffer_size = dev->buffer_size;
     pthread_mutex_unlock(&dev->mutex);
@@ -104,7 +110,7 @@ int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate)
 
     if (rate <= 1e3 || rate > 100e6)
         return PG2SDR_ERROR_BAD_ARGUMENT;
-    
+
     pthread_mutex_lock(&dev->mutex);
 
     if (rate != dev->requested_sample_rate) {
@@ -119,6 +125,9 @@ int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate)
 int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual)
 {
     CHECK_DEV(dev);
+
+    if (!requested && !actual)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
 
@@ -151,6 +160,10 @@ int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode)
 int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode)
 {
     CHECK_DEV(dev);
+
+    if (!decimation_mode)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     if (decimation_mode)
         *decimation_mode = dev->decimation_mode;
@@ -178,6 +191,10 @@ int pg2sdr_set_undersampling_mode(pg2sdr_device *dev, int undersampling_mode)
 int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, int *undersampling_mode)
 {
     CHECK_DEV(dev);
+
+    if (!undersampling_mode)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     if (undersampling_mode)
         *undersampling_mode = dev->undersampling_mode;
@@ -205,6 +222,10 @@ int pg2sdr_set_adc_limit(pg2sdr_device *dev, double adc_limit)
 int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit)
 {
     CHECK_DEV(dev);
+
+    if (!adc_limit)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     if (adc_limit)
         *adc_limit = dev->adc_limit;
@@ -232,6 +253,9 @@ int pg2sdr_get_sideband(pg2sdr_device *dev, bool *upper_sideband)
 {
     CHECK_DEV(dev);
 
+    if (!upper_sideband)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     *upper_sideband = dev->upper_sideband;
     pthread_mutex_unlock(&dev->mutex);
@@ -255,6 +279,9 @@ int pg2sdr_set_frequency(pg2sdr_device *dev, double freq)
 int pg2sdr_get_frequency(pg2sdr_device *dev, double *requested, double *actual)
 {
     CHECK_DEV(dev);
+
+    if (!requested && !actual)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
 
@@ -291,6 +318,10 @@ int pg2sdr_set_bandpass(pg2sdr_device *dev, double low, double high)
 int pg2sdr_get_bandpass(pg2sdr_device *dev, double *low, double *high, double *actual_low, double *actual_high)
 {
     CHECK_DEV(dev);
+
+    if (!low && !high && !actual_low && !actual_high)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
 
     if (low)
