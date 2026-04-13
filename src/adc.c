@@ -79,7 +79,8 @@ adc_p_i_tuple_t *pg2sdr__adc_make_p_i_table()
     return table;
 }
 
-int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon)
+int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional,
+                              bool enable_no_pll, double epsilon)
 {
     if (target_frequency > 80e6)
         return PG2SDR_ERROR_ADC_RATE_RANGE;
@@ -91,6 +92,29 @@ int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
         epsilon = 1e-6;
 
     double error_threshold = target_frequency * epsilon;
+
+    /* consider no-PLL case first */
+    if (enable_no_pll) {
+        unsigned xtal_divisor = round(adc_reference_frequency / target_frequency);
+        if (xtal_divisor >= 1 && xtal_divisor <= 256) {
+            double actual_frequency = adc_reference_frequency / xtal_divisor;
+            double error = fabs(actual_frequency - target_frequency);
+            if (error <= error_threshold) {
+                divisors->valid = true;
+                divisors->fractional = false;
+                divisors->n = 0;
+                divisors->m = 0;
+                divisors->p = 0;
+                divisors->i = (xtal_divisor == 1 ? 0 : xtal_divisor);
+                divisors->error = error;
+                divisors->actual_fcco = 0;
+                divisors->actual_frequency = actual_frequency;
+                return PG2SDR_SUCCESS;
+            }
+        }
+    }
+
+    /* consider PLL cases */
 
     uint32_t range_min = ceil(adc_min_fcco / target_frequency);
     uint32_t range_max = floor(adc_max_fcco / target_frequency);

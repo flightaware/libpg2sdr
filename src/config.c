@@ -528,7 +528,9 @@ static int apply_rate_change(pg2sdr_device *dev)
      */
     adc_pll_config_t new_config;
     int error;
-    if ((error = pg2sdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true, /* epsilon= */ 0)) < 0)
+    bool enable_no_pll = (dev->fw_version >= 0x00090600);
+    if ((error = pg2sdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true,
+                                           enable_no_pll, /* epsilon= */ 0)) < 0)
         return error;
 
     LOGDEBUG(dev, "ADC sample rate changes to %.6f MHz with %u post-decimation steps (divide-by-%u)", new_config.actual_frequency/1e6, post_decimation, 1<<post_decimation);

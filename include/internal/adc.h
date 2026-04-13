@@ -117,6 +117,7 @@ int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
  * If `minimize_error` is false, prefer settings with lower phase noise, even if this means increasing the absolute frequency error
  *
  * If `enable_fractional` is true, allow settings that use a fractional M divider.
+ * If `enable_no_pll` is true, allow setttings that bypass PLL0AUDIO i.e. m == 0 (requires firmware >= 0.9.6.0)
  *
  * If `epsilon` > 0, only consider settings where the total frequency error is less than (epsilon * target_frequency)
  * If `epsilon` <= 0, behave as if epsilon = 1e-6 (i.e. 1PPM max error)
@@ -124,6 +125,7 @@ int pg2sdr__adc_candidate_is_better(adc_pll_config_t *current_best, adc_pll_conf
  * Store results in `*divisors` and return PG2SDR_SUCCESS on success;
  * return a negative error code on failure.
  */
-int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional, double epsilon);
+int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisors, bool minimize_error, bool enable_fractional,
+                              bool enable_no_pll, double epsilon);
 
 #endif /* PG2SDR_ADC_H */
