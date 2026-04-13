@@ -325,7 +325,7 @@ INSTANTIATE_TEST_SUITE_P(ADCTargetFloats, ADCParameterizedTest, Combine( /* targ
                                                                          /* allow_no_pll */ Bool(),
                                                                          /* epsilon */ Values(1e-6) ) );
 
-/* target frequencyes which are round numbers which should provoke the no_pll case */
+/* target frequencies which are round numbers which should provoke the no_pll case */
 INSTANTIATE_TEST_SUITE_P(ADCTargetExact, ADCParameterizedTest, Combine( /* target */ Range(1.0e6, 30.0e6, 1.0e6),
                                                                         /* minimize_error */ Bool(),
                                                                         /* allow_fractional */ Bool(),
