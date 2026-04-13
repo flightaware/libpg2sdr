@@ -90,6 +90,7 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
         goto cleanup;
     }
 
+    dev->fw_version = meta.version;
     dev->control_timeout_ms = meta.control_timeout_ms;
 
     ep0_in_board_status_t status;

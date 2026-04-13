@@ -71,6 +71,7 @@ struct pg2sdr__device {
     char *serial;
     char *ports;
 
+    uint32_t fw_version;
     unsigned control_timeout_ms;
     uint32_t usb_samples_per_block;
     uint32_t usb_bytes_per_block;
