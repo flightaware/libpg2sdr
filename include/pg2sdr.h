@@ -709,8 +709,8 @@ int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate);
  * Gets the currently requested user sampling rate, and/or the actual
  * effective sampling rate in use.
  *
- * The requested user sampling rate is the rate set by calling
- * pg2sdr_set_sample_rate.
+ * The requested user sampling rate is the rate set by the last
+ * call to pg2sdr_set_sample_rate().
  *
  * The actual effective sampling rate is the effective sampling rate
  * in use by the hardware, and may vary slightly from the requested
@@ -826,6 +826,7 @@ int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode);
 
 /**
  * \brief Set the current undersampling mode.
+ * \ingroup config
  *
  * Experimental, use with caution.
  *
@@ -879,6 +880,7 @@ int pg2sdr_get_undersampling_mode(pg2sdr_device *dev, unsigned *undersampling_mo
 
 /**
  * \brief Set hardware ADC sampling rate limit
+ * \ingroup config
  *
  * libpg2sdr will only select ADC sampling rates that are less than
  * the configured sampling rate limit.
@@ -931,133 +933,567 @@ int pg2sdr_set_adc_limit(pg2sdr_device *dev, double adc_limit);
  */
 int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit);
 
-/* Set the current sideband tuning mode.
+/**
+ * \brief Set the current sideband tuning mode.
+ * \ingroup config
  *
- * If upper_sideband is true, the tuner LO will be tuned below the requested frequency, and
- * frequencies above the LO will be received.
+ * The sideband tuning mode controls which of the two sidebands around
+ * the tuner LO is retained by the tuner.
  *
- * If upper_sideband is false, the tuner LO will be tuned above the requested frequency, and
- * frequencies below the LO will be received.
+ * When the ::PG2SDR_MODE_BASEBAND conversion mode is used, the choice
+ * of sideband is largely transparent to the libpg2sdr user. Both
+ * choices of sideband produce the same complex baseband signal, with
+ * the requested frequency at 0Hz and increasing RF frequencies
+ * appearing as increasing baseband frequencies. Setting
+ * upper_sideband=true near the top of the available tuner range, or
+ * setting upper_sideband=false near the bottom of the available
+ * range, will slightly extend the range of tunable frequencies.
  *
- * Setting upper_sideband=true near the top of the available tuner range, or
- * setting upper_sideband=false near the bottom of the available range, will slightly extend
- * the range of tunable frequencies.
+ * When the ::PG2SDR_MODE_LOWIF_REAL conversion mode is used, the
+ * tuned frequency directly sets the tuner LO, and the choice of sideband
+ * affects the range of frequencies captured. If \p upper_sideband = true,
+ * then frequencies above the tuned frequency are captured and increasing
+ * RF frequencies appear as increasing frequencies in captured data. If
+ * \p upper_sideband = false, then frequencies below the tuned frequencies
+ * are captures, and *decreasing* RF frequencies appear as increasing
+ * frequencies in captured data.
  *
- * May be called at any time; does not affect the configuration of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * May be called at any time; does not affect the configuration of any
+ * currently active stream.  Call pg2sdr_apply_changes() to complete
+ * the configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] upper_sideband the new sideband mode to configure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_sideband()
  */
 int pg2sdr_set_sideband(pg2sdr_device *dev, bool upper_sideband);
 
-/* Get the currently requested sideband tuning mode and store it in *upper_sideband */
+/**
+ * \brief Get current hardware ADC sampling rate limit
+ * \ingroup config
+ *
+ * \param[in] dev the device to query
+ * \param[out] upper_sideband a non-NULL pointer where the current sideband setting will be stored on success
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p upper_sideband is NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_sideband()
+ */
 int pg2sdr_get_sideband(pg2sdr_device *dev, bool *upper_sideband);
 
-/* Set the center frequency for received data. This is the RF frequency that will be
- * downconverted to 0Hz in samples provided to user callbacks, in both baseband and low-IF modes.
+/**
+ * \brief Set the center frequency of received data.
+ * \ingroup config
  *
- * May be called at any time; does not affect the configuration of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * The center frequency is the RF frequency that will be downconverted
+ * to 0Hz in samples provided to user callbacks, in both
+ * ::PG2SDR_MODE_BASEBAND and ::PG2SDR_MODE_LOWIF_REAL conversion
+ * modes.
+ *
+ * May be called at any time; does not affect the configuration of any
+ * currently active stream. Call pg2sdr_apply_changes() to complete the
+ * configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] frequency the new center frequency, in Hz
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_frequency()
  */
 int pg2sdr_set_frequency(pg2sdr_device *dev, double frequency);
 
-/* Get current center frequency configuration.
+/**
+ * \brief Get current center frequency
+ * \ingroup config
  *
- * The currently requested center frequency is stored in *requested (if not NULL)
+ * Gets the currently requested center frequency, and/or the actual
+ * effective center frequency in use.
  *
- * The actual configured center frequency is stored in *actual (if not NULL), or 0 if center
- * frequency configuration is still waiting to be applied. The actual frequency reflects the
- * effective frequency that the hardware is configured for, and may differ slightly from the
- * requested frequency due to limitations of the hardware.
+ * The requested center frequency is the frequency set by the last call
+ * to pg2sdr_set_frequency().
+ *
+ * The actual effective center frequency is the effective center
+ * frequency in use by the hardware, and may vary slightly from the
+ * requested frequency due to hardware limitations (not all
+ * frequencies can be exactly tuned)
+ *
+ * If the requested frequency has been changed by calling
+ * pg2sdr_set_frequency(), but pg2sdr_apply_changes() has not yet been
+ * called, then the actual frequency has not yet been determined, and
+ * will return 0.
+ *
+ * \param[in] dev the device to query
+ * \param[out] requested if not NULL, location to store the requested center frequency
+ * \param[out] actual if not NULL, location to store the actual center frequency
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if both \p requested and \p actual are NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_frequency()
  */
 int pg2sdr_get_frequency(pg2sdr_device *dev, double *requested, double *actual);
 
-/* Set bandpass filter limits.
+/** 
+ * \brief Set bandpass filter limits.
+ * \ingroup config
  *
- * This controls the cutoffs of the analog tuner bandpass filter that shapes the incoming signal
- * before the ADC. The low and high limits are relative to the RF frequency set by
- * pg2sdr_set_frequency. Signals between the limits are retained, other signals are attenuated.
+ * This controls the cutoffs of the analog tuner bandpass filter that
+ * shapes the incoming signal before the ADC. The low and high limits
+ * are relative to the RF frequency set by
+ * pg2sdr_set_frequency(). Signals between the limits are retained,
+ * other signals are attenuated.
  *
- * In baseband mode, usually the low limit will be negative and the high limit will be positive,
- * as you want to receive a signal that is on both sides of the center frequency. For a simple
- * bandwidth setting, pass low = -bandwidth/2 and high = +bandwidth/2.
+ * In ::PG2SDR_MODE_BASEBAND conversion mode, usually \p low will be
+ * negative and \p high will be positive, as you want to receive a
+ * signal that is on both sides of the center frequency. For a simple
+ * bandwidth setting centered around the center frequency, use \p low
+ * = -bandwidth/2 and \p high = +bandwidth/2.
  *
- * In low-IF mode, both will either be positive (in upper-sideband mode) or negative (in low-
- * sideband mode) as all of the RF signal captures is on one side of the LO.
+ * In ::PG2SDR_MODE_LOWIF_REAL conversion, both will either be
+ * positive (in upper-sideband mode) or negative (in low- sideband
+ * mode) as all of the RF signal captures is on one side of the LO.
  *
- * The actual bandpass limits used may be significantly different to what is requested, for two
- * reasons:
+ * The actual bandpass limits used may be significantly different to
+ * what is requested, for two reasons:
  *
- *   a) the hardware is quite limited in terms of the available filtering options;
- *   b) the sampling rate chosen influences the maximum cutoff on one side of the bandpass region,
- *      as we must pick a cutoff below the ADC's Nyquist frequency to avoid aliasing in the ADC.
+ *  * the hardware is quite limited in terms of the available filtering options;
+ * 
+ *  * the sampling rate chosen influences the maximum cutoff on one
+ *    side of the bandpass region, as we must pick a cutoff below the
+ *    ADC's Nyquist frequency to avoid aliasing in the ADC.
  *
- * May be called at any time; does not affect the configuration of any currently active stream.
- * Call pg2sdr_apply_changes to complete the configuration change.
+ * May be called at any time; does not affect the configuration of any
+ * currently active stream.  Call pg2sdr_apply_changes() to complete the
+ * configuration change.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] low the new low-cutoff frequency, in Hz
+ * \param[in] high the new low-cutoff frequency, in Hz
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_bandpassy()
  */
 int pg2sdr_set_bandpass(pg2sdr_device *dev, double low, double high);
 
-/* Get current bandpass filter configuration.
+/**
+ * \brief Get requested and actual bandpass filter settings.
+ * \ingroup config
  *
- * The currently requested limits are stored in *req_low and *req_high (if not NULL)
+ * The requested filter settings are the settings in the last call
+ * to pg2sdr_set_bandpass()
  *
- * The actual configured limits are stored in *actual_low and *actual_high (if not NULL), or
- * 0 if bandpass configuration is still waiting to be applied. The actual bandpass reflects the
- * effective bandpass cutoffs that the hardware is configured for, and may differ from the
- * requested limits due to limitations of the hardware.
+ * The actual filter settings are how the hardware has actually been
+ * configured, and may differ (sometimes greatly) from the requested
+ * filter settings, as the available bandpass filter choices are
+ * limited by hardware.
+ * 
+ * If the requested filter has been changed by calling
+ * pg2sdr_set_bandpass(), but pg2sdr_apply_changes() has not yet been
+ * called, then the actual limits have not yet been determined, and
+ * will return 0.
  *
- * All limits are relative to the configured center frequency, i.e. a limit of +1MHz corresponds
- * to a cutoff of +1MHz at baseband.
+ * \param[in] dev the device to query
+ * \param[out] req_low if not NULL, location to store the requested low-cutoff frequency, in Hz
+ * \param[out] req_high if not NULL, location to store the requested high-cutoff frequency, in Hz
+ * \param[out] actual_low if not NULL, location to store the actual low-cutoff frequency, in Hz
+ * \param[out] actual_high if not NULL, location to store the actual high-cutoff frequency, in Hz
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if all of \p req_low, \p req_high, \p actual_low, \p actual_high are NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_bandpass()
  */
 int pg2sdr_get_bandpass(pg2sdr_device *dev, double *req_low, double *req_high, double *actual_low, double *actual_high);
 
-/* Attempt to apply any outstanding configuration changes to conversion mode, sampling rate,
- * decimation mode, center frequency, sideband mode, and bandpass limits.
+/**
+ * \brief Apply pending configuration changes
+ * \ingroup config
  *
- * This function should be called after all the corresponding pg2sdr_set_... functions for a
- * batch of changes have been completed. These settings interact, so it is possible that
- * the hardware can support the final configuration successfully but not every intermediate
- * configuration. Batching the changes together with a single "apply" call allows you to
- * jump to the final configuration in one step.
+ * Attempts to apply any outstanding configuration changes to
+ * conversion mode, sampling rate, center frequency, bandpass filter,
+ * decimation mode, undersampling mode, sideband mode, ADC rate limit.
  *
- * Not all configuration changes can be applied while streaming is active. Either stop
- * streaming before calling pg2sdr_apply_changes, or interpret returned PG2SDR_ERROR_BAD_STATE
- * errors as "some changes could not be applied because streaming is active". If BAD_STATE is
- * returned, the device remains in a consistent state, and any unapplied changes remain
- * pending and can be applied later by a futher call to pg2sdr_apply_changes.
+ * This function should be called after all the corresponding
+ * pg2sdr_set_xxx functions for a batch of changes have been
+ * completed. These settings can interact, so it is possible that the
+ * hardware can support the final configuration successfully but not
+ * every intermediate configuration. Batching the changes together
+ * with a single "apply" call allows you to jump to the final
+ * configuration in one step.
  *
- * It is safe to call pg2sdr_apply_changes if no changes are pending, doing so is a no-op.
+ * Not all configuration changes can be applied while streaming is
+ * active. Either stop streaming before calling
+ * pg2sdr_apply_changes(), or interpret a return value of
+ * ::PG2SDR_ERROR_BAD_STATE as "some changes could not be applied
+ * because streaming is active". If ::PG2SDR_ERROR_BAD_STATE is
+ * returned, the device remains in a consistent state, and any
+ * unapplied changes remain pending and can be applied later by a
+ * further call to pg2sdr_apply_changes()
  *
- * Calls to pg2sdr_stream_data implicit call pg2sdr_apply_changes before starting streaming.
+ * It is safe to call pg2sdr_apply_changes() if no changes are
+ * pending, doing so is a no-op.
+ *
+ * Calls to pg2sdr_stream_data() implicitly call
+ * pg2sdr_apply_changes() before starting streaming.
+ *
+ * \param[in] dev the device to reconfigure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_STATE streaming is active, and some pending changes cannot be applied while streaming
+ * \retval ::PG2SDR_ERROR_ADC_RATE_RANGE requested configuration would require an out-of-range ADC sampling rate
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_conversion_mode()
+ * \sa pg2sdr_set_sampling_rate()
+ * \sa pg2sdr_set_frequency()
+ * \sa pg2sdr_set_bandpass()
+ * \sa pg2sdr_set_decimation_mode()
+ * \sa pg2sdr_set_undersampling_mode()
+ * \sa pg2sdr_set_sideband()
+ * \sa pg2sdr_set_adc_limit()
  */
 int pg2sdr_apply_changes(pg2sdr_device *dev);
 
-/* Per-gain-stage gain configuration, in gain steps */
-int pg2sdr_set_lna_gain(pg2sdr_device *dev, unsigned gain);
-int pg2sdr_set_mix_gain(pg2sdr_device *dev, unsigned gain);
-int pg2sdr_set_vga_gain(pg2sdr_device *dev, unsigned gain);
-int pg2sdr_get_stage_gains(pg2sdr_device *dev, unsigned *lna, unsigned *mix, unsigned *vga);
+/**
+ * \defgroup gain Tuner gain control
+ *
+ * The tuner on PG2SDR hardware has three controllable gain-stages.
+ * In order, starting from the RF input, these stages are LNA, MIX,
+ * and VGA. Each stage has a configurable gain setting that can be set
+ * to one of 16 possible gain steps.
+ *
+ * libpg2sdr provides three types of API for setting
+ * the gain of these stages, and matching getters to retrieve gain:
+ *
+ * * Total gain setting across all stages, in dB:
+ *   pg2sdr_set_total_gain_db(), pg2sdr_get_total_gain_db(). This uses
+ *   a precomputed table to convert between total gain and combined
+ *   stage gains. This is the API you probably want to use unless you
+ *   have special requirements.
+ *
+ * * Gain setting per stage, in terms of dB: pg2sdr_set_lna_gain_db(),
+ *   pg2sdr_set_mix_gain_db(), pg2sdr_set_vga_gain_db(),
+ *   pg2sdr_get_stage_gains_db(). This API operates in terms of
+ *   approximate gain in dB per stage, using a calibration table to
+ *   convert between dB and hardware gain steps.
+ *
+ * * Direct control of hardware gain step settings:
+ *   pg2sdr_set_lna_gain(), pg2sdr_set_mix_gain(),
+ *   pg2sdr_set_vga_gain(), pg2sdr_get_stage_gains(). This is a
+ *   low-level API that works in terms of hardware gain steps, which
+ *   do not directly correspond to any particular amplification ratio.
+ *
+ * The gain APIs that deal in terms of dB rely on a set of gain
+ * tables, which provide conversions between hardware gain steps
+ * and values in dB. libpg2sdr provides a built-in set of tables
+ * by default. The conversion tables can be inspected or
+ * updated via pg2sdr_get_gain_tables() and pg2sdr_set_gain_tables().
+ *
+ * All of the gain APIs can be called while streaming data, and
+ * take effect immediately when called.
+ */
 
-/* Per-gain-stage gain configuration, in dB */
+/**
+ * \brief Set LNA stage gain step
+ * \ingroup gain
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain the LNA gain step to set, in the range [0..15]
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p gain is out of range
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_stage_gains()
+ */
+int pg2sdr_set_lna_gain(pg2sdr_device *dev, unsigned gain);
+
+/**
+ * \brief Set MIX stage gain step
+ * \ingroup gain
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain the MIX gain step to set, in the range [0..15]
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p gain is out of range
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_stage_gains()
+ */
+int pg2sdr_set_mix_gain(pg2sdr_device *dev, unsigned gain);
+
+/**
+ * \brief Set VGA stage gain step
+ * \ingroup gain
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain the VGA gain step to set, in the range [0..15]
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p gain is out of range
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_stage_gains()
+ */
+int pg2sdr_set_vga_gain(pg2sdr_device *dev, unsigned gain);
+
+/**
+ * \brief Get per-stage gain step settings
+ * \ingroup gain
+ *
+ * This retrieves current hardware gain settings, in terms of the
+ * low-level hardware gain step for each stage.
+ *
+ * \param[in] dev the device to query
+ * \param[out] lna if not NULL, location to store the current LNA gain step
+ * \param[out] mix if not NULL, location to store the current MIX gain step
+ * \param[out] vga if not NULL, location to store the current VGA gain step
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if all of \p lna, \p mix, \p vga are NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_lna_gain()
+ * \sa pg2sdr_set_mix_gain()
+ * \sa pg2sdr_set_vga_gain()
+ */
+int pg2sdr_get_stage_gains(pg2sdr_device *dev, unsigned *lna, unsigned *mix, unsigned *vga);
+  
+/**
+ * \brief Set LNA stage gain in dB
+ * \ingroup gain
+ *
+ * The requested dB value will be converted to a hardware gain step
+ * using the currently set gain table. The actual dB value may not
+ * exactly match the requested value.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain_db the LNA gain to set, in dB
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_stage_gains_db()
+ * \sa pg2sdr_set_gain_tables()
+ */
 int pg2sdr_set_lna_gain_db(pg2sdr_device *dev, double gain_db);
+
+/**
+ * \brief Set MIX stage gain in dB
+ * \ingroup gain
+ *
+ * The requested dB value will be converted to a hardware gain step
+ * using the currently set gain table. The actual dB value may not
+ * exactly match the requested value.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain_db the MIX gain to set, in dB
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_stage_gains_db()
+ * \sa pg2sdr_set_gain_tables()
+ */
 int pg2sdr_set_mix_gain_db(pg2sdr_device *dev, double gain_db);
+
+/**
+ * \brief Set VGA stage gain in dB
+ * \ingroup gain
+ *
+ * The requested dB value will be converted to a hardware gain step
+ * using the currently set gain table. The actual dB value may not
+ * exactly match the requested value.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain_db the VGA gain to set, in dB
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_stage_gains_db()
+ * \sa pg2sdr_set_gain_tables()
+ */
 int pg2sdr_set_vga_gain_db(pg2sdr_device *dev, double gain_db);
+
+/**
+ * \brief Get per-stage gain settings in dB
+ * \ingroup gain
+ *
+ * This retrieves current hardware gain settings, converting
+ * hardware gain step settings to a gain in dB using the
+ * currently set gain table.
+ *
+ * \param[in] dev the device to query
+ * \param[out] lna_db if not NULL, location to store the current LNA gain
+ * \param[out] mix_db if not NULL, location to store the current MIX gain
+ * \param[out] vga_db if not NULL, location to store the current VGA gain
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if all of \p lna_db, \p mix_db, \p vga_db are NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_lna_gain_db()
+ * \sa pg2sdr_set_mix_gain_db()
+ * \sa pg2sdr_set_vga_gain_db()
+ * \sa pg2sdr_get_gain_tables()
+ */
 int pg2sdr_get_stage_gains_db(pg2sdr_device *dev, double *lna_db, double *mix_db, double *vga_db);
 
-/* Total gain configuration, in dB (uses all gain stages) */
+/**
+ * \brief Set total gain, in dB
+ * \ingroup gain
+ *
+ * The requested dB value is converted to a set of hardware gain steps
+ * for each stage, using the currently set gain table.  The actual dB
+ * value may not exactly match the requested value.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain_db the total gain to set, in dB
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_get_total_gain_db()
+ * \sa pg2sdr_set_gain_tables()
+ */
 int pg2sdr_set_total_gain_db(pg2sdr_device *dev, double gain_db);
+
+/**
+ * \brief Get total gain setting, in dB
+ * \ingroup gain
+ *
+ * This retrieves current hardware gain settings, and converts
+ * them to a total gain value in dB using the
+ * currently set gain table.
+ *
+ * If the current gain was set by calling pg2sdr_set_total_gain_db()
+ * then the returned gain reflects the recorded gain setting for the
+ * entry in the gain table that was used. If the current gain was set
+ * by setting individual gain stages, then an estimated total gain is
+ * returned by looking at the gain table for each stage individually;
+ * this estimated total may not exactly match the total gain
+ * measurements in the gain table.
+ *
+ * \param[in] dev the device to query
+ * \param[out] gain_db location to store the current total gain, in dB
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p gain_db is NULL
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_set_total_gain_db()
+ * \sa pg2sdr_get_gain_tables()
+ */
 int pg2sdr_get_total_gain_db(pg2sdr_device *dev, double *gain_db);
 
-/* Gain table access */
+/**
+ * \defgroup gaintable Gain tables
+ *
+ * The gain control APIs rely on a set of four precalculated gain
+ * tables which map gain values in dB to hardware settings.
+ *
+ * libpg2sdr provides built-in defaults for these tables which reflect
+ * gain values measured during hardware development and should be okay
+ * for most uses. Advanced users can provide their own tables by
+ * calling pg2sdr_set_gain_tables().
+ *
+ * There are three stage-specific gain tables:
+ *
+ *  * LNA gain table: 16-entry array of doubles, mapping LNA gain steps to a gain in dB
+ *  * MIX gain table: 16-entry array of doubles, mapping MIX gain steps to a gain in dB
+ *  * VGA gain table: 16-entry array of doubles, mapping VGA gain steps to a gain in dB
+ *
+ * The stage-specific tables are always exactly 16 entries long, with entry [i]
+ * containing the gain in dB for a hardware step of "i".
+ *
+ * There is also one total gain table, which maps a total gain value to an appropriate
+ * combination of hardware settings for all three stages. This table is a
+ * variable length array of \ref ::pg2sdr_gain_table_t structs.
+ */
+    
+/**
+ * \brief Gain table entry
+ * \ingroup gaintable
+ *
+ * Element type for the total gain tables used in
+ * pg2sdr_get_gain_tables() and pg2sdr_set_gain_tables().  Each entry
+ * maps a total gain (in dB) to gain step settings for each of the
+ * three gain stages.
+ */
 typedef struct {
-    double gain_db;         /* Total gain, dB */
-    unsigned lna_gain : 4;  /* Register 5 bits 3:0 */
-    unsigned mix_gain : 4;  /* Register 7 bits 3:0 */
-    unsigned vga_gain : 4;  /* Register 12 bits 3:0 */
+    double gain_db;         /**< Total gain, dB */
+    unsigned lna_gain : 4;  /**< LNA gain step, 0-15 (register 5 bits 3:0) */
+    unsigned mix_gain : 4;  /**< MIX gain step, 0-15 (register 7 bits 3:0) */
+    unsigned vga_gain : 4;  /**< VGA gain step, 0-15 (register 12 bits 3:0) */
 } pg2sdr_gain_table_t;
+
+/**
+ * \brief Set the gain tables used for the dB-based gain API
+ * \ingroup gaintable
+ *
+ * Update one or more of the internal gain tables. Gain tables are
+ * device-specific.
+ *
+ * This can be called at any time, but changes to the gain table do
+ * not retrospectively affect gain settings (the hardware settings are
+ * not modified if the gain table is changed).
+ *
+ * Not all gain tables need to be updated at once, pass NULL for
+ * tables to leave unchanged.
+ *
+ * A copy of the tables is made at the point when
+ * pg2sdr_set_gain_tables() is called; ownership of provided tables
+ * (and responsibility for freeing any allocated memory) stays with
+ * the caller.
+ *
+ * \p lna_table, \p mix_table, and \p vga_table, if provided, must be
+ * exactly 16 entries long.
+ *
+ * \p gain_table, if provided, must be exactly \p gain_table_size
+ * entries long. It may be unsorted, and must have at least one entry.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] gain_table if not NULL, pointer to an array of length \p gain_table_size
+ * \param[in] gain_table_size number of entries in \p gain_table
+ * \param[in] lna_table if not NULL, pointer to an array of length 16
+ * \param[in] mix_table if not NULL, pointer to an array of length 16
+ * \param[in] vga_table if not NULL, pointer to an array of length 16
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if all of \p gain_table, \p lna_table, \p mix_table, \p vga_table are NULL, or if \p gain_table is not NULL and \p gain_table_size == 0
+ * \retval <0 negative error code on failure
+ */
 int pg2sdr_set_gain_tables(pg2sdr_device *dev,
                            const pg2sdr_gain_table_t *gain_table, size_t gain_table_size,
                            const double *lna_table,
                            const double *mix_table,
                            const double *vga_table);
+
+/**
+ * \brief Get the current gain tables used for the dB-based gain API
+ * \ingroup gaintable
+ *
+ * Creates and returns copies of the currently used gain tables.
+ * These copies are a snapshot as at the time of the call, and will
+ * not reflect future changes to the gain tables.
+ *
+ * If \p gain_table is not NULL, a copy of the current total-gain
+ * table will be allocated and returned via \p gain_table. It is
+ * the caller's responsibility to free this array via free()
+ * when done. The returned gain table will be sorted by
+ * increasing total_gain.
+ *
+ * If \p lna_table, \p mix_table, or \p vga_table are not NULL,
+ * they should point to caller-managed memory with space for
+ * at least 16 entries. The current per-stage gain table will
+ * be copied there.
+ *
+ * \param[in] dev the device to query
+ * \param[out] gain_table if not NULL, storage for a pointer to a copy of the total gain table
+ * \param[out] gain_table_size if not NULL, stores the length of the array stored in \p gain_table
+ * \param[out] lna_table if not NULL, points to a 16-entry array that will be filled with the LNA gain table
+ * \param[out] mix_table if not NULL, points to a 16-entry array that will be filled with the MIX gain table
+ * \param[out] vga_table if not NULL, points to a 16-entry array that will be filled with the VGA gain table
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if all of \p gain_table, \p lna_table, \p mix_table, \p vga_table are NULL, or \p gain_table is NULL but \p gain_table_size is not NULL (or vice versa)
+ * \retval <0 negative error code on failure
+ */
 int pg2sdr_get_gain_tables(pg2sdr_device *dev,
                            pg2sdr_gain_table_t **gain_table,
                            size_t *gain_table_size,
