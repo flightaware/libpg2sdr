@@ -233,7 +233,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     uint32_t target_frequency = 5200000; //hz
 
     adc_pll_config_t int_divisors;
-    ASSERT_EQ(pg2sdr__adc_find_divisors(target_frequency, &int_divisors, false, false, 0), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target_frequency, &int_divisors, false, false, true, 0), PG2SDR_SUCCESS);
     ASSERT_EQ(int_divisors.valid, true);
     ASSERT_EQ(int_divisors.error, 0);
     ASSERT_EQ(int_divisors.i, 0);
@@ -243,7 +243,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
     ASSERT_EQ(int_divisors.actual_frequency, (float) target_frequency);
 
     adc_pll_config_t frac_divisors;
-    ASSERT_EQ(pg2sdr__adc_find_divisors(target_frequency, &frac_divisors, false, true, 0), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target_frequency, &frac_divisors, false, true, true, 0), PG2SDR_SUCCESS);
     ASSERT_EQ(frac_divisors.valid, true);
     ASSERT_EQ(frac_divisors.error, 0);
     ASSERT_EQ(frac_divisors.i, 0);
@@ -256,7 +256,7 @@ TEST(ADCTEST, Test_calculate_adc_clock_divisors) {
 TEST(ADCTEST, Test_N_divisor) {
     const double target = 5.234e4;
     adc_pll_config_t divisors;
-    ASSERT_EQ(pg2sdr__adc_find_divisors(target, &divisors, false, false, 0), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target, &divisors, false, false, true, 0), PG2SDR_SUCCESS);
 
     // Solution should produce a frequency within 1ppm of the requested frequency
     EXPECT_LT(abs(divisors.actual_frequency / target - 1.0), 1e-6);
@@ -272,36 +272,62 @@ TEST(ADCTEST, Test_N_divisor) {
     EXPECT_LE(expected_fcco, 550e6);
 }
 
-typedef std::tuple<double,bool,bool,double> ADCTestParam;
+typedef std::tuple<double,bool,bool,bool,double> ADCTestParam;
 class ADCParameterizedTest : public testing::TestWithParam<ADCTestParam> {};
 
 TEST_P(ADCParameterizedTest, CanTune)
 {
     double target, epsilon;
-    bool minimize_error, allow_fractional;
-    std::tie(target, minimize_error, allow_fractional, epsilon) = GetParam();
+    bool minimize_error, allow_fractional, allow_no_pll;
+    std::tie(target, minimize_error, allow_fractional, allow_no_pll, epsilon) = GetParam();
 
     adc_pll_config_t divisors;
-    ASSERT_EQ(pg2sdr__adc_find_divisors(target, &divisors, minimize_error, allow_fractional, epsilon), PG2SDR_SUCCESS);
+    ASSERT_EQ(pg2sdr__adc_find_divisors(target, &divisors, minimize_error, allow_fractional, allow_no_pll, epsilon), PG2SDR_SUCCESS);
 
     // Solution should respect allow_fractional
     EXPECT_TRUE(allow_fractional || !divisors.fractional);
+
+    // Solution should respect allow_no_pll
+    EXPECT_TRUE(allow_no_pll || divisors.m != 0);
+
+    // If no_pll is enabled, we should use a no_pll solution for target frequencies close
+    // to exact factors of adc_reference_frequency
+    double divisor = round(adc_reference_frequency / target);
+    double no_pll_error = fabs(adc_reference_frequency / divisor - target);
+    bool expect_no_pll = allow_no_pll && no_pll_error <= target * epsilon;
+    EXPECT_TRUE(!expect_no_pll || divisors.m == 0);
 
     // Solution should produce a frequency within epsilon of the requested frequency
     EXPECT_NEAR(divisors.actual_frequency, target, target * epsilon);
 
     // actual_fcco and actual_frequency should be consistent with what the other settings imply
-    double expected_fcco = 2 * (adc_reference_frequency / adc_effective_n_divisor(divisors.n)) * divisors.m;
-    double expected_fadc = expected_fcco / adc_effective_p_divisor(divisors.p) / adc_effective_i_divisor(divisors.i);
+    double expected_fcco, expected_fadc;
+    if (divisors.m == 0) {
+        expected_fcco = 0;
+        expected_fadc = adc_reference_frequency / adc_effective_i_divisor(divisors.i);
+    } else {
+        expected_fcco = 2 * (adc_reference_frequency / adc_effective_n_divisor(divisors.n)) * divisors.m;
+        expected_fadc = expected_fcco / adc_effective_p_divisor(divisors.p) / adc_effective_i_divisor(divisors.i);
+
+        // fcco should be in range
+        EXPECT_GE(expected_fcco, 275e6);
+        EXPECT_LE(expected_fcco, 550e6);
+    }
+
     EXPECT_FLOAT_EQ(divisors.actual_frequency, expected_fadc);
     EXPECT_FLOAT_EQ(divisors.actual_fcco, expected_fcco);
-
-    // fcco should be in range
-    EXPECT_GE(expected_fcco, 275e6);
-    EXPECT_LE(expected_fcco, 550e6);
 }
 
-INSTANTIATE_TEST_SUITE_P(, ADCParameterizedTest, Combine( /* target */ Range(0.5e6, 25e6, (25e6-0.5e6)/97),
-                                                          /* minimize_error */ Bool(),
-                                                          /* allow_fractional */ Bool(),
-                                                          /* epsilon */ Values(1e-6) ) );
+/* target frequencies which are not particularly "round" numbers */
+INSTANTIATE_TEST_SUITE_P(ADCTargetFloats, ADCParameterizedTest, Combine( /* target */ Range(0.5e6, 25e6, (25e6-0.5e6)/97),
+                                                                         /* minimize_error */ Bool(),
+                                                                         /* allow_fractional */ Bool(),
+                                                                         /* allow_no_pll */ Bool(),
+                                                                         /* epsilon */ Values(1e-6) ) );
+
+/* target frequencyes which are round numbers which should provoke the no_pll case */
+INSTANTIATE_TEST_SUITE_P(ADCTargetExact, ADCParameterizedTest, Combine( /* target */ Range(1.0e6, 30.0e6, 1.0e6),
+                                                                        /* minimize_error */ Bool(),
+                                                                        /* allow_fractional */ Bool(),
+                                                                        /* allow_no_pll */ Bool(),
+                                                                        /* epsilon */ Values(1e-6) ) );
