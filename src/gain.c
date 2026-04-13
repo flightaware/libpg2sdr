@@ -85,6 +85,10 @@ int pg2sdr_set_vga_gain_db(pg2sdr_device *dev, double gain_db)
 int pg2sdr_get_stage_gains(pg2sdr_device *dev, unsigned *lna, unsigned *mix, unsigned *vga)
 {
     CHECK_DEV(dev);
+
+    if (!lna && !mix && !vga)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     if (lna)
         *lna = dev->lna_gain;
@@ -99,6 +103,10 @@ int pg2sdr_get_stage_gains(pg2sdr_device *dev, unsigned *lna, unsigned *mix, uns
 int pg2sdr_get_stage_gains_db(pg2sdr_device *dev, double *lna_db, double *mix_db, double *vga_db)
 {
     CHECK_DEV(dev);
+
+    if (!lna_db && !mix_db && !vga_db)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
     if (lna_db)
         *lna_db = dev->lna_table[dev->lna_gain];
@@ -127,18 +135,20 @@ static int compare_gain_entry(const void *left, const void *right)
 int pg2sdr_get_total_gain_db(pg2sdr_device *dev, double *gain_db)
 {
     CHECK_DEV(dev);
+
+    if (!gain_db)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
-    if (gain_db) {
-        if (dev->current_gain_entry) {
-            /* We have an exact db value from the gain curve */
-            *gain_db = dev->current_gain_entry->gain_db;
-        } else {
-            /* We don't have an exact value; try to derive something sensible from gains of individual stages */
-            *gain_db =
-                dev->lna_table[dev->lna_gain] +
-                dev->mix_table[dev->mix_gain] +
-                dev->vga_table[dev->vga_gain];
-        }
+    if (dev->current_gain_entry) {
+        /* We have an exact db value from the gain curve */
+        *gain_db = dev->current_gain_entry->gain_db;
+    } else {
+        /* We don't have an exact value; try to derive something sensible from gains of individual stages */
+        *gain_db =
+            dev->lna_table[dev->lna_gain] +
+            dev->mix_table[dev->mix_gain] +
+            dev->vga_table[dev->vga_gain];
     }
     pthread_mutex_unlock(&dev->mutex);
     return PG2SDR_SUCCESS;
@@ -185,6 +195,9 @@ int pg2sdr_set_gain_tables(pg2sdr_device *dev,
                            const double *vga_table)
 {
     CHECK_DEV(dev);
+
+    if (!gain_table && !lna_table && !mix_table && !vga_table)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
     if (gain_table != NULL && gain_table_size == 0)
         return PG2SDR_ERROR_BAD_ARGUMENT; /* if changing the gain table, it must have at least one entry */
 
@@ -230,6 +243,9 @@ int pg2sdr_get_gain_tables(pg2sdr_device *dev,
                            double *vga_table)
 {
     CHECK_DEV(dev);
+
+    if (!gain_table && !lna_table && !mix_table && !vga_table)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
     if ((gain_table && !gain_table_size) || (!gain_table && gain_table_size))
         return PG2SDR_ERROR_BAD_ARGUMENT;
 
