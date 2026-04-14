@@ -33,6 +33,6 @@ TEST(STREAM_TEST, dev)
     error = pg2sdr_set_sample_rate(handle(), 20000000);
     ASSERT_EQ(error, PG2SDR_SUCCESS) << "pg2sdr_set_sample_rate: " << pg2sdr_strerror(error);
 
-    error = pg2sdr_stream_data(handle(), &stub_callback, NULL, 1000);
+    error = pg2sdr_stream_data(handle(), &stub_callback, NULL);
     ASSERT_EQ(error, PG2SDR_SUCCESS) << "pg2sdr_stream_data: " << pg2sdr_strerror(error);
 }
