@@ -150,13 +150,35 @@ int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
  * interpret values in this range by calling strerror() or
  * libusb_strerror() as needed.
  *
- * All functions that return an error code might return
- * ::PG2SDR_ERROR_BAD_ARGUMENT or ::PG2SDR_ERROR_CORRUPTION if
- * called with invalid or NULL device or context arguments,
- * in addition to other documented error returns. This is a
- * courtesy to user code to try to proactively detect bad uses
- * of device/context arguments; user code should not rely on
- * libpg2sdr detecting this in all cases.
+ * Some error codes can be returned from any function, and are
+ * not individually documented in each function:
+ *
+ * * ::PG2SDR_ERROR_SYSTEM_MIN .. ::PG2SDR_ERROR_SYSTEM_MAX are returned
+ *    if there is an error in a system/library call that sets errno which
+ *    does not have a more specific PG2SDR_ERROR_* error code.
+ *
+ * * ::PG2SDR_ERROR_LIBUSB_MIN .. ::PG2SDR_ERROR_LIBUSB_MAX are returned
+ *   if there is an error in a libusb call that does not have a more
+ *   specific PG2SDR_ERROR_* error code.
+ *
+ * * ::PG2SDR_ERROR_NO_MEMORY is returned if memory allocation is needed,
+ *   but allocation failed.
+ *
+ * * ::PG2SDR_ERROR_BAD_ARGUMENT is returned if a NULL device or context
+ *   pointer is provided
+ *
+ * * ::PG2SDR_ERROR_CORRUPTION _might_ be returned if an invalid or
+ *   freed device or context pointer is provided, but this is just a
+ *   courtesy to try to detect bugs before heap corruption occurs -
+ *   callers should not rely on this.
+ *
+ * * ::PG2SDR_ERROR_FIRMWARE_MISMATCH is returned if there is an
+ *   unexpected protocol error in messages exchanged with the device;
+ *   this generally indicates a bug or a mismatch in firmware versus
+ *   library versions.
+ *
+ * * ::PG2SDR_ERROR_DISCONNECTED is returned if the device has disconnected
+ *   from the USB bus (might be a power issue!)
  */
 
 /**
@@ -1145,7 +1167,10 @@ int pg2sdr_get_bandpass(pg2sdr_device *dev, double *req_low, double *req_high, d
  * \param[in] dev the device to reconfigure
  * \retval ::PG2SDR_SUCCESS success
  * \retval ::PG2SDR_ERROR_BAD_STATE streaming is active, and some pending changes cannot be applied while streaming
- * \retval ::PG2SDR_ERROR_ADC_RATE_RANGE requested configuration would require an out-of-range ADC sampling rate
+ * \retval ::PG2SDR_ERROR_ADC_RATE_RANGE requested configuration requires an out-of-range ADC sampling rate
+ * \retval ::PG2SDR_ERROR_TUNER_PLL_RANGE requested configuration requires an out-of-range tuner LO frequency
+ * \retval ::PG2SDR_ERROR_TUNER_PLL_LOCK tuner LO PLL failed to lock at requested frequency
+ * \retval ::PG2SDR_ERROR_TUNER_I2C tuner I2C communication failed
  * \retval <0 negative error code on failure
  *
  * \sa pg2sdr_set_conversion_mode()
@@ -1384,7 +1409,7 @@ int pg2sdr_set_total_gain_db(pg2sdr_device *dev, double gain_db);
 int pg2sdr_get_total_gain_db(pg2sdr_device *dev, double *gain_db);
 
 /**
- * \defgroup gaintable Gain tables
+ * \defgroup gaintable Gain calibration tables
  *
  * The gain control APIs rely on a set of four precalculated gain
  * tables which map gain values in dB to hardware settings.
@@ -1501,28 +1526,187 @@ int pg2sdr_get_gain_tables(pg2sdr_device *dev,
                            double *mix_table,
                            double *vga_table);
 
-/* Tuner bandpass filter table access */
+/**
+ * \defgroup filtertable Filter calibration tables
+ *
+ * The tuner hardware in a PG2SDR device has a configurable bandpass
+ * filter that is applied to the mixed IF signal before reaching the
+ * ADC.  libpg2sdr needs to configure this filter appropriaely for the
+ * requested sampling rate and bandwidth requirements requested.
+ *
+ * The mapping from hardware settings to actual filter characteristics
+ * is mostly undocumented and not particularly regular, so libpg2sdr
+ * includes a calibration table that contains empirical measurements
+ * of the filter characteristics for each combination of filter
+ * settings. At runtime, this table is scanned to find filter hardware
+ * settings that best match libpg2sdr's requirements.
+ *
+ * libpg2sdr includes a built-in calibration table that is used by
+ * default, but an alternative table can be provided by used code
+ * via the pg2sdr_set_bandpass_table() and pg2sdr_get_bandpass_table()
+ * APIs.
+ */
+
+/**
+ * \brief Tuner bandpass filter table entry
+ * \ingroup filtertable
+ *
+ * Represents one possible combination of tuner hardware settings,
+ * and a summary of the resulting filter characteristics.
+ */
 typedef struct {
     /* floats here to reduce the size of the (large) table */
-    float lower_corner;      /* Passband lower corner frequency, Hz */
-    float upper_corner;      /* Passband upper corner frequency, Hz */
-    float ripple;            /* Passband ripple, dB */
 
-    unsigned hpf_corner : 4; /* Register 11 bits 3:0 */
-    unsigned lpf_narrow : 1; /* Register 11 bit 7 */
-    unsigned lpf_coarse : 2; /* Register 11 bits 6:5 */
-    unsigned lpf_fine : 4;   /* Register 10 bits 3:0 */
-    unsigned lpf_q : 1;      /* Register 10 bit 4 */
+    float lower_corner;      /**< Passband lower corner frequency, Hz */
+    float upper_corner;      /**< Passband upper corner frequency, Hz */
+    float ripple;            /**< Passband ripple, dB */
+
+    unsigned hpf_corner : 4; /**< Register 11 bits 3:0 */
+    unsigned lpf_narrow : 1; /**< Register 11 bit 7 */
+    unsigned lpf_coarse : 2; /**< Register 11 bits 6:5 */
+    unsigned lpf_fine : 4;   /**< Register 10 bits 3:0 */
+    unsigned lpf_q : 1;      /**< Register 10 bit 4 */
 } pg2sdr_bandpass_table_t;
+
+
+/**
+ * \brief Set the filter calibration tables used for bandpass filter selection
+ * \ingroup filtertable
+ *
+ * Update the internal filter calibration table. Filter calibration
+ * tables are device-specific.
+ *
+ * This can be called at any time, but changes to the calibration
+ * table do not retrospectively affect the chosen filter settings (the
+ * hardware settings are not modified when the calibration table is
+ * updated).
+ *
+ * A copy of the table is made at the point when
+ * pg2sdr_set_gain_tables() is called; ownership of provided table
+ * (and responsibility for freeing any allocated memory) stays with
+ * the caller.
+ *
+ * \p bandpass_table must be exactly \p bandpass_table_size entries
+ * long, and must have at least one entry.
+ *
+ * \param[in] dev the device to configure
+ * \param[in] bandpass_table pointer to an array of length \p bandpass_table_size entries
+ * \param[in] bandpass_table_size number of entries in \p bandpass_table
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p bandpass_table is NULL or \p bandpass_table_size is 0
+ * \retval <0 negative error code on failure
+ */
 int pg2sdr_set_bandpass_table(pg2sdr_device *dev,
                               const pg2sdr_bandpass_table_t *bandpass_table, size_t bandpass_table_size);
+
+/**
+ * \brief Get the current filter calibration tables used for bandpass filter selection
+ * \ingroup filtertable
+ *
+ * Creates and returns a copy of the currently used filter calibration
+ * table.  This copy is a snapshot as at the time of the call, and
+ * will not reflect future changes to the calibration table.
+ *
+ * A copy of the current calibration table will be allocated and
+ * returned via \p bandpass_table. It is the caller's responsibility
+ * to free this array via free() when done.
+ *
+ * \param[in] dev the device to query
+ * \param[out] bandpass_table storage for a pointer to a copy of the filter calibration table
+ * \param[out] bandpass_table_size stores the length of the array stored in \p bandpass_table
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p bandpass_table or \p bandpass_table_size are NULL
+ * \retval <0 negative error code on failure
+ */
 int pg2sdr_get_bandpass_table(pg2sdr_device *dev,
                               pg2sdr_bandpass_table_t **bandpass_table,
                               size_t *bandpass_table_size);
 
-/* Streaming (stream.c) */
+/**
+ * \defgroup streaming Receiving samples from the PG2SDR
+ *
+ * .. some overview description goes here ..
+ */
+    
+/**
+ * \brief Stream ADC data and pass converted samples to user callback
+ * \ingroup streaming
+ *
+ * This function is the core of the sample capture process.  It
+ * completes configuration of the PG2SDR device and then begins to
+ * stream ADC samples from the device, calling the user-provided
+ * callback as data becomes available.
+ *
+ * pg2sdr_stream_data() implicitly calls pg2sdr_apply_changes() as
+ * part of configuring the device, and any possible errors returned by
+ * pg2sdr_apply_changes() can also be returned by pg2sdr_stream_data()
+ *
+ * pg2sdr_stream_data() will block indefinitely, repeatedly receiving
+ * data and calling the user callback (\p callback), until either
+ * pg2sdr_stop_streaming() is called or an error occurs. Callers may
+ * want to call this in a dedicated thread if they have other
+ * processing that needs to happen in parallel with data capture.
+ *
+ * Calls to \p callback are made from the same thread that called
+ * pg2sdr_stream_data(), and are made in order of increasing
+ * sample timestamp. The provided callback should return promptly,
+ * as data I/O is blocked while the callback is executing and
+ * samples may be dropped if the callback takes too long to
+ * return.
+ *
+ * Only one call to pg2sdr_stream_data() can be outstanding at
+ * any particular time. Attempts to call it again while a call
+ * is active will return ::PG2SDR_ERROR_BAD_STATE.
+ *
+ * Streaming of data can be halted by calling pg2sdr_stop_streaming(),
+ * either from within execution of \p callback or from a separate
+ * thread.  This will cause pg2sdr_stream_data() to stop streaming
+ * data and return normally.
+ *
+ * \param[in] dev the device to stream data from
+ * \param[in] callback a user callback function to call for each received block of sample data
+ * \param[in] user_data an opaque value to pass through to the user callback function
+ * \retval ::PG2SDR_SUCCESS normal termination of streaming
+ * \retval ::PG2SDR_ERROR_BAD_STATE concurrent call to pg2sdr_stream_data() active
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_stop_streaming()
+ * \sa pg2sdr_apply_changes()
+ */
 int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void *user_data);
+
+/**
+ * \brief Halt data streaming
+ * \ingroup streaming
+ *
+ * Stops ongoing data streaming, and makes the current call to
+ * pg2sdr_stream_data() return normally after it has finished
+ * processing any outstanding data.
+ *
+ * This can be safely called from within a ::pg2sdr_stream_callback
+ * callback if needed, or can be called concurrently from a different
+ * thread.
+ *
+ * \param[in] dev the device that should stop streaming data
+ * \retval ::PG2SDR_SUCCESS success, pg2sdr_stream_data() will return at some point soon
+ * \retval ::PG2SDR_ERROR_BAD_STATE no concurrent call to pg2sdr_stream_data() is in progress
+ * \retval <0 negative error code on failure
+ *
+ * \sa pg2sdr_stream_data()
+ */
 int pg2sdr_stop_streaming(pg2sdr_device *dev);
+
+/**
+ * \brief Free a sample buffer previously passed to a ::pg2sdr_stream_callback callback
+ * \ingroup streaming
+ *
+ * If a ::pg2sdr_stream_callback returns 0, then the sample buffer that was passed to
+ * that callback is not automatically freed and can continue to be used by user code.
+ * When user code has finished using the buffer, it should be explicitly freed by
+ * calling pg2sdr_release_buffer().
+ *
+ * \param[in] buffer the buffer to free
+ */
 void pg2sdr_release_buffer(pg2sdr_sample_buffer *buffer);
 
 #if defined(__cplusplus)
