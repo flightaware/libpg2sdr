@@ -194,7 +194,7 @@ static void dispatch_contiguous_blocks(pg2sdr_device *dev, const uint8_t *data, 
     }
 }
 
-int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void *user_data, unsigned timeout_ms)
+int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void *user_data)
 {
     CHECK_DEV(dev);
 
@@ -220,11 +220,9 @@ int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void
         goto done;
     }
 
-    if (!timeout_ms) {
-        /* estimate time for one transfer to complete, add an arbitrary 500ms */
-        double fill_time_ms = 1000.0 * dev->adc_samples_per_transfer / dev->adc_pll_config.actual_frequency;
-        timeout_ms = (unsigned) (fill_time_ms + 500);
-    }
+    /* estimate time for one transfer to complete, plus control transfer timeout */
+    double fill_time_ms = 1000.0 * dev->adc_samples_per_transfer / dev->adc_pll_config.actual_frequency;
+    unsigned timeout_ms = (unsigned) (fill_time_ms + dev->control_timeout_ms);
 
     if ((error = allocate_transfers(dev)) < 0) {
         LOGDEBUG(dev, "pg2sdr_stream_data: allocate_transfers failed");

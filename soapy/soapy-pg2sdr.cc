@@ -1165,7 +1165,7 @@ void PG2SDRStream::StreamingWorker()
 
     Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread started");
     // The real work happens in PG2SDRStream::StreamCallback
-    int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stream_data, dev_.handle(), &PG2SDRStream::StreamCallback, (void *)this, 0);
+    int error = LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stream_data, dev_.handle(), &PG2SDRStream::StreamCallback, (void *)this);
 
     // Enqueue any errors as a final queue item
     if (error < 0)

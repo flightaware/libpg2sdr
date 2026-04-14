@@ -1521,7 +1521,7 @@ int pg2sdr_get_bandpass_table(pg2sdr_device *dev,
                               size_t *bandpass_table_size);
 
 /* Streaming (stream.c) */
-int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void *user_data, unsigned timeout_ms);
+int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void *user_data);
 int pg2sdr_stop_streaming(pg2sdr_device *dev);
 void pg2sdr_release_buffer(pg2sdr_sample_buffer *buffer);
 
