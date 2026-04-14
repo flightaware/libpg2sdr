@@ -83,7 +83,8 @@ typedef void (*pg2sdr_log_callback)(pg2sdr_context *context,
  * Context should be eventually freed by calling pg2sdr_exit()
  *
  * \param[out] ctx Storage for a pointer to the newly allocated context
- * \return ::PG2SDR_SUCCESS on success, negative error code on failure
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval <0 negative error code on failure
  */
 int pg2sdr_init(pg2sdr_context **ctx);
 
@@ -102,7 +103,7 @@ int pg2sdr_init(pg2sdr_context **ctx);
  *
  * \param[in] ctx The context to free
  * \retval ::PG2SDR_SUCCESS success
- * \retval <0 negaive error code on failure
+ * \retval <0 negative error code on failure
  */
 int pg2sdr_exit(pg2sdr_context *ctx);
 
@@ -125,7 +126,7 @@ int pg2sdr_exit(pg2sdr_context *ctx);
  * \param[in] ctx The library context to change
  * \param[in] callback The callback to call for each log message
  * \retval ::PG2SDR_SUCCESS success
- * \retval <0 negaive error code on failure
+ * \retval <0 negative error code on failure
  */
 int pg2sdr_set_log_callback(pg2sdr_context *ctx, pg2sdr_log_callback callback);
 
