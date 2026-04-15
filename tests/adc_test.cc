@@ -331,3 +331,11 @@ INSTANTIATE_TEST_SUITE_P(ADCTargetExact, ADCParameterizedTest, Combine( /* targe
                                                                         /* allow_fractional */ Bool(),
                                                                         /* allow_no_pll */ Bool(),
                                                                         /* epsilon */ Values(1e-6) ) );
+
+
+/* target freqs which can't be satisfied by integer solutions */
+INSTANTIATE_TEST_SUITE_P(ADCTargetNeedsFractional, ADCParameterizedTest, Combine( /* target */ Values(9.0001e6),
+                                                                                  /* minimize_error */ Bool(),
+                                                                                  /* allow_fractional */ Values(true),
+                                                                                  /* allow_no_pll */ Bool(),
+                                                                                  /* epsilon */ Values(1e-6) ) );
