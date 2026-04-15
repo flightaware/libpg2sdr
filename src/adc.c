@@ -134,7 +134,7 @@ int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
         desired_fcco = MAX(desired_fcco, adc_min_fcco);
 
         if (enable_fractional) {
-            uint32_t scaled_m = round(desired_fcco / adc_reference_frequency / 2 * (1 << 15));
+            double scaled_m = round(desired_fcco / adc_reference_frequency / 2 * (1 << 15));
 
             double test_fcco = 2 * scaled_m / (1<<15) * adc_reference_frequency;
             if (test_fcco < adc_min_fcco)
@@ -142,7 +142,7 @@ int pg2sdr__adc_find_divisors(double target_frequency, adc_pll_config_t *divisor
             else if (test_fcco > adc_max_fcco)
                 scaled_m -= 1;
 
-            double fractional_m =  scaled_m / (1<<15);
+            double fractional_m = scaled_m / (1<<15);
             double actual_fcco = 2 * fractional_m * adc_reference_frequency;
             double actual_frequency = actual_fcco / s;
             double error = fabs(actual_frequency - target_frequency);
