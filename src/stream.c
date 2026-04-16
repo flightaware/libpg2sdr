@@ -453,7 +453,7 @@ static int allocate_transfers(pg2sdr_device *dev)
      * at the current sample rate
      */
     float fill_time_ms = 1000.0f * dev->adc_samples_per_transfer * transfer_count / dev->adc_pll_config.actual_frequency;
-    unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + 500); /* half a second of slop */
+    unsigned transfer_timeout_ms = (unsigned) (fill_time_ms + dev->control_timeout_ms);
 
     LOGDEBUG(dev,
              "allocate_transfers: \n"
