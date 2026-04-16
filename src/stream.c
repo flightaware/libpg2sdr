@@ -277,7 +277,7 @@ int pg2sdr_stream_data(pg2sdr_device *dev, pg2sdr_stream_callback callback, void
              "  P: %u\n"
              "  I: %u\n"
              "  fCCO: %.2f MHz\n"
-             "  fADC: %.2f MHz\n",
+             "  fADC: %.2f MHz",
              dev->adc_pll_config.n,
              dev->adc_pll_config.m,
              dev->adc_pll_config.p,
@@ -461,7 +461,7 @@ static int allocate_transfers(pg2sdr_device *dev)
              "  usb_transfer_size        %u\n"
              "  adc_samples_per_transfer %u\n"
              "  transfer_count           %u\n"
-             "  transfer_timeout_ms      %u\n",
+             "  transfer_timeout_ms      %u",
              dev->buffer_size,
              dev->usb_transfer_size,
              dev->adc_samples_per_transfer,
