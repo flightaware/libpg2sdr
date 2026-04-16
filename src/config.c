@@ -520,6 +520,8 @@ static int apply_rate_change(pg2sdr_device *dev)
     }
 
     double target = dev->requested_sample_rate * adc_samples_per_user_sample;
+    LOGDEBUG(dev, "user sampling rate=%.6fMHz, decimation=%u, target ADC rate=%.6fMHz",
+             dev->requested_sample_rate/1e6, post_decimation, target/1e6);
     if (target > dev->adc_limit)
         return PG2SDR_ERROR_ADC_RATE_RANGE;
 
@@ -530,10 +532,12 @@ static int apply_rate_change(pg2sdr_device *dev)
     int error;
     bool enable_no_pll = (dev->fw_version >= 0x00090600);
     if ((error = pg2sdr__adc_find_divisors(target, &new_config, /* minimize_error= */ false, /* allow_fractional= */ true,
-                                           enable_no_pll, /* epsilon= */ 0)) < 0)
+                                           enable_no_pll, /* epsilon= */ 1e-5)) < 0) {
+        LOGDEBUG(dev, "no suitable ADC divisors for %.6fMHz", target/1e6);
         return error;
+    }
 
-    LOGDEBUG(dev, "ADC sample rate changes to %.6f MHz with %u post-decimation steps (divide-by-%u)", new_config.actual_frequency/1e6, post_decimation, 1<<post_decimation);
+    LOGDEBUG(dev, "ADC sample rate changes to %.6f MHz", new_config.actual_frequency/1e6);
     dev->adc_pll_config = new_config;
 
     /* recompute transfer sizes */
