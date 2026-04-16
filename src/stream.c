@@ -85,7 +85,7 @@ static size_t convert_adc_blocks(pg2sdr_device *dev, const uint8_t *data, size_t
      * even-mode undersampling (N=2,4,...) also causes spectrum inversion;
      * if both apply, they cancel out.
      */
-    const bool inverted_spectrum = (!dev->upper_sideband) ^ ((dev->undersampling_mode & 1) == 0);
+    const bool inverted_spectrum = (dev->sideband_mode == PG2SDR_SIDEBAND_LOWER) ^ ((dev->undersampling_mode & 1) == 0);
 
     switch(dev->conversion_mode) {
     case PG2SDR_MODE_LOWIF_REAL:

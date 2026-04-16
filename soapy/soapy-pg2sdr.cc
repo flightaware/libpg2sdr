@@ -305,22 +305,22 @@ void PG2SDRDevice::setFrequency(const int direction, const size_t channel, const
 
     // extend the tuning range a little by using low-sideband for low frequencies, high-sideband
     // for high frequencies. (todo: should we have hysteresis here, rather than just a single boundary?)
-    bool sideband;
+    pg2sdr_sideband_mode_t mode;
     switch (sideband_mode_) {
     case SidebandMode::LOWER:
-        sideband = false;
+        mode = PG2SDR_SIDEBAND_LOWER;
         break;
     case SidebandMode::UPPER:
-        sideband = true;
+        mode = PG2SDR_SIDEBAND_UPPER;
         break;
     case SidebandMode::AUTO:
-        sideband = (frequency > 1e9);
+        mode = (frequency > 1e9) ? PG2SDR_SIDEBAND_UPPER : PG2SDR_SIDEBAND_LOWER;
         break;
     default:
         throw std::runtime_error("bad sideband_mode_ value");
     }
 
-    LIBCALL(pg2sdr_set_sideband, sideband);
+    LIBCALL(pg2sdr_set_sideband, mode);
     LIBCALL(pg2sdr_set_frequency, frequency);
     tryApplyChanges();
 }
@@ -631,26 +631,26 @@ void PG2SDRDevice::writeSetting(const std::string &key, const std::string &value
             LIBCALL(pg2sdr_set_undersampling_mode, (unsigned) mode);
         }
     } else if (key == setting_sideband) {
-        bool sideband;
+        pg2sdr_sideband_mode_t mode;
         if (value == setting_sideband_lower) {
             sideband_mode_ = SidebandMode::LOWER;
-            sideband = false;
+            mode = PG2SDR_SIDEBAND_LOWER;
         } else if (value == setting_sideband_upper) {
             sideband_mode_ = SidebandMode::UPPER;
-            sideband = true;
+            mode = PG2SDR_SIDEBAND_UPPER;
         } else if (value == setting_sideband_auto) {
             sideband_mode_ = SidebandMode::AUTO;
 
             double freq;
             LIBCALL(pg2sdr_get_frequency, &freq, NULL);
-            sideband = (freq > 1e9);
+            mode = (freq > 1e9) ? PG2SDR_SIDEBAND_UPPER : PG2SDR_SIDEBAND_LOWER;
         } else {
             throw std::invalid_argument("unrecognized value " + value + " for setting " + key);
         }
 
         {
             PauseStreamGuard pause_stream(*this);
-            LIBCALL(pg2sdr_set_sideband, sideband);
+            LIBCALL(pg2sdr_set_sideband, mode);
         }
     } else if (key == setting_adc_limit) {
         double limit = std::stod(value) * 1e6;

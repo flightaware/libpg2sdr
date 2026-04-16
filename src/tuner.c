@@ -363,7 +363,7 @@ int pg2sdr__start_pll(pg2sdr_device *dev, tuner_pll_config_t *params) {
 }
 
 int pg2sdr__configure_pll_settings(pg2sdr_device *dev, tuner_pll_config_t *params) {
-    LOGDEBUG(dev, "configuring PLL with:\n"
+    LOGDEBUG(dev, "configuring tuner LO PLL with:\n"
              "  SDM:    %u\n"
              "  SELDIV: %u\n"
              "  REFDIV: %u\n"
@@ -399,7 +399,7 @@ int pg2sdr__configure_pll_settings(pg2sdr_device *dev, tuner_pll_config_t *param
 
     change_set cs = {0};
 
-    set_tuner_bits(&cs, IMG_R, dev->upper_sideband ? 1 : 0);
+    set_tuner_bits(&cs, IMG_R, (dev->sideband_mode == PG2SDR_SIDEBAND_UPPER) ? 1 : 0);
     set_tuner_bits(&cs, PW_LDO_A, 1);
     set_tuner_bits(&cs, PW_LDO_D, 2);
     set_tuner_bits(&cs, PWD_SDM, sdm_disable);

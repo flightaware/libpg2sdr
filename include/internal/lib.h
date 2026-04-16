@@ -89,7 +89,7 @@ struct pg2sdr__device {
     adc_pll_config_t adc_pll_config;      /* actually configured ADC clock settings */
     bool changing_rate;                   /* do we have unapplied sample rate changes? */
 
-    bool upper_sideband;                  /* false: tune PLL above target frequency. true: tune below */
+    pg2sdr_sideband_mode_t sideband_mode; /* controls placement of tuner LO relative to target frequency */
     double requested_frequency;           /* user requested frequency */
     tuner_pll_config_t tuner_pll_config;  /* actually configured tuner LO settings */
     bool changing_freq;                   /* do we have unapplied frequency/sideband changes? */

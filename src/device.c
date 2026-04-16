@@ -122,7 +122,7 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
     dev->changing_rate = false;
 
     dev->requested_frequency = 0;
-    dev->upper_sideband = false;
+    dev->sideband_mode = PG2SDR_SIDEBAND_LOWER;
     dev->tuner_pll_config.valid = false;
     dev->changing_freq = false;
 

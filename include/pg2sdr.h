@@ -305,6 +305,18 @@ typedef enum {
 } pg2sdr_conversion_mode_t;
 
 /**
+ * \brief Enum controlling sideband tuning selection
+ * \ingroup config
+ *
+ * \sa pg2sdr_get_sideband()
+ * \sa pg2sdr_set_sideband()
+ */
+typedef enum {
+    PG2SDR_SIDEBAND_LOWER, /**< Place tuner LO above target frequency, and capture lower sideband */
+    PG2SDR_SIDEBAND_UPPER  /**< Place tuner LO below target frequency, and capture upper sideband */
+} pg2sdr_sideband_mode_t;
+
+/**
  * \brief Representation of an unopened PG2SDR device on the USB bus.
  * \ingroup device
  *
@@ -963,46 +975,48 @@ int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit);
  * of sideband is largely transparent to the libpg2sdr user. Both
  * choices of sideband produce the same complex baseband signal, with
  * the requested frequency at 0Hz and increasing RF frequencies
- * appearing as increasing baseband frequencies. Setting
- * upper_sideband=true near the top of the available tuner range, or
- * setting upper_sideband=false near the bottom of the available
+ * appearing as increasing baseband frequencies. Using
+ * ::PG2SDR_SIDEBAND_UPPER near the top of the available tuner range,
+ * or using ::PG2SDR_SIDEBAND_LOWER near the bottom of the available
  * range, will slightly extend the range of tunable frequencies.
  *
  * When the ::PG2SDR_MODE_LOWIF_REAL conversion mode is used, the
- * tuned frequency directly sets the tuner LO, and the choice of sideband
- * affects the range of frequencies captured. If \p upper_sideband = true,
- * then frequencies above the tuned frequency are captured and increasing
- * RF frequencies appear as increasing frequencies in captured data. If
- * \p upper_sideband = false, then frequencies below the tuned frequencies
- * are captures, and *decreasing* RF frequencies appear as increasing
- * frequencies in captured data.
+ * tuned frequency directly sets the tuner LO, and the choice of
+ * sideband affects the range of frequencies captured. When using
+ * ::PG2SDR_SIDEBAND_LOWER, then frequencies above the tuned frequency
+ * are captured and increasing RF frequencies appear as increasing
+ * frequencies in captured data. When using ::PG2SDR_SIDEBAND_UPPER,
+ * then frequencies below the tuned frequencies are captured, and
+ * *decreasing* RF frequencies appear as increasing frequencies in
+ * captured data.
  *
  * May be called at any time; does not affect the configuration of any
  * currently active stream.  Call pg2sdr_apply_changes() to complete
  * the configuration change.
  *
  * \param[in] dev the device to configure
- * \param[in] upper_sideband the new sideband mode to configure
+ * \param[in] mode the new sideband mode to configure
  * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT \p mode is not a recognized sideband mode
  * \retval <0 negative error code on failure
  *
  * \sa pg2sdr_get_sideband()
  */
-int pg2sdr_set_sideband(pg2sdr_device *dev, bool upper_sideband);
+int pg2sdr_set_sideband(pg2sdr_device *dev, pg2sdr_sideband_mode_t mode);
 
 /**
- * \brief Get current hardware ADC sampling rate limit
+ * \brief Get current sideband mode
  * \ingroup config
  *
  * \param[in] dev the device to query
- * \param[out] upper_sideband a non-NULL pointer where the current sideband setting will be stored on success
+ * \param[out] mode a non-NULL pointer where the current sideband mode will be stored on success
  * \retval ::PG2SDR_SUCCESS success
- * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p upper_sideband is NULL
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p mode is NULL
  * \retval <0 negative error code on failure
  *
  * \sa pg2sdr_set_sideband()
  */
-int pg2sdr_get_sideband(pg2sdr_device *dev, bool *upper_sideband);
+int pg2sdr_get_sideband(pg2sdr_device *dev, pg2sdr_sideband_mode_t *mode);
 
 /**
  * \brief Set the center frequency of received data.
@@ -1073,9 +1087,10 @@ int pg2sdr_get_frequency(pg2sdr_device *dev, double *requested, double *actual);
  * bandwidth setting centered around the center frequency, use \p low
  * = -bandwidth/2 and \p high = +bandwidth/2.
  *
- * In ::PG2SDR_MODE_LOWIF_REAL conversion, both will either be
- * positive (in upper-sideband mode) or negative (in low- sideband
- * mode) as all of the RF signal captures is on one side of the LO.
+ * In ::PG2SDR_MODE_LOWIF_REAL conversion mode, either both values are
+ * positive (with ::PG2SDR_SIDEBAND_UPPER) or both values are negative
+ * (with ::PG2SDR_SIDEBAND_LOWER) as all of the RF signal captured is
+ * on one side of the LO.
  *
  * The actual bandpass limits used may be significantly different to
  * what is requested, for two reasons:

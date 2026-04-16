@@ -233,14 +233,17 @@ int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_set_sideband(pg2sdr_device *dev, bool upper_sideband)
+int pg2sdr_set_sideband(pg2sdr_device *dev, pg2sdr_sideband_mode_t mode)
 {
     CHECK_DEV(dev);
 
+    if (mode != PG2SDR_SIDEBAND_LOWER && mode != PG2SDR_SIDEBAND_UPPER)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
     pthread_mutex_lock(&dev->mutex);
 
-    if (upper_sideband != dev->upper_sideband) {
-        dev->upper_sideband = upper_sideband;
+    if (mode != dev->sideband_mode) {
+        dev->sideband_mode = mode;
         dev->changing_freq = true;
         dev->changing_bandpass = true;
     }
@@ -249,15 +252,15 @@ int pg2sdr_set_sideband(pg2sdr_device *dev, bool upper_sideband)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_sideband(pg2sdr_device *dev, bool *upper_sideband)
+int pg2sdr_get_sideband(pg2sdr_device *dev, pg2sdr_sideband_mode_t *mode)
 {
     CHECK_DEV(dev);
 
-    if (!upper_sideband)
+    if (!mode)
         return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
-    *upper_sideband = dev->upper_sideband;
+    *mode = dev->sideband_mode;
     pthread_mutex_unlock(&dev->mutex);
 
     return PG2SDR_SUCCESS;
@@ -392,10 +395,14 @@ static double actual_bandpass_low(pg2sdr_device *dev)
         return 0;
 
     const double center = center_if_frequency(dev);
-    if (dev->upper_sideband)
+    switch (dev->sideband_mode) {
+    case PG2SDR_SIDEBAND_UPPER:
         return (dev->current_bandpass_entry->lower_corner - center);
-    else
+    case PG2SDR_SIDEBAND_LOWER:
         return (center - dev->current_bandpass_entry->upper_corner);
+    default:
+        return 0; /* should be impossible */
+    }
 }
 
 static double actual_bandpass_high(pg2sdr_device *dev)
@@ -404,10 +411,14 @@ static double actual_bandpass_high(pg2sdr_device *dev)
         return 0;
 
     const double center = center_if_frequency(dev);
-    if (dev->upper_sideband)
+    switch (dev->sideband_mode) {
+    case PG2SDR_SIDEBAND_UPPER:
         return (dev->current_bandpass_entry->upper_corner - center);
-    else
+    case PG2SDR_SIDEBAND_LOWER:
         return (center - dev->current_bandpass_entry->lower_corner);
+    default:
+        return 0; /* should be impossible */
+    }
 }
 
 static double undersampling_offset(pg2sdr_device *dev)
@@ -415,17 +426,25 @@ static double undersampling_offset(pg2sdr_device *dev)
     return (dev->undersampling_mode - 1) * dev->adc_pll_config.actual_frequency / 2.0;
 }
 
+/* return the difference between the LO frequency and the requested center frequency
+ * i.e. LO frequency = center frequency + lo_offset
+ */
 static double lo_offset(pg2sdr_device *dev)
 {
+    /* in upper-sideband mode, we tune the LO below the target frequency, so the LO offset is negative
+     * in lower-sideband mode, we tune the LO above the target frequency, so the LO offset is positive
+     */
+    const double sign = (dev->sideband_mode == PG2SDR_SIDEBAND_UPPER ? -1.0 : 1.0);
+
     switch (dev->conversion_mode) {
     case PG2SDR_MODE_LOWIF_REAL:
-        return undersampling_offset(dev) * (dev->upper_sideband ? -1.0 : 1.0);
+        return undersampling_offset(dev) * sign;
 
     case PG2SDR_MODE_BASEBAND:
         /* lower sideband case: LO = freq + Fs/4
          * upper sideband case: LO = freq - Fs/4
          */
-        return (dev->adc_pll_config.actual_frequency / 4.0 + undersampling_offset(dev)) * (dev->upper_sideband ? -1.0 : 1.0);
+        return (dev->adc_pll_config.actual_frequency / 4.0 + undersampling_offset(dev)) * sign;
 
     default:
         return 0;
@@ -643,14 +662,18 @@ static int apply_bandpass_change(pg2sdr_device *dev)
     const double nyquist_high = nyquist_low + dev->adc_pll_config.actual_frequency / 2.0; /* high edge of unaliased bandpass sampling range */
 
     double l, h;
-    if (dev->upper_sideband) {
+    switch (dev->sideband_mode) {
+    case PG2SDR_SIDEBAND_UPPER:
         l = center + dev->requested_bandpass_low;
         h = center + dev->requested_bandpass_high;
-    } else {
+        break;
+    case PG2SDR_SIDEBAND_LOWER:
         l = center - dev->requested_bandpass_high;
         h = center - dev->requested_bandpass_low;
+        break;
+    default:
+        return PG2SDR_ERROR_CORRUPTION;
     }
-
 
     if (l < nyquist_low)
         l = nyquist_low;
