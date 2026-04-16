@@ -2,7 +2,8 @@
 
 #include "util.h"
 
-bool stub_callback(pg2sdr_sample_buffer *buffer, void *user_data) {
+bool stub_callback(pg2sdr_device *dev, pg2sdr_sample_buffer *buffer, void *user_data)
+{
     static unsigned count = 0;
     static uint64_t expected = 0;
 
@@ -12,7 +13,7 @@ bool stub_callback(pg2sdr_sample_buffer *buffer, void *user_data) {
     fprintf(stderr, "\n");
     expected = buffer->timestamp + buffer->count;
     if (count++ == 1000) {
-        pg2sdr_stop_streaming(buffer->dev);
+        pg2sdr_stop_streaming(dev);
     }
 
     return true;

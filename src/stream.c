@@ -49,7 +49,6 @@ static pg2sdr_sample_buffer *get_buffer(pg2sdr_device *dev)
      */
     pg2sdr_sample_buffer *buf = malloc(sizeof(pg2sdr_sample_buffer) + dev->buffer_size * user_sample_size(dev));
 
-    buf->dev = dev;
     buf->samples = (int16_t*) (buf + 1); /* sample data immediately follows the header */
     buf->count = 0;
     buf->timestamp = 0;
@@ -188,7 +187,7 @@ static void dispatch_contiguous_blocks(pg2sdr_device *dev, const uint8_t *data, 
     buffer->count = count;
     dev->partial_samples = (dev->partial_samples + adc_samples) % dev->adc_samples_per_user_sample;
 
-    bool result = callback(buffer, user_data);
+    bool result = callback(dev, buffer, user_data);
     if (result) {
         pg2sdr_release_buffer(buffer);
     }

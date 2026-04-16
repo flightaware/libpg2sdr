@@ -1179,8 +1179,9 @@ void PG2SDRStream::StreamingWorker()
 }
 
 // Bridge C callback API to C++
-bool PG2SDRStream::StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data)
+bool PG2SDRStream::StreamCallback(pg2sdr_device *dev, pg2sdr_sample_buffer *buffer, void *user_data)
 {
+    /* unused */ (void)dev;
     return reinterpret_cast<PG2SDRStream *>(user_data)->StreamCallback(buffer);
 }
 
@@ -1192,7 +1193,7 @@ bool PG2SDRStream::StreamCallback(pg2sdr_sample_buffer *buffer)
         // Something wants to stop streaming,
         // make sure that happens
         Logf(SOAPY_SDR_DEBUG, "PG2SDR: streaming thread saw a stop flag");
-        (void) pg2sdr_stop_streaming(buffer->dev);
+        (void) LIBCALL_DIRECT_NOTHROW(dev_.context(), pg2sdr_stop_streaming, dev_.handle());
     }
 
     auto new_size = queue_size_ + buffer->count;

@@ -330,11 +330,6 @@ typedef struct {
  *
  */
 typedef struct {
-    /**
-     * \brief Handle of the device that produced this buffer.
-     */
-    pg2sdr_device *dev;
-
     /** \brief Sample data.
      *
      * In ::PG2SDR_MODE_LOWIF_REAL mode,
@@ -377,22 +372,23 @@ typedef struct {
  * While streaming data with pg2sdr_stream_data(), this callback is
  * repeatedly called as samples are received.
  *
- * If the callback returns true (non-zero), the provided buffer is
- * immediately freed. If the callback returns false (zero), then it is
+ * If the callback returns true, the provided buffer is
+ * immediately freed. If the callback returns false, then it is
  * the responsibility of the user code to eventually call
  * pg2sdr_release_buffer() when the buffer is no longer needed. Sample
  * buffers are heap-allocated as needed, so failing to release buffers
  * will eventually exhaust available memory.
  *
+ * \param[in] dev the device generating this callback
  * \param[in] buffer Newly received samples to be processed. This
  *   buffer remains valid until either the callback function returns
  *   non-zero, or pg2sdr_release_buffer() is called.
  * \param[in] user_data The opaque user_data value passed to
  *   pg2sdr_stream_data()
- * \retval 0 caller will not free \p buffer
- * \retval 1 caller will automatically free \p buffer
+ * \retval false caller will not free \p buffer
+ * \retval true caller will automatically free \p buffer
  */
-typedef bool (*pg2sdr_stream_callback)(pg2sdr_sample_buffer *buffer, void *user_data);
+typedef bool (*pg2sdr_stream_callback)(pg2sdr_device *dev, pg2sdr_sample_buffer *buffer, void *user_data);
 
 /* Device discovery and open/close (device.c) */
 

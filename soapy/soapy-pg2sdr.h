@@ -298,7 +298,7 @@ private:
     void StreamingWorker();
 
     // Callback implementation for pg2sdr_stream_data
-    static bool StreamCallback(pg2sdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning PG2SDRStream
+    static bool StreamCallback(pg2sdr_device *dev, pg2sdr_sample_buffer *buffer, void *user_data);    // user_data points to the owning PG2SDRStream
     bool StreamCallback(pg2sdr_sample_buffer *buffer);
 
     PG2SDRDevice &dev_;
