@@ -32,6 +32,8 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
     dev->serial = serial;
     dev->ports = ports;
 
+    LOGDEBUG(dev, "opening device with serial %s on port %s", serial, ports);
+
     if ((usb_error = libusb_open(lu_device, &dev->usb_handle)) < 0) {
         error = pg2sdr__translate_libusb_error(usb_error);
         goto cleanup;
@@ -59,6 +61,20 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
     firmware_metadata_t meta;
     if ((error = pg2sdr__ctrl_get_metadata(dev->usb_handle, &meta, /* timeout_ms */ 0)) < 0)
         goto cleanup;
+
+    LOGDEBUG(dev, "library version: %u.%u.%u.%u firmware version: %u.%u.%u.%u firmware compat: %u.%u.%u.%u",
+             (PG2_CURRENT_VERSION >> 24) & 255,
+             (PG2_CURRENT_VERSION >> 16) & 255,
+             (PG2_CURRENT_VERSION >> 8) & 255,
+             (PG2_CURRENT_VERSION >> 0) & 255,
+             (meta.version >> 24) & 255,
+             (meta.version >> 16) & 255,
+             (meta.version >> 8) & 255,
+             (meta.version >> 0) & 255,
+             (meta.compat >> 24) & 255,
+             (meta.compat >> 16) & 255,
+             (meta.compat >> 8) & 255,
+             (meta.compat >> 0) & 255);
 
     if (PG2_CURRENT_VERSION < meta.compat) {
         LOGERROR(dev,
