@@ -395,7 +395,7 @@ static double actual_bandpass_low(pg2sdr_device *dev)
     if (dev->upper_sideband)
         return (dev->current_bandpass_entry->lower_corner - center);
     else
-        return (center - dev->current_bandpass_entry->lower_corner);
+        return (center - dev->current_bandpass_entry->upper_corner);
 }
 
 static double actual_bandpass_high(pg2sdr_device *dev)
@@ -407,7 +407,7 @@ static double actual_bandpass_high(pg2sdr_device *dev)
     if (dev->upper_sideband)
         return (dev->current_bandpass_entry->upper_corner - center);
     else
-        return (center - dev->current_bandpass_entry->upper_corner);
+        return (center - dev->current_bandpass_entry->lower_corner);
 }
 
 static double undersampling_offset(pg2sdr_device *dev)
