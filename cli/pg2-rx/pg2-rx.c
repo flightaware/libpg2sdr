@@ -394,8 +394,8 @@ int main(int argc, char **argv)
             break;
 
         case 'n': {
-            unsigned long ul = strtoul(optarg, &end, 10);
-            if (*end || ul <= 0 || ul > UINT_MAX) {
+            unsigned long long ul = strtoull(optarg, &end, 10);
+            if (*end || ul <= 0 || ul > UINT64_MAX) {
                 fprintf(stderr, "%s: -n option expects a positive integer, but got '%s'\n", argv0, optarg);
                 return EXIT_FAILURE;
             }
