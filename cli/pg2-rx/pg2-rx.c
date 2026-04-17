@@ -256,7 +256,7 @@ static void usage()
             " -r, --rate=RATE       set user sampling rate\n"
             " -g, --gain=GAIN       set total gain in dB\n"
             " -b, --bandwidth=BW    set tuner bandpass filter bandwidth\n"
-            " -d, --decimation=N    set decimation to N steps, or 'auto', or 'max'\n"
+            " -d, --decimation=N    set decimation to N steps, or 'auto'\n"
             " -u, --undersampling=N set undersampling mode to N\n"
             " -a, --adc-limit=FREQ  set maximum ADC frequency\n"
             " -m, --mode=MODE       set sample conversion mode ('baseband' or 'lowif')\n"
@@ -365,12 +365,10 @@ int main(int argc, char **argv)
         case 'd':
             if (!strcasecmp(optarg, "auto"))
                 decimation = PG2SDR_DECIMATION_AUTO;
-            else if (!strcasecmp(optarg, "max"))
-                decimation = PG2SDR_DECIMATION_AUTO_MAX;
             else {
                 long l = strtol(optarg, &end, 10);
                 if (*end || l < 0) {
-                    fprintf(stderr, "%s: -d option expects a non-negative integer or 'auto' or 'max', but got '%s'\n", argv0, optarg);
+                    fprintf(stderr, "%s: -d option expects a non-negative integer or 'auto', but got '%s'\n", argv0, optarg);
                     return EXIT_FAILURE;
                 }
                 decimation = (int)l;
@@ -561,11 +559,13 @@ int main(int argc, char **argv)
         double actual_rate = 0;
         double actual_bp_lo = 0, actual_bp_hi = 0;
         double actual_gain = 0;
+        unsigned actual_decimation = 0;
 
         (void) pg2sdr_get_frequency(dev, NULL, &actual_freq);
         (void) pg2sdr_get_sample_rate(dev, NULL, &actual_rate);
         (void) pg2sdr_get_bandpass(dev, NULL, NULL, &actual_bp_lo, &actual_bp_hi);
         (void) pg2sdr_get_total_gain_db(dev, &actual_gain);
+        (void) pg2sdr_get_decimation_mode(dev, NULL, &actual_decimation);
 
         fprintf(stderr, "Configured with:\n");
         fprintf(stderr, "  center frequency: %.6f MHz\n", actual_freq/1e6);
@@ -577,6 +577,8 @@ int main(int argc, char **argv)
                 (actual_freq+actual_bp_hi)/1e6,
                 (actual_bp_hi - actual_bp_lo)/1e3);
         fprintf(stderr, "  gain:             %.1f dB\n", actual_gain);
+        fprintf(stderr, "  decimation:       %u stages, divide-by-%u\n",
+                actual_decimation, 1<<actual_decimation);
 
         if (time_limit > 0)
             fprintf(stderr, "Capturing for about %.1f seconds\n", time_limit);

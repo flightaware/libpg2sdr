@@ -25,7 +25,6 @@ static std::string setting_buffer_size = "buffer_size";
 
 static std::string setting_decimation = "decimation";
 static std::string setting_decimation_auto = "auto";
-static std::string setting_decimation_max = "max";
 
 static std::string setting_gain_config = "gain_config";
 static std::string setting_gain_config_individual = "individual";
@@ -504,7 +503,6 @@ SoapySDR::ArgInfoList PG2SDRDevice::getSettingInfo(void) const
     decimation.type = SoapySDR::ArgInfo::Type::STRING;
     decimation.options = std::vector<std::string> {
         setting_decimation_auto,
-        setting_decimation_max,
         "0",
         "1", "2", "3", "4", "5", "6", "7", "8"
     };
@@ -602,8 +600,6 @@ void PG2SDRDevice::writeSetting(const std::string &key, const std::string &value
         int mode;
         if (value == setting_decimation_auto)
             mode = PG2SDR_DECIMATION_AUTO;
-        else if (value == setting_decimation_max)
-            mode = PG2SDR_DECIMATION_AUTO_MAX;
         else
             mode = std::stoi(value);
 
@@ -673,13 +669,11 @@ std::string PG2SDRDevice::readSetting(const std::string &key) const
         return std::to_string(size);
     } else if (key == setting_decimation) {
         int mode;
-        LIBCALL(pg2sdr_get_decimation_mode, &mode);
+        LIBCALL(pg2sdr_get_decimation_mode, &mode, NULL);
         if (mode >= 0)
             return std::to_string(mode);
         else if (mode == PG2SDR_DECIMATION_AUTO)
             return setting_decimation_auto;
-        else if (mode == PG2SDR_DECIMATION_AUTO_MAX)
-            return setting_decimation_max;
         else
             throw std::runtime_error("bad decimation mode value");
     } else if (key == setting_gain_config) {

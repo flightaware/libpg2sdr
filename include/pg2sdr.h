@@ -780,22 +780,6 @@ int pg2sdr_set_sample_rate(pg2sdr_device *dev, double rate);
 int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual);
 
 /**
- * \brief Decimation mode that performs no additional decimation.
- * \ingroup config
- *
- * \sa pg2sdr_set_decimation_mode()
- */
-#define PG2SDR_DECIMATION_NONE (0)
-
-/**
- * \brief Maximum number of decimation steps available.
- * \ingroup config
- *
- * \sa pg2sdr_set_decimation_mode()
- */
-#define PG2SDR_DECIMATION_MAX (8)
-
-/**
  * \brief Decimation mode that auto-selects decimation to avoid bandpass filter issues
  * \ingroup config
  *
@@ -811,17 +795,6 @@ int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual
 #define PG2SDR_DECIMATION_AUTO (-1)
 
 /**
- * \brief Decimation mode that auto-selects the largest available decimation.
- * \ingroup config
- *
- * This decimation mode selects the largest number of decimation steps
- * possible without exceeding the configured ADC sampling rate limit.
- *
- * \sa pg2sdr_set_decimation_mode()
- */
-#define PG2SDR_DECIMATION_AUTO_MAX (-2)
-
-/**
  * \brief Set current decimation mode
  * \ingroup config
  *
@@ -834,13 +807,19 @@ int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual
  * filtering characteristics, at the cost of needing to run the ADC at
  * a higher sample rate and transfer more data over the USB bus.
  *
- * If \p decimation_mode is positive, it is interpreted as the number
- * of decimate-by-2 stages (at most ::PG2SDR_DECIMATION_MAX) to use,
- * i.e.  the total decimation factor is 2**decimation_node. The ADC
- * sampling rate is scaled correspondingly.
+ * If \p decimation_mode is zero or positive, it is interpreted as the
+ * maximum number of decimate-by-2 stages to use, i.e.  the total
+ * decimation factor is 2^decimation_node. The ADC sampling rate is
+ * scaled correspondingly. The actual number of stages used may be
+ * limited by the maximum available ADC sampling rate.
  *
- * Otherwise, \p decimation_mode should be one of ::PG2SDR_DECIMATION_NONE,
- * ::PG2SDR_DECIMATION_AUTO (the default), or ::PG2SDR_DECIMATION_AUTO_MAX.
+ * Otherwise, \p decimation_mode may be ::PG2SDR_DECIMATION_AUTO,
+ * which adds decimation stages as needed to avoid losing signal to
+ * the low end of the tuner bandpass filter. This is the default
+ * setting.
+ *
+ * Decimation settings are ignored when the conversion mode is
+ * ::PG2SDR_MODE_LOWIF_REAL.
  *
  * May be called at any time; does not affect the decimation of any
  * currently active stream.  Call pg2sdr_apply_changes() while not
@@ -857,18 +836,32 @@ int pg2sdr_get_sample_rate(pg2sdr_device *dev, double *requested, double *actual
 int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode);
 
 /**
- * \brief Get current decimation mode
+ * \brief Get current decimation mode and/or actual number of decimation steps
  * \ingroup config
  *
+ * The currently requested decimation mode is the mode given to the last call
+ * to pg2sdr_set_decimation_mode().
+ *
+ * The actual decimation is the number of decimation stages configured
+ * after a call to pg2sdr_apply_changes(). That is, for a returned
+ * value of N, there are N decimate-by-2 stages configured, with a
+ * total decimation factor of 2^N.
+ *
+ * If configuration settings have been changed but
+ * pg2sdr_apply_changes() has not yet been called, then the actual
+ * number of decimation steps has not yet been determined and will
+ * return 0.
+ *
  * \param[in] dev the device to query
- * \param[out] decimation_mode a non-NULL pointer where the current decimation mode will be stored on success
+ * \param[out] decimation_mode if non-NULL, pointer where the currently requested decimation mode will be stored on success
+ * \param[out] actual_decimation if non-NULL, pointer where the current number of decimation steps will be stored on success
  * \retval ::PG2SDR_SUCCESS success
- * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p decimation_mode is NULL
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if both \p decimation_mode and \p actual_decimation are NULL
  * \retval <0 negative error code on failure
  *
  * \sa pg2sdr_set_decimation_mode()
  */
-int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode);
+int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode, unsigned *actual_decimation);
 
 /**
  * \brief Set the current undersampling mode.

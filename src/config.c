@@ -144,7 +144,7 @@ int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode)
 {
     CHECK_DEV(dev);
 
-    if (decimation_mode > PG2SDR_DECIMATION_MAX || (decimation_mode < 0 && decimation_mode != PG2SDR_DECIMATION_AUTO && decimation_mode != PG2SDR_DECIMATION_AUTO_MAX))
+    if (decimation_mode < 0 && decimation_mode != PG2SDR_DECIMATION_AUTO)
         return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
@@ -157,16 +157,24 @@ int pg2sdr_set_decimation_mode(pg2sdr_device *dev, int decimation_mode)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode)
+int pg2sdr_get_decimation_mode(pg2sdr_device *dev, int *decimation_mode,
+                               unsigned *actual_decimation)
 {
     CHECK_DEV(dev);
 
-    if (!decimation_mode)
+    if (!decimation_mode && !actual_decimation)
         return PG2SDR_ERROR_BAD_ARGUMENT;
 
     pthread_mutex_lock(&dev->mutex);
     if (decimation_mode)
         *decimation_mode = dev->decimation_mode;
+    if (actual_decimation) {
+        if (dev->changing_rate)
+            *actual_decimation = 0;
+        else
+            *actual_decimation = dev->post_decimation;
+    }
+
     pthread_mutex_unlock(&dev->mutex);
     return PG2SDR_SUCCESS;
 }
@@ -504,9 +512,13 @@ static int apply_rate_change(pg2sdr_device *dev)
         break;
 
     case PG2SDR_MODE_BASEBAND:
-        if (dev->decimation_mode >= 0 && dev->decimation_mode <= PG2SDR_DECIMATION_MAX) {
-            /* Explicit decimation setting */
-            post_decimation = dev->decimation_mode;
+        if (dev->decimation_mode >= 0) {
+            /* Explicit decimation setting; use up to this many stages,
+             * but no more than what fits in adc_limit / PG2SDR_DECIMATION_MAX
+             */
+            post_decimation = (dev->decimation_mode >= PG2SDR_DECIMATION_MAX ? PG2SDR_DECIMATION_MAX : dev->decimation_mode);
+            while (post_decimation > 0 && (dev->requested_sample_rate * (2<<post_decimation)) > dev->adc_limit)
+                --post_decimation;
         } else if (dev->decimation_mode == PG2SDR_DECIMATION_AUTO) {
             /* Scale up sample rate until it avoids the low end of the IF
              * range where the tuner IF filter will eat the bandwidth we
@@ -515,14 +527,6 @@ static int apply_rate_change(pg2sdr_device *dev)
             double scaled = dev->requested_sample_rate;
             post_decimation = 0;
             while (scaled * 4 <= dev->adc_limit && post_decimation < PG2SDR_DECIMATION_MAX && (scaled - dev->requested_sample_rate) < 0.5e6) {
-                ++post_decimation;
-                scaled *= 2;
-            }
-        } else if (dev->decimation_mode == PG2SDR_DECIMATION_AUTO_MAX) {
-            /* Scale up sample rate as far as possible (given fADC <= limit) */
-            double scaled = dev->requested_sample_rate;
-            post_decimation = 0;
-            while (scaled * 4 <= dev->adc_limit && post_decimation < PG2SDR_DECIMATION_MAX) {
                 ++post_decimation;
                 scaled *= 2;
             }

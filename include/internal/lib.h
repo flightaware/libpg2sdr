@@ -63,6 +63,9 @@ static inline void pg2sdr__profile_log(pg2sdr_device *dev, pg2sdr__profile *p, c
 # define pg2sdr__profile_log(dev,p,fmt,...) do {} while(0)
 #endif
 
+/* maximum number of decimation stages we support */
+#define PG2SDR_DECIMATION_MAX 8
+
 struct pg2sdr__device {
     unsigned magic;
     pthread_mutex_t mutex;
