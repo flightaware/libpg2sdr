@@ -578,11 +578,13 @@ int main(int argc, char **argv)
         double actual_bp_lo = 0, actual_bp_hi = 0;
         double actual_gain = 0;
         unsigned actual_decimation = 0;
+        double actual_adc_rate = 0;
 
         (void) pg2sdr_get_frequency(dev, NULL, &actual_freq);
         (void) pg2sdr_get_sample_rate(dev, NULL, &actual_rate);
         (void) pg2sdr_get_bandpass(dev, NULL, NULL, &actual_bp_lo, &actual_bp_hi);
         (void) pg2sdr_get_total_gain_db(dev, &actual_gain);
+        (void) pg2sdr_get_adc_rate(dev, &actual_adc_rate);
         (void) pg2sdr_get_decimation_mode(dev, NULL, &actual_decimation);
 
         fprintf(stderr, "Configured with:\n");
@@ -595,6 +597,7 @@ int main(int argc, char **argv)
                 (actual_freq+actual_bp_hi)/1e6,
                 (actual_bp_hi - actual_bp_lo)/1e3);
         fprintf(stderr, "  gain:             %.1f dB\n", actual_gain);
+        fprintf(stderr, "  ADC rate:         %.6f MSPS\n", actual_adc_rate/1e6);
         fprintf(stderr, "  decimation:       %u stages, divide-by-%u\n",
                 actual_decimation, 1<<actual_decimation);
 
