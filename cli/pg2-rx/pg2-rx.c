@@ -25,6 +25,7 @@ static uint64_t total_dropped = 0;
 static uint64_t sample_limit = 0;
 static struct timespec time_limit_ts;
 static bool quiet = false;
+static bool verbose = false;
 static bool write_error = false;
 
 typedef enum {
@@ -36,6 +37,31 @@ typedef enum {
 } output_format_t;
 
 static output_format_t output_format = FMT_INT16;
+
+static void log_callback(pg2sdr_context *context,
+                         pg2sdr_log_level level,
+                         const char *message)
+{
+    const char *level_str;
+    switch (level) {
+    case PG2SDR_LOG_ERROR:
+        level_str = "error";
+        break;
+    case PG2SDR_LOG_INFO:
+        if (quiet)
+            return;
+        level_str = "info";
+        break;
+    case PG2SDR_LOG_DEBUG:
+        if (!verbose)
+            return;
+        level_str = "debug";
+        break;
+    default:
+        return;
+    }
+    fprintf(stderr, "libpg2sdr (%s): %s\n", level_str, message);
+}
 
 static void stop_streaming(int sig)
 {
@@ -241,6 +267,8 @@ static void usage()
             " -t, --time-limit=T    stop capture after T seconds\n"
             " -n, --sample-limit=N  stop capture after N user samples\n"
             "\n"
+            " -q, --quiet           suppress informational messages, show errors only\n"
+            " -v, --verbose         enable extra debugging messages\n"
             " -h, --help            show this help and exit\n",
             argv0);
 }
@@ -252,6 +280,7 @@ int main(int argc, char **argv)
     struct option opts[] = {
         { "help",          no_argument,       0, 'h' },
         { "quiet",         no_argument,       0, 'q' },
+        { "verbose",       no_argument,       0, 'v' },
         { "serial",        required_argument, 0, 's' },
         { "port",          required_argument, 0, 'p' },
         { "frequency",     required_argument, 0, 'f' },
@@ -284,7 +313,7 @@ int main(int argc, char **argv)
     pg2sdr_sideband_mode_t sideband = PG2SDR_SIDEBAND_LOWER;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "hqs:p:f:r:b:g:d:u:a:t:n:m:o:i:", opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvs:p:f:r:b:g:d:u:a:t:n:m:o:i:", opts, NULL)) != -1) {
         switch (opt) {
         case 'h':
             usage();
@@ -292,6 +321,12 @@ int main(int argc, char **argv)
 
         case 'q':
             quiet = true;
+            verbose = false;
+            break;
+
+        case 'v':
+            verbose = true;
+            quiet = false;
             break;
 
         case 's':
@@ -446,6 +481,11 @@ int main(int argc, char **argv)
 
     if ((error = pg2sdr_init(&ctx)) < 0) {
         pg2sdr_perror("pg2sdr_init", error);
+        goto cleanup;
+    }
+
+    if ((error = pg2sdr_set_log_callback(ctx, log_callback)) < 0) {
+        pg2sdr_perror("pg2sdr_set_log_callback", error);
         goto cleanup;
     }
 
