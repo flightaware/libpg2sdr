@@ -5,6 +5,9 @@ name: Generate and deploy API docs to Github Pages
 on:
   push:
     branches: [master]
+    paths:
+      - Doxyfile
+      - include/pg2sdr.h
 
   workflow_dispatch:
 
