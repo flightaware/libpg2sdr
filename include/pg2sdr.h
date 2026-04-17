@@ -2,6 +2,37 @@
 #define PG2SDR_H
 
 /**
+ * \mainpage libpg2sdr API
+ *
+ * These pages document the libpg2sdr API.
+ *
+ * \section main_intro Introduction
+ *
+ * libpg2sdr provides an API for configuring and reading sample
+ * data from a FlightAware Pro Stick Gen 2 software-defined radio.
+ * For more details, see the main page at [somewhere]
+ *
+ * \section main_notes General notes
+ *
+ * libpg2sdr provides a C11-compatible API. Users of the library
+ * should `#include <pg2sdr.h>` and link against `-lpg2sdr`.
+ *
+ * Except as otherwise mentioned, all parts of the API are
+ * thread-safe, but are _not_ async-signal-safe.
+ *
+ * For API details, see the following topics:
+ *
+ * * \ref context
+ * * \ref errors
+ * * \ref device
+ * * \ref config
+ * * \ref gain
+ * * \ref streaming
+ * * \ref gaintable
+ * * \ref filtertable
+ */
+
+/**
  *  \file pg2sdr.h
  *
  *  \brief The main pg2sdr header.
