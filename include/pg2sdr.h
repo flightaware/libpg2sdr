@@ -340,9 +340,17 @@ typedef struct {
  * Contains metadata and actual received samples to be processed by
  * the library user.
  *
+ * libpg2sdr guarantees that (to the best of the ability of the
+ * hardware to detect it), within a single ::pg2sdr_sample_buffer,
+ * there are no gaps in the received data. That is, if sample data is
+ * dropped and there is a detectable gap in the sample stream, then
+ * the library will ensure that the gap appears at a boundary between
+ * buffers, not within a buffer.
  */
 typedef struct {
-    /** \brief Sample data.
+    /** \brief Conversion mode applied to these samples.
+     *
+     * This determines the number of int16_t values per user sample.
      *
      * In ::PG2SDR_MODE_LOWIF_REAL mode,
      * each sample is a single 16-bit value.
@@ -351,28 +359,35 @@ typedef struct {
      * sample is two 16-bit values representing the I and Q channels
      * respectively.
      */
+    pg2sdr_conversion_mode_t mode;
+
+    /** \brief Sample data.
+     *
+     * Each user sample is one or two int16_t values, depending on the
+     * conversion mode (see #mode)
+     */
     int16_t *samples;
 
-    /** \brief Number of samples available in #samples.
+    /** \brief Number of user samples available in #samples.
      *
-     * Note that in BASEBAND mode, there will be count*2 individual
-     * int16_t values in total , as each sample consists of two
-     * int16_t values.
+     * This counts *user* samples, not int16_t values.  The number of
+     * int16_t values per sample depends on the value of #mode.
      *
-     * pg2sdr_set_buffer_size() controls the maximum number of samples
-     * provided per sample buffer, i.e. the maximum potential value of
-     * "count".
+     * pg2sdr_set_buffer_size() controls the maximum number of user
+     * samples provided per sample buffer, i.e. the maximum potential
+     * value of "count".
      */
     unsigned count;
 
     /** \brief Sample timestamp at the start of this buffer.
      *
      * The sample timestamp is the cumulative number of received
-     * samples, incrementing at the configured sample rate.
+     * user samples, incrementing at the configured sampling rate.
      *
      * This counter may not initially start at zero, and may be
      * discontinuous between buffers if an overrun causes data to be
-     * dropped.
+     * dropped. To detect discontinuities, look for callbacks where
+     * `current_buffer->timestamp > last_buffer->timestamp + last_buffer->count`.
      */
     uint64_t timestamp;
 } pg2sdr_sample_buffer;

@@ -49,6 +49,7 @@ static pg2sdr_sample_buffer *get_buffer(pg2sdr_device *dev)
      */
     pg2sdr_sample_buffer *buf = malloc(sizeof(pg2sdr_sample_buffer) + dev->buffer_size * user_sample_size(dev));
 
+    buf->mode = dev->conversion_mode;
     buf->samples = (int16_t*) (buf + 1); /* sample data immediately follows the header */
     buf->count = 0;
     buf->timestamp = 0;
@@ -59,6 +60,8 @@ static pg2sdr_sample_buffer *get_buffer(pg2sdr_device *dev)
 /* Release a pg2sdr_sample_buffer that is no longer used by user code */
 void pg2sdr_release_buffer(pg2sdr_sample_buffer *buf)
 {
+    /* buf->samples was allocated together with buf as a single block,
+       so only a single free is needed here */
     free(buf);
 }
 
