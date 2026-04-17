@@ -261,6 +261,7 @@ static void usage()
             " -a, --adc-limit=FREQ  set maximum ADC frequency\n"
             " -m, --mode=MODE       set sample conversion mode ('baseband' or 'lowif')\n"
             " -i, --sideband=BAND   set tuner sideband ('upper' or 'lower')\n"
+            " -B, --buffer-size=N   set buffer size to N samples (large values may hit system limits)\n"
             "\n"
             " -o, --format=FMT      set output format ('uint8', 'int16', 'int32', 'float32', 'float64')\n"
             "\n"
@@ -295,6 +296,7 @@ int main(int argc, char **argv)
         { "format",        required_argument, 0, 'o' },
         { "time-limit",    required_argument, 0, 't' },
         { "sample-limit",  required_argument, 0, 'n' },
+        { "buffer-size",   required_argument, 0, 'B' },
         { 0, 0, 0, 0 }
     };
 
@@ -311,9 +313,10 @@ int main(int argc, char **argv)
     double time_limit = -1;
     char *end;
     pg2sdr_sideband_mode_t sideband = PG2SDR_SIDEBAND_LOWER;
+    unsigned buffer_size = 128 * 1024;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "hqvs:p:f:r:b:g:d:u:a:t:n:m:o:i:", opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hqvs:p:f:r:b:g:d:u:a:t:n:m:o:i:B:", opts, NULL)) != -1) {
         switch (opt) {
         case 'h':
             usage();
@@ -440,6 +443,16 @@ int main(int argc, char **argv)
             }
             break;
 
+        case 'B': {
+            unsigned long ul = strtoul(optarg, &end, 10);
+            if (*end || ul <= 0 || ul > UINT_MAX) {
+                fprintf(stderr, "%s: -B option expects a positive integer, but got '%s'\n", argv0, optarg);
+                return EXIT_FAILURE;
+            }
+            buffer_size = (unsigned) ul;
+            break;
+        }
+
         case '?':
             return EXIT_FAILURE;
         }
@@ -497,6 +510,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "Opened device on port %s with serial %s\n",
                 pg2sdr_get_ports(dev),
                 pg2sdr_get_serial(dev));
+    }
+
+    if ((error = pg2sdr_set_buffer_size(dev, buffer_size)) < 0) {
+        pg2sdr_perror("pg2sdr_set_buffer_size", error);
+        goto cleanup;
     }
 
     if ((error = pg2sdr_set_conversion_mode(dev, conversion_mode)) < 0) {
