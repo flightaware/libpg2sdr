@@ -66,6 +66,9 @@ static inline void pg2sdr__profile_log(pg2sdr_device *dev, pg2sdr__profile *p, c
 /* maximum number of decimation stages we support */
 #define PG2SDR_DECIMATION_MAX 8
 
+/* maximum USB transfer we'll use, in bytes */
+#define MAX_USB_TRANSFER (2 * 1024 * 1024)
+
 struct pg2sdr__device {
     unsigned magic;
     pthread_mutex_t mutex;

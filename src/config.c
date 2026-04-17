@@ -585,6 +585,11 @@ static int apply_rate_change(pg2sdr_device *dev)
     unsigned adc_samples_per_buffer = dev->buffer_size * adc_samples_per_user_sample;        /* # of ADC samples that will fill the user buffer (rounded down) */
     unsigned blocks_per_buffer = adc_samples_per_buffer / dev->usb_samples_per_block;        /* # of ADC blocks that will fill the user buffer (rounded down) */
     dev->usb_transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;                   /* Exact transfer size for that many ADC blocks */
+    if (dev->usb_transfer_size > MAX_USB_TRANSFER) {
+        /* Avoid trying to build huge USB transfers, we'll just hit the system limits on USB buffers */
+        blocks_per_buffer = MAX_USB_TRANSFER / dev->usb_bytes_per_block;
+        dev->usb_transfer_size = blocks_per_buffer * dev->usb_bytes_per_block;
+    }
     dev->adc_samples_per_transfer = blocks_per_buffer * dev->usb_samples_per_block;          /* # of ADC samples that we receive per USB transfer */
     dev->adc_samples_per_user_sample = adc_samples_per_user_sample;                          /* # of ADC samples per user sample (i.e. ADC sampling rate / user sampling rate) */
     dev->post_decimation = post_decimation;                                                  /* Extra decimation steps after downconversion */
