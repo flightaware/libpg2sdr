@@ -25,6 +25,7 @@ endif()
 
 if(ENABLE_CLI)
   add_subdirectory(cli/pg2-util)
+  add_subdirectory(cli/pg2-rx)
 endif()
 
 if(ENABLE_TESTING)
