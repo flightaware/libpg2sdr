@@ -973,6 +973,24 @@ int pg2sdr_set_adc_limit(pg2sdr_device *dev, double adc_limit);
 int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit);
 
 /**
+ * \brief Get current ADC sampling rate
+ * \ingroup config
+ *
+ * Gets the underlying ADC rate used for the current configuration.
+ *
+ * If there are configuration changes pending that affect the ADC rate,
+ * and pg2sdr_apply_changes() has not yet been called, then the returned
+ * rate is 0.
+ *
+ * \param[in] dev the device to query
+ * \param[out] actual_adc_rate a non-NULL pointer where the ADC rate will be stored
+ * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_BAD_ARGUMENT if \p actual_adc_rate is NULL
+ * \retval <0 negative error code on failure
+ */
+int pg2sdr_get_adc_rate(pg2sdr_device *dev, double *actual_adc_rate);
+
+/**
  * \brief Set the current sideband tuning mode.
  * \ingroup config
  *

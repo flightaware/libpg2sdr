@@ -241,6 +241,24 @@ int pg2sdr_get_adc_limit(pg2sdr_device *dev, double *adc_limit)
     return PG2SDR_SUCCESS;
 }
 
+int pg2sdr_get_adc_rate(pg2sdr_device *dev, double *actual_adc_rate)
+{
+    CHECK_DEV(dev);
+
+    if (!actual_adc_rate)
+        return PG2SDR_ERROR_BAD_ARGUMENT;
+
+    pthread_mutex_lock(&dev->mutex);
+
+    if (dev->changing_rate)
+        *actual_adc_rate = 0;
+    else
+        *actual_adc_rate = dev->adc_pll_config.actual_frequency;
+
+    pthread_mutex_unlock(&dev->mutex);
+    return PG2SDR_SUCCESS;
+}
+
 int pg2sdr_set_sideband(pg2sdr_device *dev, pg2sdr_sideband_mode_t mode)
 {
     CHECK_DEV(dev);
