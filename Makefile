@@ -17,13 +17,13 @@ build-with-tests:
 	cmake -B ./build -S ./ -DENABLE_TESTING=ON
 	make -C build
 
-run-unit-tests: build-tests
+run-unit-tests: build-with-tests
 	cd build && ctest -L "Unit" --output-on-failure
 
-run-stream-integration-tests: build-tests
+run-stream-integration-tests: build-with-tests
 	cd build && ctest -L "Integration" --output-on-failure
 
 regenerate-starch:
 	cd dsp && ./starchgen.py --runtime-dir . --output-dir generated
 
-.PHONY: build clean run-unit-tests run-stream-integration-tests regenerate-starch
+.PHONY: build clean verbose build-with-tests run-unit-tests run-stream-integration-tests regenerate-starch
