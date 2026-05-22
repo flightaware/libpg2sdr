@@ -90,8 +90,8 @@ pg2sdr__starch_fs4_mix_regentry pg2sdr__starch_fs4_mix_registry[] = {
 #endif /* STARCH_MIX_GENERIC */
   
 #ifdef STARCH_MIX_X86_64
-    { 0, "generic_x86_64_avx2", "x86_64_avx2", pg2sdr__starch_fs4_mix_generic_x86_64_avx2, pg2sdr__starch_supports_x86_avx2 },
-    { 1, "generic_x86_64_avx", "x86_64_avx", pg2sdr__starch_fs4_mix_generic_x86_64_avx, pg2sdr__starch_supports_x86_avx },
+    { 0, "generic_x86_64_avx", "x86_64_avx", pg2sdr__starch_fs4_mix_generic_x86_64_avx, pg2sdr__starch_supports_x86_avx },
+    { 1, "generic_x86_64_avx2", "x86_64_avx2", pg2sdr__starch_fs4_mix_generic_x86_64_avx2, pg2sdr__starch_supports_x86_avx2 },
     { 2, "generic_default", "default", pg2sdr__starch_fs4_mix_generic_default, NULL },
 #endif /* STARCH_MIX_X86_64 */
     { 0, NULL, NULL, NULL, NULL }
@@ -231,14 +231,14 @@ pg2sdr__starch_unpack_raw_adc_data_regentry pg2sdr__starch_unpack_raw_adc_data_r
   
 #ifdef STARCH_MIX_AARCH64
     { 0, "generic_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_generic_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
-    { 1, "neon_intrinsics_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_neon_intrinsics_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
-    { 2, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_generic_default, NULL },
+    { 1, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_generic_default, NULL },
+    { 2, "neon_intrinsics_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_neon_intrinsics_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
 #endif /* STARCH_MIX_AARCH64 */
   
 #ifdef STARCH_MIX_ARM
-    { 0, "generic_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_generic_armv7a_simd, pg2sdr__starch_supports_arm_neon },
-    { 1, "neon_intrinsics_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_neon_intrinsics_armv7a_simd, pg2sdr__starch_supports_arm_neon },
-    { 2, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_generic_default, NULL },
+    { 0, "neon_intrinsics_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_neon_intrinsics_armv7a_simd, pg2sdr__starch_supports_arm_neon },
+    { 1, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_generic_default, NULL },
+    { 2, "generic_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_generic_armv7a_simd, pg2sdr__starch_supports_arm_neon },
 #endif /* STARCH_MIX_ARM */
   
 #ifdef STARCH_MIX_GENERIC
@@ -246,8 +246,8 @@ pg2sdr__starch_unpack_raw_adc_data_regentry pg2sdr__starch_unpack_raw_adc_data_r
 #endif /* STARCH_MIX_GENERIC */
   
 #ifdef STARCH_MIX_X86_64
-    { 0, "generic_x86_64_avx2", "x86_64_avx2", pg2sdr__starch_unpack_raw_adc_data_generic_x86_64_avx2, pg2sdr__starch_supports_x86_avx2 },
-    { 1, "generic_x86_64_avx", "x86_64_avx", pg2sdr__starch_unpack_raw_adc_data_generic_x86_64_avx, pg2sdr__starch_supports_x86_avx },
+    { 0, "generic_x86_64_avx", "x86_64_avx", pg2sdr__starch_unpack_raw_adc_data_generic_x86_64_avx, pg2sdr__starch_supports_x86_avx },
+    { 1, "generic_x86_64_avx2", "x86_64_avx2", pg2sdr__starch_unpack_raw_adc_data_generic_x86_64_avx2, pg2sdr__starch_supports_x86_avx2 },
     { 2, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_generic_default, NULL },
 #endif /* STARCH_MIX_X86_64 */
     { 0, NULL, NULL, NULL, NULL }
@@ -308,15 +308,15 @@ void pg2sdr__starch_unpack_raw_adc_data_invert_set_wisdom (const char * const * 
 pg2sdr__starch_unpack_raw_adc_data_invert_regentry pg2sdr__starch_unpack_raw_adc_data_invert_registry[] = {
   
 #ifdef STARCH_MIX_AARCH64
-    { 0, "generic_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_generic_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
-    { 1, "neon_intrinsics_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_neon_intrinsics_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
-    { 2, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_invert_generic_default, NULL },
+    { 0, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_invert_generic_default, NULL },
+    { 1, "generic_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_generic_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
+    { 2, "neon_intrinsics_armv8a_simd", "armv8a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_neon_intrinsics_armv8a_simd, pg2sdr__starch_supports_aarch64_asimd },
 #endif /* STARCH_MIX_AARCH64 */
   
 #ifdef STARCH_MIX_ARM
-    { 0, "generic_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_generic_armv7a_simd, pg2sdr__starch_supports_arm_neon },
-    { 1, "neon_intrinsics_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_neon_intrinsics_armv7a_simd, pg2sdr__starch_supports_arm_neon },
-    { 2, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_invert_generic_default, NULL },
+    { 0, "neon_intrinsics_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_neon_intrinsics_armv7a_simd, pg2sdr__starch_supports_arm_neon },
+    { 1, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_invert_generic_default, NULL },
+    { 2, "generic_armv7a_simd", "armv7a_simd", pg2sdr__starch_unpack_raw_adc_data_invert_generic_armv7a_simd, pg2sdr__starch_supports_arm_neon },
 #endif /* STARCH_MIX_ARM */
   
 #ifdef STARCH_MIX_GENERIC
@@ -324,8 +324,8 @@ pg2sdr__starch_unpack_raw_adc_data_invert_regentry pg2sdr__starch_unpack_raw_adc
 #endif /* STARCH_MIX_GENERIC */
   
 #ifdef STARCH_MIX_X86_64
-    { 0, "generic_x86_64_avx2", "x86_64_avx2", pg2sdr__starch_unpack_raw_adc_data_invert_generic_x86_64_avx2, pg2sdr__starch_supports_x86_avx2 },
-    { 1, "generic_x86_64_avx", "x86_64_avx", pg2sdr__starch_unpack_raw_adc_data_invert_generic_x86_64_avx, pg2sdr__starch_supports_x86_avx },
+    { 0, "generic_x86_64_avx", "x86_64_avx", pg2sdr__starch_unpack_raw_adc_data_invert_generic_x86_64_avx, pg2sdr__starch_supports_x86_avx },
+    { 1, "generic_x86_64_avx2", "x86_64_avx2", pg2sdr__starch_unpack_raw_adc_data_invert_generic_x86_64_avx2, pg2sdr__starch_supports_x86_avx2 },
     { 2, "generic_default", "default", pg2sdr__starch_unpack_raw_adc_data_invert_generic_default, NULL },
 #endif /* STARCH_MIX_X86_64 */
     { 0, NULL, NULL, NULL, NULL }
