@@ -1,6 +1,7 @@
-# Put this in /etc/udev/rules.d/ then run "sudo systemctl reload udev"
-#
+# Access rules for the FlightAware Pro Stick Gen 2 SDR
+
 # PG2SDR, temporary IDs
 SUBSYSTEM=="usb", ATTRS{idVendor}=="dead", ATTRS{idProduct}=="beef", GROUP="plugdev", MODE="0660"
-# LPC4370 in bootloader mode
+
+# PG2SDR in recovery mode (LPC4370 bootloader mode)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="000c", GROUP="plugdev", MODE="0660"
