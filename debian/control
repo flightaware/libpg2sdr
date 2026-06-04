@@ -37,7 +37,7 @@ Description: ProStick Gen 2 CLI tools
  configuring and inspecting the FlightAware ProStick
  Gen 2 software defined radio.
 
-Package: soapy-module-pg2sdr
+Package: soapysdr-module-pg2sdr
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: ProStick Gen 2 device support for SoapySDR
