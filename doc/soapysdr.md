@@ -1,8 +1,8 @@
 # Using the SoapySDR driver
 
 After [installing libpg2sdr and the SoapySDR driver](install.md),
-use `SoapySDRUtil` to [check your install is working correctly]
-(install.md#verify-that-your-soapysdr-driver-installation-is-working).
+use `SoapySDRUtil` to
+[check your install is working correctly](install.md#verify-that-your-soapysdr-driver-installation-is-working).
 
 Now you should be able to use the ProStick Gen 2 with any
 software that has SoapySDR support.
