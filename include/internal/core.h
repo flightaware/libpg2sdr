@@ -30,11 +30,11 @@
 #ifndef PG2SDR_CORE_H
 #define PG2SDR_CORE_H
 
-/* internal/core.h has the core functions needed by pg2-firmware only,
+/* internal/core.h has the core functions needed by corelib only,
  * without any of the ADC / tuner / streaming / DSP code.
  *
  * Nothing implemented here should end up with symbol references to other
- * non-core parts of libpg2sdr, as we want to be able to link pg2-firmware
+ * non-core parts of libpg2sdr, as we want to be able to link pg2-util
  * against the core code only.
  */
 
