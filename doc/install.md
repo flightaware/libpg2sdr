@@ -6,16 +6,13 @@ on your OS and preferences.
 On Debian and Debian-like systems (Raspberry Pi OS, Ubuntu, ...),
 you probably want to install via Debian packages:
 
- * [Install using prebuilt Debian packages]
-   (#install-using-prebuilt-debian-packages)
+* [Install using prebuilt Debian packages](#install-using-prebuilt-debian-packages)
 
- * [Build and install Debian packages from source]
-   (#build-and-install-debian-packages-from-source)
+* [Build and install Debian packages from source](#build-and-install-debian-packages-from-source)
 
 On other systems, you can build and install from source using cmake:
 
- * [Build and install from source with cmake]
-   (#build-and-install-from-source-with-cmake)
+* [Build and install from source with cmake](#build-and-install-from-source-with-cmake)
 
 ## Install using prebuilt Debian packages
 
@@ -23,24 +20,24 @@ FlightAware provides prebuilt Debian packages for some
 version/architecture combinations of Debian and Raspberry Pi OS via an
 apt repository. Currently supported are:
 
- * Raspberry Pi OS trixie, armhf (32-bit)
- * Raspberry Pi OS trixie, arm64 (64-bit)
- * Debian trixie, armhf (32-bit)
- * Debian trixie, arm64 (64-bit)
+* Raspberry Pi OS trixie, armhf (32-bit)
+* Raspberry Pi OS trixie, arm64 (64-bit)
+* Debian trixie, armhf (32-bit)
+* Debian trixie, arm64 (64-bit)
 
 To install from this repository:
 
- 1. Manually download and install the `flightaware-apt-repository`
-    package. Installing this package adds configuration files to tell
-    `apt` how to use the FlightAware apt repository:
+1. Manually download and install the `flightaware-apt-repository`
+   package. Installing this package adds configuration files to tell
+   `apt` how to use the FlightAware apt repository:
 
 ```bash
 wget https://www.flightaware.com/adsb/piaware/files/packages/pool/piaware/f/flightaware-apt-repository/flightaware-apt-repository_1.3_all.deb
 sudo dpkg -i flightaware-apt-repository_1.3_all.deb
 ```
 
- 2. Install the relevant libpg2sdr packages from the FlightAware apt
-    repository:
+2. Install the relevant libpg2sdr packages from the FlightAware apt
+   repository:
 
 ```bash
 sudo apt update
@@ -50,9 +47,9 @@ sudo apt install pg2sdr-tools               # if you need the pg2-util and pg2-r
 sudo apt install soapysdr-module-pg2sdr     # if you need SoapySDR driver support
 ```
 
- 3. If you have the ProStick Gen 2 already connected, disconnect and
-    reconnect it to ensure the system picks up the new device-specific
-    udev rules installed by libpg2sdr.
+3. If you have the ProStick Gen 2 already connected, disconnect and
+   reconnect it to ensure the system picks up the new device-specific
+   udev rules installed by libpg2sdr.
 
 ## Build and install Debian packages from source
 
@@ -60,34 +57,34 @@ For Debian versions or architectures not directly supported by
 FlightAware's apt repository, you can build your own packages from
 source code:
 
- 1. Install build prerequisites:
+1. Install build prerequisites:
 
 ```bash
 sudo apt update
 sudo apt install build-essential git debhelper pkg-config libusb-1.0-0-dev libsoapysdr-dev python3-minimal
 ```
 
- 2. Fetch the libpg2sdr source code:
+2. Fetch the libpg2sdr source code:
 
 ```bash
 git clone --recurse-submodules https://github.com/flightaware/libpg2sdr.git
 ```
 
- 3. Build the libpg2sdr packages:
+3. Build the libpg2sdr packages:
 
 ```bash
 cd libpg2sdr && dpkg-buildpackage -b --no-sign
 ```
 
- 4. Install the built packages:
+4. Install the built packages:
 
 ```bash
 sudo dpkg -i libpg2sdr_*.deb libpg2sdr-dev_*.deb pg2sdr-tools_*.deb soapysdr-module-pg2sdr_*.deb
 ```
 
- 5. If you have the ProStick Gen 2 already connected, disconnect and
-    reconnect it to ensure the system picks up the new device-specific
-    udev rules installed by libpg2sdr.
+5. If you have the ProStick Gen 2 already connected, disconnect and
+   reconnect it to ensure the system picks up the new device-specific
+   udev rules installed by libpg2sdr.
 
 
 ## Build and install from source with cmake
@@ -99,20 +96,20 @@ general outline.
 
 To build libpg2sdr and the CLI tools, you will need:
 
- * A recent Linux-based OS. Other POSIX-ish (BSD, OSX, ...) systems
-   may work with some tweaks but aren't tested.  Building on Windows
-   is currently not supported.
- * git
- * CMake 3.15 or newer
- * A C compiler that understands C11. gcc or clang both work fine.
- * pkg-config
- * libusb-1.0 development headers, library, and pkg-config file
- * A Python 3 interpreter (used at build time only)
+* A recent Linux-based OS. Other POSIX-ish (BSD, OSX, ...) systems
+  may work with some tweaks but aren't tested.  Building on Windows
+  is currently not supported.
+* git
+* CMake 3.15 or newer
+* A C compiler that understands C11. gcc or clang both work fine.
+* pkg-config
+* libusb-1.0 development headers, library, and pkg-config file
+* A Python 3 interpreter (used at build time only)
 
 To build the SoapySDR driver, you will also need:
 
- * A C++ compiler that understands C++17. g++ or clang both work fine.
- * SoapySDR development headers, library, and CMake module
+* A C++ compiler that understands C++17. g++ or clang both work fine.
+* SoapySDR development headers, library, and CMake module
 
 ### Building from source
 

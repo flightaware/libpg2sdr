@@ -9,38 +9,38 @@ installed as part of the `pg2sdr-tools` package.
 `pg2-util` is broken up into subcommands, each
 invoked as `pg2-util <subcommand> ...`:
 
- * [`pg2-util help`](#help-subcommand) --
-   list all subcommands, or provide details on
-   a particular subcommand
+* [`pg2-util help`](#help-subcommand) --
+  list all subcommands, or provide details on
+  a particular subcommand
 
- * [`pg2-util load-firmware`](#load-firmware-subcommand) --
-   temporarily loads and activates new firmware
+* [`pg2-util load-firmware`](#load-firmware-subcommand) --
+  temporarily loads and activates new firmware
 
- * [`pg2-util write-firmware`](#write-firmware-subcommand) --
-   writes a new firmware image to flash storage
+* [`pg2-util write-firmware`](#write-firmware-subcommand) --
+  writes a new firmware image to flash storage
 
- * [`pg2-util verify-firmware`](#verify-firmware-subcommand) --
-   compares a firmware image to what's stored in
-   flash storage
+* [`pg2-util verify-firmware`](#verify-firmware-subcommand) --
+  compares a firmware image to what's stored in
+  flash storage
 
- * [`pg2-util device-info`](#device-info-subcommand) --
-   enumerates connected devices, and shows their
-   state and loaded firmware versions
+* [`pg2-util device-info`](#device-info-subcommand) --
+  enumerates connected devices, and shows their
+  state and loaded firmware versions
 
- * [`pg2-util image-info`](#image-info-subcommand) --
-   displays version information about a firmware
-   image file
+* [`pg2-util image-info`](#image-info-subcommand) --
+  displays version information about a firmware
+  image file
 
- * [`pg2-util reset`](#reset-subcommand) --
-   manually resets a ProStick Gen 2 device
+* [`pg2-util reset`](#reset-subcommand) --
+  manually resets a ProStick Gen 2 device
 
- * [`pg2-util standby`](#standby-subcommand) --
-   puts a ProStick Gen 2 device into standby mode,
-   powering down the RF stages
+* [`pg2-util standby`](#standby-subcommand) --
+  puts a ProStick Gen 2 device into standby mode,
+  powering down the RF stages
 
- * [`pg2-util blink`](#blink-subcommand) --
-   make the indicator LEDs on a particular ProStick
-   blink in a pattern for identification
+* [`pg2-util blink`](#blink-subcommand) --
+  make the indicator LEDs on a particular ProStick
+  blink in a pattern for identification
 
 ## Common options
 
@@ -56,12 +56,12 @@ device. If there is only one device connected, no special options
 are needed. If there is more than one device connected, provide
 command-line options to select exactly one device unambiguously:
 
- * `-s', `--serial` selects a device with a serial number starting
-   with the given prefix. This only works for devices that have loaded
-   firmware; it does not work for devices in recovery mode.
+* `-s`, `--serial` selects a device with a serial number starting
+  with the given prefix. This only works for devices that have loaded
+  firmware; it does not work for devices in recovery mode.
 
- * `-p, `--port` selects a device by the physical USB port it is
-   connected to.
+* `-p`, `--port` selects a device by the physical USB port it is
+  connected to.
 
 USB port identifiers consist of a USB bus number, and then the path
 from the bus root port through any USB hubs to the particular
@@ -102,10 +102,10 @@ It can load images to devices in either recovery or normal mode.
 
 `load-firmware` can be used to:
 
- * Load working firmware to a device that is in recovery mode
-   (e.g. if there is a problem with the firmware stored on flash)
+* Load working firmware to a device that is in recovery mode
+  (e.g. if there is a problem with the firmware stored on flash)
 
- * Test a new firmware version before writing it to flash
+* Test a new firmware version before writing it to flash
 
 ## `write-firmware` subcommand
 
@@ -118,12 +118,12 @@ next reset or disconnected.
 
 Additional options:
 
- * `-f`, `--force-erase` - erase all flash sectors before writing
-   the new image, rather than only rewriting sectors that have
-   changed.
+* `-f`, `--force-erase` - erase all flash sectors before writing
+  the new image, rather than only rewriting sectors that have
+  changed.
 
- * `-n`, `--dry-run` - describe changes that would have been made,
-   but do not actually change the flash contents.
+* `-n`, `--dry-run` - describe changes that would have been made,
+  but do not actually change the flash contents.
 
 ## `verify-firmware` subcommand
 
@@ -144,20 +144,20 @@ devices only.
 
 Status output includes, for each device, where available:
 
- * Connected USB port
- * Connected device type (PG2 running normal firmware vs. PG2 in recovery mode)
- * Serial number
- * Recovery switch position
- * RF and ADC status
- * Hardware variant that the firmware was built for
- * Active (running) firmware details
- * Flash-storage firmware image details
+* Connected USB port
+* Connected device type (PG2 running normal firmware vs. PG2 in recovery mode)
+* Serial number
+* Recovery switch position
+* RF and ADC status
+* Hardware variant that the firmware was built for
+* Active (running) firmware details
+* Flash-storage firmware image details
 
 `device-info` supports one additional option:
 
- * `-j`, `--json` - output status information as json to stdout,
-   rather than as human-readable text. Use this type of output for
-   scripting purposes.
+* `-j`, `--json` - output status information as json to stdout,
+  rather than as human-readable text. Use this type of output for
+  scripting purposes.
 
 ## `image-info` subcommand
 
@@ -167,9 +167,9 @@ device.
 
 `image-info` supports one additional option:
 
- * `-j`, `--json` - output firmware information as json to stdout,
-   rather than as human-readable text. Use this type of output for
-   scripting purposes.
+* `-j`, `--json` - output firmware information as json to stdout,
+  rather than as human-readable text. Use this type of output for
+  scripting purposes.
 
 ## `reset` subcommand
 
@@ -207,20 +207,20 @@ the user-defined pattern string PATTERN. Pattern strings define between
 1 and 6 LED states which are cycled through repeatedly at a rate of 4Hz.
 Each LED state is represented by 4 characters:
 
- * one character for the state of the yellow RF power LED
- * one character for the state of the bicolor ADC status LED
- * one character for the state of the bicolor tuner status LED
- * one character that's ignored, just for spacing
+* one character for the state of the yellow RF power LED
+* one character for the state of the bicolor ADC status LED
+* one character for the state of the bicolor tuner status LED
+* one character that's ignored, just for spacing
 
 The state of each LED is a character representing a color:
 
- * r - red (bicolor LEDS only)
- * g - green (bicolor LEDS only)
- * y - yellow
- * any other character - LED off.
+* r - red (bicolor LEDS only)
+* g - green (bicolor LEDS only)
+* y - yellow
+* any other character - LED off.
 
 Some examples:
 
- * `yyy-000-`: blink all LEDs, yellow, at 2Hz (the default pattern)
- * `y00-y00-y00-000-`: blink just the RF power LED at 1Hz with a 75% duty cycle
- * `0rg-0gr-`: alternating red/green on two LEDs, out of phase, at 2Hz
+* `yyy-000-`: blink all LEDs, yellow, at 2Hz (the default pattern)
+* `y00-y00-y00-000-`: blink just the RF power LED at 1Hz with a 75% duty cycle
+* `0rg-0gr-`: alternating red/green on two LEDs, out of phase, at 2Hz

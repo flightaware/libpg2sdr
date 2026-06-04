@@ -36,15 +36,15 @@ signal.
 It should be possible for the host library to automatically avoid the
 spur, given enough headroom to increase the ADC rate:
 
- * select an ADC rate that's higher than the Nyquist rate for the
-   requested sample rate, and which puts the spur alias near the edge
-   of the captured IF signal;
- * tune so that the desired input signal does not overlap with the
-   spur, using the extra bandwidth available due to the higher ADC
-   rate;
- * after I/Q conversion, frequency-shift the converted signal to
-   compensate for the tuning offset, and decimate to the requested
-   sample rate.
+* select an ADC rate that's higher than the Nyquist rate for the
+  requested sample rate, and which puts the spur alias near the edge
+  of the captured IF signal;
+* tune so that the desired input signal does not overlap with the
+  spur, using the extra bandwidth available due to the higher ADC
+  rate;
+* after I/Q conversion, frequency-shift the converted signal to
+  compensate for the tuning offset, and decimate to the requested
+  sample rate.
 
 However this automatic process is not currently implemented in the
 host library.

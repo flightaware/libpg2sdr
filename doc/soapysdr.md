@@ -41,9 +41,9 @@ Found device 0
 
 Some possible device strings for this device are:
 
- * `driver=pg2sdr,ports=1-11` (selecting device by physical USB port)
- * `driver=pg2sdr,serial=38629` (selecting device by serial number prefix)
- * `driver=pg2sdr,serial=386297DBD86461DC` (selecting device by full serial number)
+* `driver=pg2sdr,ports=1-11` (selecting device by physical USB port)
+* `driver=pg2sdr,serial=38629` (selecting device by serial number prefix)
+* `driver=pg2sdr,serial=386297DBD86461DC` (selecting device by full serial number)
 
 To test a device string, pass it to `SoapySDRUtil --find`:
 

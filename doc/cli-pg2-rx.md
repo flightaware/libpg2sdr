@@ -27,11 +27,11 @@ ProStick Gen 2 connected, it will use that device automatically. If
 there is more than one ProStick Gen 2 connected, you must provide
 command-line options to select exactly one device:
 
- * `-s', `--serial` selects a device with a serial number starting
+ * `-s`, `--serial` selects a device with a serial number starting
    with the given prefix. This only works for devices that have loaded
    firmware; it does not work for devices in recovery mode.
 
- * `-p, `--port` selects a device by the physical USB port it is
+ * `-p`, `--port` selects a device by the physical USB port it is
    connected to.
 
 USB port identifiers consist of a USB bus number, and then the path
@@ -80,15 +80,15 @@ postprocessing:
    conversion to baseband (i.e. ADC output, scaled but otherwise
    untransformed), one value per sample
 
- * `-o FMT`, '--output=FMT` - set the output data type to FMT, one of:
-  * `int16` - signed 16-bit integers (default setting),
-    scaled to [-32768, +32767]
-  * `uint8` - unsigned 8-bit integers,
-    scaled to [0, 255] (like the librtlsdr native format)
-  * `float32` - signed 32-bit floating-point (IEEE-754 binary32),
-    scaled to (-1.0, +1.0)
-  * `float64` - signed 64-bit floating-point (IEEE-754 binary64),
-    scaled to (-1.0, +1.0)
+ * `-o FMT`, `--output=FMT` - set the output data type to FMT, one of:
+     * `int16` - signed 16-bit integers (default setting),
+       scaled to [-32768, +32767]
+     * `uint8` - unsigned 8-bit integers,
+       scaled to [0, 255] (like the librtlsdr native format)
+     * `float32` - signed 32-bit floating-point (IEEE-754 binary32),
+       scaled to (-1.0, +1.0)
+     * `float64` - signed 64-bit floating-point (IEEE-754 binary64),
+       scaled to (-1.0, +1.0)
 
 ## Capture length options
 

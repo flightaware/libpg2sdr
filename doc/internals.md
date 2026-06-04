@@ -5,10 +5,10 @@ Random notes mostly useful for doing development of the library itself.
 ## Structure of this repository
 
 * `include` - public and private header files
-  * `include/pg2sdr.h` - the public API.
-  * `include/internal/*` - internal library headers
-  * `include/firmware/` - symlink to the firmware submodule include dir
-    (see below)
+    * `include/pg2sdr.h` - the public API.
+    * `include/internal/*` - internal library headers
+    * `include/firmware/` - symlink to the firmware submodule include dir
+      (see below)
 
 * `corelib` - code shared by `pg2-util` and the main library. This is
   a collection of object files used at build time (a CMake "object
@@ -23,20 +23,20 @@ Random notes mostly useful for doing development of the library itself.
   don't need a working starch install unless you are modifying the DSP
   library.
 
-  * `dsp/starchgen.py` - script that drives code generation
-  * `dsp/starch` - a git submodule pointing to the main starch repository
-  * `dsp/include` - DSP library API
-  * `dsp/src` - non-starch bits of the DSP library implementation
-  * `dsp/impl` - implementations and benchmarks for DSP routines
-  * `dsp/generated` - generated starch code that implements dispatchers for
-    each DSP routine
+    * `dsp/starchgen.py` - script that drives code generation
+    * `dsp/starch` - a git submodule pointing to the main starch repository
+    * `dsp/include` - DSP library API
+    * `dsp/src` - non-starch bits of the DSP library implementation
+    * `dsp/impl` - implementations and benchmarks for DSP routines
+    * `dsp/generated` - generated starch code that implements dispatchers for
+      each DSP routine
 
 * `firmware` - a git submodule pointing to the `pg2sdr-firmware`
   repository.  The only thing used from this submodule is the header
   file that defines the USB protocol used for controlling the
   firmware.
 
-  * `firmware/include/pg2sdr_protocol.h` - USB protocol definition header
+    * `firmware/include/pg2sdr_protocol.h` - USB protocol definition header
 
 * `tests` - handful of gtest-based unit tests; coverage isn't great.
 
