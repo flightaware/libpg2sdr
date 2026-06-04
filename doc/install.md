@@ -32,7 +32,7 @@ To install from this repository:
    `apt` how to use the FlightAware apt repository:
 
 ```bash
-wget https://www.flightaware.com/adsb/piaware/files/packages/pool/piaware/f/flightaware-apt-repository/flightaware-apt-repository_1.3_all.deb
+wget https://apt.svc.flightaware.com/piaware/release/pool/piaware/f/flightaware-apt-repository/flightaware-apt-repository_1.3_all.deb
 sudo dpkg -i flightaware-apt-repository_1.3_all.deb
 ```
 
