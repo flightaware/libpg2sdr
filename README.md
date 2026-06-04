@@ -1,5 +1,12 @@
 # libpg2sdr
 
+# CAUTION
+
+**This repository is still a work in progress and is still being prepared for
+release**. YMMV.
+
+# CAUTION
+
 This is the host library for the FlightAware ProStick Gen 2 ("pg2"), a
 USB-connected, receive-only, software-defined radio designed to
 receive aircraft navigation signals at frequencies near 1GHz (but also
