@@ -19,7 +19,7 @@ install:
 	cmake --install ./build --prefix ${PREFIX}
 
 build-with-tests:
-	cmake -B ./build -S ./ -DENABLE_CLI=ON -DENABLE_SOAPYSDR=ON -DENABLE-TESTING=ON -DCMAKE_VERBOSE_MAKEFILE=OFF
+	cmake -B ./build -S ./ -DENABLE_CLI=ON -DENABLE_SOAPYSDR=ON -DENABLE_TESTING=ON -DCMAKE_VERBOSE_MAKEFILE=OFF
 	cmake --build ./build
 
 run-unit-tests: build-with-tests
