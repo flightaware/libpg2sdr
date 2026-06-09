@@ -163,7 +163,7 @@ standby` after exiting CubicSDR.
 
 [dump1090-fa](https://github.com/flightaware/dump1090) has SoapySDR device
 support. To use dump1090-fa with a ProStick Gen 2, pass `--device-type soapy`
-and `--device driver=pg2sdr` (or your full SoapySDR device string is).
+and `--device driver=pg2sdr` (or your full SoapySDR device string).
 
 The `--gain` option will set total gain in dB. `dump1090-fa` defaults
 to maximum gain if no gain option is given, which on the ProStick Gen
