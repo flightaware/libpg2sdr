@@ -31,7 +31,7 @@ set_source_files_properties(generated/flavor.default.c PROPERTIES COMPILE_OPTION
 
 macro(add_starch_library target)
   add_library(${target} ${ARGN} generated/flavor.armv7a_simd.c generated/flavor.default.c generated/dispatcher.c)
-  target_include_directories(${target} PUBLIC "generated")
+  target_include_directories(${target} PRIVATE "generated")
   target_compile_definitions(${target} PUBLIC "STARCH_MIX_ARM")
 endmacro()
 
