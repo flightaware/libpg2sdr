@@ -46,5 +46,5 @@ signal streaming tool (`pg2-rx`).
 ## Related repositories
 
  * [ProStick Gen 2 firmware](https://github.com/flightaware/pg2sdr-firmware)
- * [Python scripts for firmware development](https://github.com/flightaware/pg2sdr-python)
- * [Python scripts for characterizing the hardware](...)
+ * Python scripts for firmware development (TBA)
+ * Python scripts for characterizing the hardware (TBA)
