@@ -2,7 +2,9 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Name of the project
-project(libpg2sdr LANGUAGES C CXX)
+project(libpg2sdr
+  VERSION 1.0.0
+  LANGUAGES C CXX)
 
 # Set the C standard to C11
 set(CMAKE_C_STANDARD 11)
