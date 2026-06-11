@@ -20,7 +20,7 @@ Description: ProStick Gen 2 SDR host library
 
 Package: libpg2sdr-dev
 Architecture: any
-Depends: libpg2sdr (= ${binary:Version}), ${misc:Depends}
+Depends: libpg2sdr (= ${binary:Version}), libusb-1.0-0-dev, ${misc:Depends}
 Description: ProStick Gen 2 SDR library development files
  libpg2sdr is a host-side library for configuring
  and receiving data from the FlightAware ProStick
