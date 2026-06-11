@@ -51,3 +51,10 @@ if(ENABLE_TESTING)
   add_subdirectory(tests)
 endif()
 
+
+# prepare and install pkg-config file
+configure_file(libpg2sdr.pc.in libpg2sdr.pc @ONLY)
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/libpg2sdr.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+    COMPONENT Development)

@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: PG2SDR host library
+Description: Host library for ProStick Gen 2 SDR devices
+Version: @PROJECT_VERSION@
+Requires: libusb-1.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lpg2sdr
