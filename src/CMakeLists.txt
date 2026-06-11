@@ -40,7 +40,7 @@ add_library(pg2sdr SHARED
 target_compile_options(pg2sdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror)
 target_compile_definitions(pg2sdr PRIVATE _DEFAULT_SOURCE $<$<CONFIG:DEBUG>:ENABLE_INSTRUMENTATION>)
 target_include_directories(pg2sdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(pg2sdr pg2sdr_core pg2sdr_dsp m)
+target_link_libraries(pg2sdr PRIVATE pg2sdr_core pg2sdr_dsp m)
 set_target_properties(pg2sdr PROPERTIES
   PUBLIC_HEADER "../include/pg2sdr.h"
   VERSION 1.0
@@ -48,7 +48,7 @@ set_target_properties(pg2sdr PROPERTIES
 
 target_include_directories(pg2sdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
 target_compile_options(pg2sdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
-target_link_libraries(pg2sdr ${LIBUSB_LIBRARIES})
+target_link_libraries(pg2sdr PRIVATE ${LIBUSB_LIBRARIES})
 
 include(GNUInstallDirs)
 install(
