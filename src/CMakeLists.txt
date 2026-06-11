@@ -43,8 +43,8 @@ target_include_directories(pg2sdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(pg2sdr PRIVATE pg2sdr_core pg2sdr_dsp m)
 set_target_properties(pg2sdr PROPERTIES
   PUBLIC_HEADER "../include/pg2sdr.h"
-  VERSION 1.0
-  SOVERSION 1)
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR})
 
 target_include_directories(pg2sdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
 target_compile_options(pg2sdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
