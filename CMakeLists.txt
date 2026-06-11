@@ -51,6 +51,21 @@ if(ENABLE_TESTING)
   add_subdirectory(tests)
 endif()
 
+# prepare and install cmake package
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/PG2SDRConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/PG2SDRConfig.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/)
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/PG2SDRConfigVersion.cmake"
+  COMPATIBILITY AnyNewerVersion)
+
+install(FILES
+          "${CMAKE_CURRENT_BINARY_DIR}/PG2SDRConfig.cmake"
+          "${CMAKE_CURRENT_BINARY_DIR}/PG2SDRConfigVersion.cmake"
+          DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/PG2SDR
+          COMPONENT Development)
 
 # prepare and install pkg-config file
 configure_file(libpg2sdr.pc.in libpg2sdr.pc @ONLY)

@@ -39,12 +39,16 @@ add_library(pg2sdr SHARED
 
 target_compile_options(pg2sdr PRIVATE -O3 -Wall -Wmissing-declarations -Werror)
 target_compile_definitions(pg2sdr PRIVATE _DEFAULT_SOURCE $<$<CONFIG:DEBUG>:ENABLE_INSTRUMENTATION>)
-target_include_directories(pg2sdr PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(pg2sdr PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(pg2sdr PRIVATE pg2sdr_core pg2sdr_dsp m)
 set_target_properties(pg2sdr PROPERTIES
   PUBLIC_HEADER "../include/pg2sdr.h"
   VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR})
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+  INTERFACE_PG2SDR_MAJOR_VERSION ${PROJECT_VERSION_MAJOR}
+  COMPATIBLE_INTERFACE_STRING PG2SDR_MAJOR_VERSION)
 
 target_include_directories(pg2sdr PUBLIC ${LIBUSB_INCLUDE_DIRS})
 target_compile_options(pg2sdr PUBLIC ${LIBUSB_CFLAGS_OTHERS})
@@ -53,6 +57,7 @@ target_link_libraries(pg2sdr PRIVATE ${LIBUSB_LIBRARIES})
 include(GNUInstallDirs)
 install(
   TARGETS pg2sdr
+  EXPORT PG2SDRTargets
   LIBRARY
     DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     COMPONENT Libraries
@@ -61,3 +66,10 @@ install(
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     COMPONENT Development
 )
+
+install(
+  EXPORT PG2SDRTargets
+    FILE PG2SDRTargets.cmake
+    NAMESPACE PG2SDR::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/PG2SDR"
+    COMPONENT Development)
