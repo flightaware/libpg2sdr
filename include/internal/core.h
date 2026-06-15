@@ -41,8 +41,9 @@
 #include "pg2sdr.h"
 #include "firmware/pg2sdr_protocol.h"
 
+/* values for pg2sdr__context.magic */
 #define MAGIC_CTX 0x18273645
-#define MAGIC_FREE 0xFEEE
+#define MAGIC_FREE 0x46724565
 
 struct pg2sdr__context {
     int magic;
