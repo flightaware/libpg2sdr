@@ -72,6 +72,9 @@ int pg2sdr__translate_errno(int error);
 /* LPC43xx bootloader VID/PID (i.e. recovery mode) */
 #define VID_LPC_ROM 0x1fc9
 #define PID_LPC_ROM 0x000c
+/* Prototype firmware VID/PID (to be retired) */
+#define VID_PROTOTYPE 0xDEAD
+#define PID_PROTOTYPE 0xBEEF
 
 /* ctx may be NULL, at the cost of no error logging */
 char *pg2sdr__strdup_serial(pg2sdr_context *ctx, libusb_device *usb_dev);

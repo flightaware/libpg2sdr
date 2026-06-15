@@ -100,11 +100,10 @@ device_type_t pg2sdr__identify_device(libusb_device *lu_dev)
     static_assert(LIBUSBX_API_VERSION >= 0x01000102);
     (void) libusb_get_device_descriptor(lu_dev, &desc);
 
-    /* todo: once we have settled on a new, stable, VID/PID, make the old values
-     * return DEVTYPE_LEGACY
-     */
     if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
         return DEVTYPE_PG2SDR;
+    } else if (desc.idVendor == VID_PROTOTYPE && desc.idProduct == PID_PROTOTYPE) {
+        return DEVTYPE_PROTOTYPE;
     } else if (desc.idVendor == VID_LPC_ROM && desc.idProduct == PID_LPC_ROM) {
         return DEVTYPE_RECOVERY;
     } else {
