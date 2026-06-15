@@ -122,7 +122,7 @@ static bool do_device_info(const char *match_serial_prefix, const char *match_po
     pg2sdr_usb_device **devices = NULL;
     ssize_t device_count;
     if ((device_count = pg2sdr__discover_matching(shared_pg2sdr_ctx, match_serial_prefix, match_ports,
-                                                  DEVTYPE_PG2SDR|DEVTYPE_LEGACY|DEVTYPE_RECOVERY,
+                                                  DEVTYPE_PG2SDR|DEVTYPE_PROTOTYPE|DEVTYPE_RECOVERY,
                                                   &devices)) < 0) {
         log_perror_pg2sdr(device_count, "could not enumerate USB devices");
         return false;
@@ -179,7 +179,7 @@ static void show_port_metadata(port_metadata_t *meta)
     const char *typestr;
     switch (meta->device_type) {
     case DEVTYPE_PG2SDR:   typestr = "ProStick Gen 2"; break;
-    case DEVTYPE_LEGACY:   typestr = "ProStick Gen 2 (legacy VID/PID)"; break;
+    case DEVTYPE_PROTOTYPE:typestr = "ProStick Gen 2 (prototype VID/PID)"; break;
     case DEVTYPE_RECOVERY: typestr = "ProStick Gen 2 (recovery mode)"; break;
     default:               typestr = "Non-ProStick Gen 2 device"; break;
     }
@@ -220,7 +220,7 @@ static void json_port_metadata(port_metadata_t *meta)
     const char *typestr;
     switch (meta->device_type) {
     case DEVTYPE_PG2SDR:   typestr = "pg2sdr"; break;
-    case DEVTYPE_LEGACY:   typestr = "legacy"; break;
+    case DEVTYPE_PROTOTYPE:typestr = "prototype"; break;
     case DEVTYPE_RECOVERY: typestr = "recovery"; break;
     default:               typestr = "other"; break;
     }

@@ -78,7 +78,7 @@ char *pg2sdr__strdup_ports(pg2sdr_context *ctx, libusb_device *usb_dev);
 /* this is also used as a bitset */
 typedef enum {
     DEVTYPE_PG2SDR = 1,
-    DEVTYPE_LEGACY = 2,
+    DEVTYPE_PROTOTYPE = 2,
     DEVTYPE_RECOVERY = 4,
     DEVTYPE_OTHER = 8,
 } device_type_t;

@@ -139,7 +139,7 @@ static bool do_load(const char *image_path, const char *serial_prefix, const cha
         success = dfu_load(image, dev, NULL);
         break;
     case DEVTYPE_PG2SDR:
-    case DEVTYPE_LEGACY:
+    case DEVTYPE_PROTOTYPE:
         success = mem_load(image, dev, NULL);
         break;
     default:

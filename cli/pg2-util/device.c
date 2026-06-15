@@ -154,10 +154,10 @@ const char *device_string(libusb_device *dev)
             return buf;
         }
 
-    case DEVTYPE_LEGACY:
+    case DEVTYPE_PROTOTYPE:
         {
             char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
-            snprintf(buf, sizeof(buf), "ProStick Gen 2 (legacy VID/PID) serial %s",
+            snprintf(buf, sizeof(buf), "ProStick Gen 2 (prototype VID/PID) serial %s",
                      serial ? serial : "<unknown>");
             free(serial);
             return buf;
@@ -185,7 +185,7 @@ libusb_device *device_search(const char *match_serial_prefix, const char *match_
 
     /* bitmask of DEVTYPE_* device types we are interested in */
     const int typemask =
-        ((flags & SEARCH_PG2SDR) ? (DEVTYPE_PG2SDR | DEVTYPE_LEGACY) : 0) |
+        ((flags & SEARCH_PG2SDR) ? (DEVTYPE_PG2SDR | DEVTYPE_PROTOTYPE) : 0) |
         ((flags & SEARCH_RECOVERY) ? DEVTYPE_RECOVERY : 0);
 
     ssize_t device_count;
