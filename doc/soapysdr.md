@@ -214,7 +214,7 @@ also improve the noise floor:
 ```bash
 dump978-fa \
   --sdr driver=pg2sdr,serial=386297  \
-  --sdr-device-settings decimation=2 \
+  --sdr-device-settings decimation=1 \
   --sdr-gain 60                      \
   [.. other options ..]
 ```
