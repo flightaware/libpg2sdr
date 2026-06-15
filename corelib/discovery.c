@@ -105,7 +105,7 @@ device_type_t pg2sdr__identify_device(libusb_device *lu_dev)
      */
     if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
         return DEVTYPE_PG2SDR;
-    } else if (desc.idVendor == VID_ROM && desc.idProduct == PID_ROM) {
+    } else if (desc.idVendor == VID_LPC_ROM && desc.idProduct == PID_LPC_ROM) {
         return DEVTYPE_RECOVERY;
     } else {
         return DEVTYPE_OTHER;

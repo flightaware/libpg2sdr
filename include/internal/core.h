@@ -69,6 +69,10 @@ int pg2sdr__translate_errno(int error);
 
 /* discovery.c */
 
+/* LPC43xx bootloader VID/PID (i.e. recovery mode) */
+#define VID_LPC_ROM 0x1fc9
+#define PID_LPC_ROM 0x000c
+
 /* ctx may be NULL, at the cost of no error logging */
 char *pg2sdr__strdup_serial(pg2sdr_context *ctx, libusb_device *usb_dev);
 
