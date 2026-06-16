@@ -33,6 +33,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <string.h>
 
 /*
@@ -98,6 +99,9 @@ typedef struct __attribute__((packed)) {
 } lpc_header_t;
 
 static uint32_t calc_dfu_crc(uint8_t *buf, size_t len);
+
+static const size_t meta_base_size = offsetof(firmware_metadata_t, boot_mode); /* size of metadata, versions < 0.9.7.0 */
+static const size_t meta_0970_size = sizeof(firmware_metadata_t);              /* size of metadata, versions >= 0.9.7.0 */
 
 firmware_image_t *image_read(firmware_io_t *io)
 {
@@ -183,17 +187,27 @@ firmware_image_t *image_read(firmware_io_t *io)
     image->dfu_crc = suffix_crc;
 
     /* if metadata is present, copy it out */
-    uint32_t meta_addr = vec[8];
+    uint32_t meta_addr = le32toh(vec[8]);
     if (meta_addr >= 0x10000000 && meta_addr <= 0x1000ffff) {
         uint32_t offset = meta_addr - 0x10000000;
-        if (offset + sizeof(firmware_metadata_t) <= load_size) {
-            firmware_metadata_t *meta = (firmware_metadata_t*) (image->image_bytes + offset + sizeof(lpc_header_t));
+        uint32_t available = load_size - offset;
+
+        if (available >= meta_base_size) {
+            firmware_metadata_t *meta = image->raw_metadata = (firmware_metadata_t*) (image->image_bytes + sizeof(lpc_header_t) + offset);
+            image->raw_metadata_size = meta_base_size;
+
             image->metadata.version = le32toh(meta->version);
             image->metadata.compat = le32toh(meta->compat);
             image->metadata.max_control_transfer = le16toh(meta->max_control_transfer);
             image->metadata.control_timeout_ms = le16toh(meta->control_timeout_ms);
             memcpy(image->metadata.build_type, meta->build_type, sizeof(meta->build_type));
             image->metadata.build_type[sizeof(meta->build_type) - 1] = 0;
+
+            if (image->metadata.version >= 0x00090700 && available >= meta_0970_size) {
+                /* boot_mode is valid */
+                image->raw_metadata_size = meta_0970_size;
+                image->metadata.boot_mode = le16toh(meta->boot_mode);
+            }
         }
     }
 
@@ -296,6 +310,16 @@ static uint32_t calc_dfu_crc(uint8_t *buf, size_t len)
     return crc;
 }
 
+static const char *boot_mode_str(uint16_t boot_mode)
+{
+    switch (boot_mode) {
+    case BOOT_MODE_FLASH:      return "flash";
+    case BOOT_MODE_LOAD_IMAGE: return "load_image";
+    case BOOT_MODE_RECOVERY:   return "recovery";
+    default:                   return "unknown";
+    }
+}
+
 void show_firmware_metadata(const char *indent, firmware_metadata_t *metadata, FILE *out)
 {
     if (!metadata->version)
@@ -315,6 +339,7 @@ void show_firmware_metadata(const char *indent, firmware_metadata_t *metadata, F
     fprintf(out, "%sMax control xfer:   %u bytes\n", indent, metadata->max_control_transfer);
     fprintf(out, "%sControl timeout:    %u ms\n", indent, metadata->control_timeout_ms);
     fprintf(out, "%sBuild type:         %s\n", indent, metadata->build_type);
+    fprintf(out, "%sBoot mode:          %s\n", indent, boot_mode_str(metadata->boot_mode));
 }
 
 void show_firmware_image(const char *indent, firmware_image_t *image, FILE *out)
@@ -342,6 +367,7 @@ void json_firmware_metadata(firmware_metadata_t *metadata)
     json_key("max_control_transfer"); json_number(metadata->max_control_transfer);
     json_key("control_timeout_ms"); json_number(metadata->control_timeout_ms);
     json_key("build_type"); json_string(metadata->build_type);
+    json_key("boot_mode"); json_string(boot_mode_str(metadata->boot_mode));
 }
 
 void json_firmware_image(firmware_image_t *image)

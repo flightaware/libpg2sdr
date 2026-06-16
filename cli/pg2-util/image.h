@@ -46,13 +46,17 @@ typedef struct {
     /* CRC from DFU suffix */
     uint32_t dfu_crc;
 
-    /* start of data to load over DFU / LOAD_IMAGE */
+    /* start of data to load over DFU / LOAD_IMAGE (points within image_bytes) */
     uint8_t *load_bytes;
     /* number of bytes to load over DFU / LOAD_IMAGE */
     uint32_t load_size;
 
-    /* embedded image metadata */
+    /* copy of embedded image metadata, if present, with any necessary byte order changes made */
     firmware_metadata_t metadata;
+    /* pointer into image_bytes for raw image metadata, or NULL if not present / invalid */
+    firmware_metadata_t *raw_metadata;
+    /* valid size of raw metadata (might be less than sizeof(firmware_metadata_t)) */
+    size_t raw_metadata_size;
 } firmware_image_t;
 
 /*

@@ -230,6 +230,10 @@ int pg2sdr__ctrl_get_metadata(libusb_device_handle *dev, firmware_metadata_t *ou
     out->control_timeout_ms = le16toh(meta.control_timeout_ms);
     memcpy(out->build_type, meta.build_type, sizeof(meta.build_type));
     out->build_type[sizeof(out->build_type)-1] = 0;
+    if (out->version >= 0x00090700)
+        out->boot_mode = le16toh(meta.boot_mode);
+    else
+        out->boot_mode = BOOT_MODE_UNKNOWN;
 
     return PG2SDR_SUCCESS;
 }
