@@ -136,10 +136,14 @@ static bool do_load(const char *image_path, const char *serial_prefix, const cha
 
     switch (pg2sdr__identify_device(dev)) {
     case DEVTYPE_RECOVERY:
+        /* patch boot_mode to indicate use of DFU / recovery mode */
+        image_patch_boot_mode(image, BOOT_MODE_RECOVERY);
         success = dfu_load(image, dev, NULL);
         break;
     case DEVTYPE_PG2SDR:
     case DEVTYPE_PROTOTYPE:
+        /* patch boot_mode to indicate use of LOAD_IMAGE */
+        image_patch_boot_mode(image, BOOT_MODE_LOAD_IMAGE);
         success = mem_load(image, dev, NULL);
         break;
     default:

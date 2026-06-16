@@ -53,6 +53,7 @@ typedef struct {
 
     /* copy of embedded image metadata, if present, with any necessary byte order changes made */
     firmware_metadata_t metadata;
+
     /* pointer into image_bytes for raw image metadata, or NULL if not present / invalid */
     firmware_metadata_t *raw_metadata;
     /* valid size of raw metadata (might be less than sizeof(firmware_metadata_t)) */
@@ -75,6 +76,9 @@ firmware_image_t *image_read(firmware_io_t *io);
  * If `image` is NULL, does nothing.
  */
 void image_free(firmware_image_t *image);
+
+/* Patch boot_mode in the image to the given value, where possible */
+void image_patch_boot_mode(firmware_image_t *image, uint16_t boot_mode);
 
 void show_firmware_image(const char *indent, firmware_image_t *image, FILE *out);
 void show_firmware_metadata(const char *indent, firmware_metadata_t *meta, FILE *out);

@@ -233,6 +233,17 @@ void image_free(firmware_image_t *image)
     free(image);
 }
 
+void image_patch_boot_mode(firmware_image_t *image, uint16_t boot_mode)
+{
+    if (image->metadata.version < 0x00090700 || image->raw_metadata_size < meta_0970_size) {
+        /* Too old or metadata is truncated */
+        return;
+    }
+
+    image->metadata.boot_mode = boot_mode;
+    image->raw_metadata->boot_mode = htole16(boot_mode);
+}
+
 /* helper data for calc_dfu_crc */
 static unsigned long dfu_crc_table[256] = {
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
