@@ -303,3 +303,11 @@ const char *pg2sdr_get_ports(pg2sdr_device *dev)
 
     return dev->ports;
 }
+
+uint32_t pg2sdr_get_firmware_version(pg2sdr_device *dev)
+{
+    if (!dev || !dev->ctx || dev->magic != MAGIC_DEV || dev->ctx->magic != MAGIC_CTX)
+        return 0 ;
+
+    return dev->fw_version;
+}

@@ -647,6 +647,18 @@ const char *pg2sdr_get_serial(pg2sdr_device *dev);
 const char *pg2sdr_get_ports(pg2sdr_device *dev);
 
 /**
+ * \brief Get the firmware version of an opened device.
+ * \ingroup device
+ *
+ * Firmware versions are 32-bit unsigned integers that can be directly
+ * compared.
+ *
+ * \param[in] dev the device to query
+ * \return the firmware version of the connected device, or 0 if the given device is not valid.
+ */
+uint32_t pg2sdr_get_firmware_version(pg2sdr_device *dev);
+
+/**
  * \defgroup config Device configuration
  *
  * This group of functions control the capture configuration of an
