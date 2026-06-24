@@ -31,4 +31,7 @@ run-stream-integration-tests: build-with-tests
 regenerate-starch:
 	cd dsp && ./starchgen.py --runtime-dir . --output-dir generated
 
-.PHONY: build clean verbose install build-with-tests run-unit-tests run-stream-integration-tests regenerate-starch
+doc:
+	doxygen
+
+.PHONY: build clean verbose install build-with-tests run-unit-tests run-stream-integration-tests regenerate-starch doc
