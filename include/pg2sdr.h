@@ -136,6 +136,38 @@ typedef void (*pg2sdr_log_callback)(pg2sdr_context *context,
                                     pg2sdr_log_level level,
                                     const char *message);
 
+
+
+/**
+ * \brief Compile-time library API version
+ * \ingroup context
+ *
+ * A monotonically-increasing unsigned integer that will be increased
+ * on API change. This can be used to detect the presence of functions
+ * added in later library versions.  (Currently, nothing makes use of
+ * this as there's only one library API released so far).
+ */
+#define PG2SDR_API_VERSION 0x01000100U
+
+/**
+ * \brief Get runtime library API version
+ * \ingroup context
+ *
+ * This gets the _runtime_ API version of the library that was actually
+ * linked to. It may be higher than the version originally compiled
+ * against, if there were ABI-compatible upgrades to the installed
+ * library in the meantime.
+ *
+ * If the returned value is less than PG2SDR_API_VERSION, then you have
+ * a version skew problem -- your executable is linked to an older
+ * library version than the version it was compiled for.
+ *
+ * \return the PG2SDR_API_VERSION value of the currently linked library
+ */
+uint32_t pg2sdr_get_api_version(void);
+
+/* if documenting the API, gloss over the macro API stuff */
+#ifdef DOXYGEN
 /**
  * \brief Allocate a new library context.
  * \ingroup context
@@ -144,9 +176,15 @@ typedef void (*pg2sdr_log_callback)(pg2sdr_context *context,
  *
  * \param[out] ctx Storage for a pointer to the newly allocated context
  * \retval ::PG2SDR_SUCCESS success
+ * \retval ::PG2SDR_ERROR_LIBRARY_VERSION runtime library version is older than version compiled against
  * \retval <0 negative error code on failure
  */
 int pg2sdr_init(pg2sdr_context **ctx);
+#else /* !DOXYGEN */
+/* internal version of pg2sdr_init, checks that the runtime API version is at least min_api_version */
+int pg2sdr__init_version(pg2sdr_context **ctx, uint32_t min_api_version);
+#define pg2sdr_init(ctx) pg2sdr__init_version(ctx, PG2SDR_API_VERSION)
+#endif
 
 /**
  * \brief Free a library context.
@@ -265,6 +303,7 @@ enum pg2sdr_error {
     PG2SDR_ERROR_TIMEOUT = -10,            /**< Operation timed out */
     PG2SDR_ERROR_CORRUPTION = -11,         /**< Heap corruption, double-free, or use-after-free detected */
     PG2SDR_ERROR_ACCESS = -12,             /**< Insufficient permissions to access device */
+    PG2SDR_ERROR_LIBRARY_VERSION = -13,    /**< Library version is older than expected version */
 
     PG2SDR_ERROR_TRANSFER_OTHER = -200,    /**< Unexpected libusb transfer status */
     PG2SDR_ERROR_TRANSFER_STALL = -201,    /**< Bulk endpoint stalled (libusb transfer status LIBUSB_TRANSFER_STALL) */

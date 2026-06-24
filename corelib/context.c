@@ -45,10 +45,18 @@ static void debug_logger(pg2sdr_context *ctx, pg2sdr_log_level level, const char
     fprintf(stderr, "libpg2sdr: %s\n", message);
 }
 
-int pg2sdr_init(pg2sdr_context **ctx) {
+uint32_t pg2sdr_get_api_version(void)
+{
+    return PG2SDR_API_VERSION;
+}
 
+int pg2sdr__init_version(pg2sdr_context **ctx, uint32_t min_api_version)
+{
     if (!ctx)
         return PG2SDR_ERROR_BAD_ARGUMENT;
+
+    if (PG2SDR_API_VERSION < min_api_version)
+        return PG2SDR_ERROR_LIBRARY_VERSION;
 
     pg2sdr_context *newctx;
     if (!(newctx = malloc(sizeof(*newctx))))

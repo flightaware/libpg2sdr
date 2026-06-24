@@ -158,6 +158,8 @@ const char *pg2sdr_strerror_r(int error, char *buf, size_t buflen)
         return "Heap corruption, double-free, or use-after-free detected";
     case PG2SDR_ERROR_ACCESS:
         return "Insufficient permissions to access device";
+    case PG2SDR_ERROR_LIBRARY_VERSION:
+        return "Library version is older than expected version";
 
     case PG2SDR_ERROR_TRANSFER_OTHER:
         return "Unexpected libusb transfer status";
