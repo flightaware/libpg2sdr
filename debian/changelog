@@ -1,5 +1,11 @@
-libpg2sdr (1.0.0) UNRELEASED; urgency=medium
+libpg2sdr (1.0.1~alpha) UNRELEASED; urgency=medium
 
-  * Initial release.
+  * preparing for external release
 
- -- Oliver Jowett <oliver.jowett@flightaware.com>  Thu, 19 Mar 2026 14:06:50 +0800
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Wed, 24 Jun 2026 11:22:55 +0800
+
+libpg2sdr (1.0.0) stable; urgency=medium
+
+  * Initial internal release.
+
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Wed, 24 Jun 2026 11:22:40 +0800
