@@ -15,4 +15,4 @@ debian/libpg2sdr/
 debian/libpg2sdr-dev/
 debian/pg2sdr-tools/
 debian/soapy-module-pg2sdr/
-doc/html/
+doc/api/
