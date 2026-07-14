@@ -102,6 +102,8 @@ device_type_t pg2sdr__identify_device(libusb_device *lu_dev)
 
     if (desc.idVendor == VID_PG2SDR && desc.idProduct == PID_PG2SDR) {
         return DEVTYPE_PG2SDR;
+    } else if (desc.idVendor == VID_AIRSPYMINI && desc.idProduct == PID_AIRSPYMINI) {
+        return DEVTYPE_AIRSPYMINI;
     } else if (desc.idVendor == VID_PROTOTYPE && desc.idProduct == PID_PROTOTYPE) {
         return DEVTYPE_PROTOTYPE;
     } else if (desc.idVendor == VID_LPC_ROM && desc.idProduct == PID_LPC_ROM) {

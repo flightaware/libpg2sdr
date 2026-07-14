@@ -124,6 +124,7 @@ port_metadata_t *meta_query(libusb_device *dev)
     meta->device_type = pg2sdr__identify_device(dev);
     switch (meta->device_type) {
     case DEVTYPE_PG2SDR:
+    case DEVTYPE_AIRSPYMINI:
     case DEVTYPE_PROTOTYPE:
         meta->serial = pg2sdr__strdup_serial(NULL, dev);
         populate_status(dev, meta);

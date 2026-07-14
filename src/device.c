@@ -208,7 +208,7 @@ ssize_t pg2sdr_discover_devices(pg2sdr_context *ctx,
     return pg2sdr__discover_matching(ctx,
                                      match_serial_prefix,
                                      match_ports,
-                                     DEVTYPE_PG2SDR,
+                                     DEVTYPE_PG2SDR|DEVTYPE_AIRSPYMINI,
                                      device_list);
 }
 

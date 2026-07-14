@@ -91,6 +91,7 @@ static int hotplug_callback(libusb_context *usb_ctx, libusb_device *dev, libusb_
     /* Activity on some other port */
     switch (pg2sdr__identify_device(dev)) {
     case DEVTYPE_PG2SDR:
+    case DEVTYPE_AIRSPYMINI:
     case DEVTYPE_PROTOTYPE:
     case DEVTYPE_RECOVERY:
         /* PG2-like hardware enumerated on a different port, remember the first one as a "maybe match" */
@@ -206,6 +207,7 @@ libusb_device *hotplug_await(firmware_hotplug_state *state)
 
     switch (pg2sdr__identify_device(post_hotplug)) {
     case DEVTYPE_PG2SDR:
+    case DEVTYPE_AIRSPYMINI:
     case DEVTYPE_PROTOTYPE:
         log_verbose("Device re-enumerated on port %s", device_ports(post_hotplug));
         return libusb_ref_device(post_hotplug);

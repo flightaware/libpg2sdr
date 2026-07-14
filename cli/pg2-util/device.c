@@ -154,6 +154,15 @@ const char *device_string(libusb_device *dev)
             return buf;
         }
 
+    case DEVTYPE_AIRSPYMINI:
+        {
+            char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
+            snprintf(buf, sizeof(buf), "Airspy Mini with PG2 firmware serial %s",
+                     serial ? serial : "<unknown>");
+            free(serial);
+            return buf;
+        }
+
     case DEVTYPE_PROTOTYPE:
         {
             char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
@@ -185,7 +194,7 @@ libusb_device *device_search(const char *match_serial_prefix, const char *match_
 
     /* bitmask of DEVTYPE_* device types we are interested in */
     const int typemask =
-        ((flags & SEARCH_PG2SDR) ? (DEVTYPE_PG2SDR | DEVTYPE_PROTOTYPE) : 0) |
+        ((flags & SEARCH_PG2SDR) ? (DEVTYPE_PG2SDR | DEVTYPE_AIRSPYMINI | DEVTYPE_PROTOTYPE) : 0) |
         ((flags & SEARCH_RECOVERY) ? DEVTYPE_RECOVERY : 0);
 
     ssize_t device_count;

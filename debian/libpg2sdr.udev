@@ -2,6 +2,8 @@
 
 # PG2SDR with regular firmware
 SUBSYSTEM=="usb", ATTRS{idVendor}=="39dd", ATTRS{idProduct}=="2000", GROUP="plugdev", MODE="0660"
+# airspy mini with PG2SDR firmware
+SUBSYSTEM=="usb", ATTRS{idVendor}=="39dd", ATTRS{idProduct}=="2a00", GROUP="plugdev", MODE="0660"
 
 # PG2SDR in recovery mode (LPC4370 bootloader mode)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="000c", GROUP="plugdev", MODE="0660"

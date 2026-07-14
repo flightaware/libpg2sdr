@@ -88,6 +88,7 @@ typedef enum {
     DEVTYPE_PROTOTYPE = 2,
     DEVTYPE_RECOVERY = 4,
     DEVTYPE_OTHER = 8,
+    DEVTYPE_AIRSPYMINI = 16,
 } device_type_t;
 
 device_type_t pg2sdr__identify_device(libusb_device *lu_device);

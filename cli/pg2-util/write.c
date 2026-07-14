@@ -242,6 +242,7 @@ static bool do_write_verify(const char *image_path, const char *serial_prefix, c
         }
 
     case DEVTYPE_PG2SDR:
+    case DEVTYPE_AIRSPYMINI:
     case DEVTYPE_PROTOTYPE:
         /* no extra work needed */
         break;

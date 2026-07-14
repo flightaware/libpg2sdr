@@ -141,6 +141,7 @@ static bool do_load(const char *image_path, const char *serial_prefix, const cha
         success = dfu_load(image, dev, NULL);
         break;
     case DEVTYPE_PG2SDR:
+    case DEVTYPE_AIRSPYMINI:
     case DEVTYPE_PROTOTYPE:
         /* patch boot_mode to indicate use of LOAD_IMAGE */
         image_patch_boot_mode(image, BOOT_MODE_LOAD_IMAGE);
