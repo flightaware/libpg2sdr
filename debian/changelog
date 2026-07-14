@@ -1,8 +1,12 @@
-libpg2sdr (1.0.1~alpha) UNRELEASED; urgency=medium
+libpg2sdr (1.0.1) stable; urgency=medium
 
-  * preparing for external release
+  * Initial public release
+  * Add libpg2sdr-doc package
+  * Add API version support
+  * Update reference firmware to v1.0.0.0
+  * Update expected VIDs/PIDs to match firmware updates
 
- -- Oliver Jowett <oliver.jowett@flightaware.com>  Wed, 24 Jun 2026 11:22:55 +0800
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Tue, 14 Jul 2026 15:34:30 +0800
 
 libpg2sdr (1.0.0) stable; urgency=medium
 
