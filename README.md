@@ -1,17 +1,11 @@
 # libpg2sdr
 
-# CAUTION
-
-**This repository is still a work in progress and is still being prepared for
-release**. YMMV.
-
-# CAUTION
+&#x26A0; Work in progress, not finalized yet! &#x26A0;
 
 This is the host library for the FlightAware ProStick Gen 2 ("pg2"), a
 USB-connected, receive-only, software-defined radio designed to
 receive aircraft navigation signals at frequencies near 1GHz (but also
-capable of general-purpose SDR tasks). See the [Hardware
-Features](doc/hardware.md) documentation for more details.
+capable of general-purpose SDR tasks).
 
 The host library provides an API for connecting to devices,
 configuring them for the desired frequency / sampling rate / etc,
@@ -34,7 +28,7 @@ signal streaming tool (`pg2-rx`).
    * [`pg2-rx`](doc/cli-pg2-rx.md)
  * [Using the SoapySDR driver](doc/soapysdr.md)
  * [Updating the ProStick Gen 2 firmware](doc/firmware-update.md)
- * [Hardware features](doc/hardware.md)
+ * Hardware features (TBA)
  * [Current hardware/software limitations & TODO](doc/todo.md)
 
 ## Developer documentation
@@ -48,3 +42,7 @@ signal streaming tool (`pg2-rx`).
  * [ProStick Gen 2 firmware](https://github.com/flightaware/pg2sdr-firmware)
  * Python scripts for firmware development (TBA)
  * Python scripts for characterizing the hardware (TBA)
+
+## License
+
+libpg2sdr is licensed under a [2-clause BSD license](LICENSE)
