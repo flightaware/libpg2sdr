@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/flightaware/libpg2sdr
+Upstream-Name: libpg2sdr
+Upstream-Contact: adsb-devs@flightaware.com
+
+Files:
+ *
+Copyright: 2006, FlightAware
+License: BSD-2-clause
