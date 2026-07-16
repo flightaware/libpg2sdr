@@ -30,7 +30,7 @@ libpg2sdr](install.md) for details on how to install this.
 ## Find a new firmware image
 
 New firmware images are released in the
-[firmware repository on GitHub](https://github.com/flightaware/pg2sdr-repository/releases/latest).
+[firmware repository on GitHub](https://github.com/flightaware/pg2sdr-firmware/releases/latest).
 
 On the release page under `Assets`, you will find a firmware image
 file named `pg2sdr-firmware-VERSION.bin`. Download this file to the
@@ -117,7 +117,7 @@ not work, then you can try using recovery mode to update the firmware:
 
 1. Disconnect the device
 2. Find the small recovery switch on the edge of the device. Set it so that it
-   switched towards the USB connector.
+   is switched towards the USB connector.
 3. Reconnect the device. The LED indicators should show one solid orange
    LED, and two faint red LEDs. The device is now in recovery mode, waiting
    to load new firmware.
