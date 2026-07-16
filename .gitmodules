@@ -4,4 +4,4 @@
 	branch = cmake-and-rework
 [submodule "firmware"]
 	path = firmware
-	url = git@github.com:flightaware/pg2sdr-firmware.git
+	url = https://github.com/flightaware/pg2sdr-firmware.git
