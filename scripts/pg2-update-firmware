@@ -311,7 +311,7 @@ def pg2util_write_firmware(device, firmware_file):
 
 def pg2util_reset(device):
     # reset device
-    verbose("Resetting device on port {device['port']}")
+    verbose(f"Resetting device on port {device['port']}")
     if not run_pg2util(['reset', '-p', device['port'], '-w']):
         error(f"Failed to write firmware to device on port {device['port']}")
         return False
@@ -444,7 +444,7 @@ def main():
     options = parser.parse_args()
 
     if not pg2util_check():
-        error("Could not find a working pg2-util in PATH. Is pg2sdr-tools installed?")
+        error("Could not find a working pg2-util. Is pg2sdr-tools installed?")
         return 1
 
     devices = pg2util_device_info()
@@ -455,7 +455,7 @@ def main():
     with open_firmware_file() as firmware_file:
         firmware_info = pg2util_image_info(firmware_file)
         if not firmware_info:
-            error("Could not extract firmware info from firmware image {firmware_file.name} (bad image?)")
+            error(f"Could not extract firmware info from firmware image {firmware_file.name} (bad image?)")
             return 1
 
         info(f"Updating devices to firmware version {firmware_info['version']}, CRC {firmware_info['dfu_crc']}")
