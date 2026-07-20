@@ -1,0 +1,471 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import argparse
+import subprocess
+import hashlib
+import json
+import tempfile
+
+import requests
+
+saw_an_error = False
+options = None
+
+def error(msg):
+    global saw_an_error
+    print(f"error: {msg}", file=sys.stderr)
+    saw_an_error = True
+
+def info(msg):
+    if not options.quiet:
+        print(msg, file=sys.stderr)
+
+def verbose(msg):
+    if options.verbose:
+        print(msg, file=sys.stderr)
+
+def confirm(query):
+    if options.dryrun:
+        return False
+    if options.yes:
+        return True
+
+    try:
+        answer = input(query + " ").lower()
+        return (answer in ('y', 'yes'))
+    except EOFError:
+        return False
+
+def split_digest(asset):
+    digest = asset.get('digest')
+    if digest is None:
+        raise ValueError("Missing asset digest")
+    if ':' not in digest:
+        raise ValueError(f"Malformed asset digest: {digest}")
+
+    algo, hexdigest = (x.lower() for x in digest.split(':', 1))
+    if algo not in hashlib.algorithms_available:
+        raise ValueError(f"Unsupported digest algorithm: {digest_name}")
+
+    acceptable_chars = frozenset('0123456789abcdef')
+    if not all(x in acceptable_chars for x in hexdigest):
+        raise ValueError(f"Non-hex characters in digest: {hexdigest}")
+
+    return hashlib.new(algo), hexdigest
+
+def download_asset(asset, outfile):
+    # Download and verify the asset
+    hash_obj, expected_digest = split_digest(asset)
+
+    verbose(f"Downloading firmware image from {asset['url']}")
+    r = requests.get(asset['url'],
+                     headers={
+                         'Accept': 'application/octet-stream',
+                         'X-GitHub-Api-Version': '2026-03-10'
+                     }, stream=True)
+    r.raise_for_status()
+
+    for chunk in r.iter_content(4096):
+        outfile.write(chunk)
+        hash_obj.update(chunk)
+
+    outfile.flush()
+    outfile.seek(0)
+
+    actual_digest = hash_obj.hexdigest().lower()
+    if actual_digest != expected_digest:
+        raise IOError(f"downloaded asset digest {actual_digest} did not match expected digest {expected_digest}")
+
+def cache_path_for(asset):
+    _, expected_digest = split_digest(asset)
+    cache_file = f"firmware-{expected_digest}.bin"
+    cache_dir = os.path.expanduser(options.cache_dir)
+    return os.path.join(cache_dir, cache_file)
+
+def get_asset_from_cache(asset):
+    cache_path = cache_path_for(asset)
+    if not os.path.exists(cache_path):
+        return None
+
+    cached = None
+    hash_obj, expected_digest = split_digest(asset)
+    try:
+        cached = open(cache_path, 'rb')
+        with open(cache_path, 'rb') as f:
+            while True:
+                block = f.read(4096)
+                if not block:
+                    break
+                hash_obj.update(block)
+
+        actual_digest = hash_obj.hexdigest().lower()
+        if actual_digest != expected_digest:
+            verbose(f"Not using cached file {cache_path} because it does not match the expected digest")
+            # contents differ
+            cached.close()
+            return None
+
+        cached.seek(0)
+        verbose(f"Using cached firmware image: {cache_path}")
+        return cached
+
+    except IOError as e:
+        # cache file not valid, ignore it
+        verbose('Not using cached file {cache_path} because of an IOError: {e}')
+        if cached:
+            cached.close()
+        return None
+
+    except:
+        # unexpected error, do actually raise this one
+        if cached:
+            cached.close()
+        raise
+
+def download_to_cache(asset):
+    cache_path = cache_path_for(asset)
+    cache_dir = os.path.dirname(cache_path)
+    if not os.path.exists(cache_dir):
+        try:
+            os.makedirs(cache_dir)
+        except IOError as e:
+            warning(f"Cannot create cache directory {cache_dir}: {e}")
+            return None
+
+    cached = None
+    try:
+        cached = open(cache_path, 'w+b')
+    except IOError as e:
+        warning(f"Cannot create cache file {cache_path}: {e}")
+        return None
+
+    try:
+        download_asset(asset, cached)
+    except:
+        # Exceptions from download_asset should be reported, because
+        # they're not merely a problem with the cache_dir
+        cached.close()
+        raise
+    else:
+        return cached
+
+def fetch_firmware_asset(asset):
+    # if configured, try to use or populate the cache first
+    if options.cache_dir:
+        cached = get_asset_from_cache(asset)
+        if cached:
+            return cached
+
+        cached = download_to_cache(asset)
+        if cached:
+            return cached
+
+    # no cache configured, or there was a problem using it
+    # download to a temporary file instead
+    temp = tempfile.NamedTemporaryFile('w+b', prefix='firmware', delete=True)
+    try:
+        download_asset(asset, temp)
+    except:
+        temp.close()
+        raise
+    else:
+        return temp
+
+def find_firmware_asset():
+    if options.firmware_version is None:
+        verbose(f"Finding latest github firmware release")
+        api_url = 'https://api.github.com/repos/flightaware/pg2sdr-firmware/releases/latest'
+    else:
+        verbose(f"Finding github firmware release with tag v{options.firmware_version}")
+        api_url = f'https://api.github.com/repos/flightaware/pg2sdr-firmware/releases/tags/v{options.firmware_version}'
+
+    r = requests.get(api_url,
+                     headers={
+                         'Accept': 'application/vnd.github+json',
+                         'X-GitHub-Api-Version': '2026-03-10'
+                     })
+    r.raise_for_status()
+
+    r_json = r.json()
+    verbose(f"Using firmware release: {r_json['tag_name']} ({r_json['name']})")
+    for asset in r_json['assets']:
+        if asset['name'].startswith('pg2sdr-firmware-') and asset['name'].endswith('.bin'):
+            return fetch_firmware_asset(asset)
+
+    raise IOError(f"Github release {r_json['tag_name']} has no firmware image assets")
+
+
+def open_firmware_file():
+    if options.firmware_file:
+        # explicit --firmware, use only that file
+        image_file = open(options.firmware_file, 'rb')
+    else:
+        # otherwise, locate a release via github
+        image_file = find_firmware_asset()
+
+    verbose(f"Using firmware image file: {image_file.name}")
+    return image_file
+
+
+def run_pg2util(args):
+    allargs = [options.pg2_util] + args
+    if options.quiet:
+        allargs += ['-q']
+    if options.verbose:
+        stderr = None
+    else:
+        stderr = subprocess.PIPE
+
+    verbose(f"Running: {' '.join(allargs)}")
+
+    try:
+        subprocess.run(allargs,
+                       stdin=subprocess.DEVNULL,
+                       stderr=stderr,
+                       check=True,
+                       encoding='us-ascii')
+    except subprocess.CalledProcessError as e:
+        error(f"'{' '.join(allargs)}' returned status code {e.returncode}")
+        info(e.stderr)
+        return False
+    else:
+        return True
+
+
+def run_pg2util_json(args):
+    allargs = [options.pg2_util] + args
+    if options.quiet:
+        allargs += ['-q']
+    if options.verbose:
+        stderr = None
+    else:
+        stderr = subprocess.PIPE
+
+    verbose(f"Running: {' '.join(allargs)}")
+
+    try:
+        result = subprocess.run(allargs,
+                                stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE,
+                                stderr=stderr,
+                                check=True,
+                                encoding='us-ascii')
+    except subprocess.CalledProcessError as e:
+        error(f"'{' '.join(allargs)}' returned status code {e.returncode}")
+        info(e.stderr)
+        return None
+
+    if result.stdout:
+        return json.loads(result.stdout)
+    else:
+        return None
+
+def pg2util_check():
+    allargs = [options.pg2_util, "help"]
+
+    verbose(f"Running: {' '.join(allargs)}")
+    try:
+        subprocess.run(allargs,
+                       stdin=subprocess.DEVNULL,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.STDOUT,
+                       check=True)
+    except subprocess.CalledProcessError as e:
+        error(f"pg2-util help failed with return code {e.returncode} and output:\n{e.stdout}")
+        return False
+    else:
+        return True
+
+
+def pg2util_device_info():
+    args = []
+    if options.serial_prefix:
+        args += ['-s', options.serial_prefix]
+    if options.port:
+        args += ['-p', options.port]
+    return run_pg2util_json(['device-info', '-j'] + args)
+
+def pg2util_image_info(firmware_file):
+    return run_pg2util_json(['image-info', '-j', firmware_file.name])
+
+def version_tuple(s):
+    return tuple( int(x) for x in s.split('.') )
+
+def pg2util_load_firmware(device, firmware_file):
+    # load firmware (for recovery mode case)
+    verbose(f"Load firmware image from {firmware_file.name} to device on port {device['port']}")
+    if not run_pg2util(['load-firmware', '-p', device['port'], firmware_file.name]):
+        error(f"Failed to load firmware to device in recovery mode on port {device['port']}")
+        return False
+    return True
+
+def pg2util_write_firmware(device, firmware_file):
+    # write new firmware
+    verbose(f"Writing firmware image from {firmware_file.name} to device on port {device['port']}")
+    if not run_pg2util(['write-firmware', '-p', device['port'], firmware_file.name]):
+        error(f"Failed to write firmware to device on port {device['port']}")
+        return False
+    return True
+
+def pg2util_reset(device):
+    # reset device
+    verbose("Resetting device on port {device['port']}")
+    if not run_pg2util(['reset', '-p', device['port'], '-w']):
+        error(f"Failed to write firmware to device on port {device['port']}")
+        return False
+    return True
+
+def describe_device(device):
+    match device['type']:
+        case 'recovery':
+            dtype='Pro Stick Gen 2 in recovery mode'
+        case 'pg2sdr':
+            dtype='Pro Stick Gen 2'
+        case 'prototype':
+            dtype='Pro Stick Gen 2 (prototype VID/PID)'
+        case 'airspymini':
+            dtype='Airspy Mini with PG2 firmware'
+        case _:
+            dtype=f"unknown ({device['type']})"
+
+    if device.get('serial', '') != '':
+        dtype += f" (serial {device['serial']})"
+
+    if 'flash' in device:
+        dtype += f" (firmware v{device['flash']['version']}, CRC {device['flash']['dfu_crc']})"
+
+    return f"Port {device['port']}: {dtype}"
+
+def handle_recovery_mode(devices, firmware_file):
+    recovery_devices = [d for d in devices if d['type'] == 'recovery']
+    if not recovery_devices:
+        return devices
+
+    info('Devices in recovery mode:')
+    for device in recovery_devices:
+        info(f"  {describe_device(device)}")
+
+    if not options.recovery:
+        info("Not updating devices in recovery mode. Specify --recovery to update these devices")
+        return devices
+
+    for device in recovery_devices:
+        info(f"Loading firmware for device on port {device['port']}")
+        pg2util_load_firmware(device, firmware_file)
+
+    info("Rescanning USB bus for updated devices")
+    return pg2util_device_info()
+
+def handle_updates(devices, firmware_file, firmware_info):
+    normal_devices = [d for d in devices if d['type'] in ('pg2sdr', 'prototype')]
+    if not normal_devices:
+        info("No devices found")
+        return
+
+    upgrade = []
+    no_update = []
+    downgrade = []
+
+    new_version = firmware_info['version']
+    new_crc = firmware_info['dfu_crc']
+    for device in normal_devices:
+        flash_info = device.get('flash', {'version':'0.0.0.0', 'dfu_crc': ''})
+        device_flash_version = flash_info['version']
+        device_flash_crc = flash_info['dfu_crc']
+
+        if version_tuple(device_flash_version) > version_tuple(new_version):
+            downgrade.append(device)
+        elif version_tuple(device_flash_version) < version_tuple(new_version):
+            upgrade.append(device)
+        elif device_flash_crc != new_crc:
+            upgrade.append(device)
+        else:
+            no_update.append(device)
+
+    if no_update:
+        info("Devices with up-to-date firmware:")
+        for dev in no_update:
+            info(f"  {describe_device(device)}")
+
+    to_update = []
+    if downgrade and not options.downgrade:
+        info("Devices with newer firmware which will not be updated (pass --downgrade to update anyway):")
+        for dev in downgrade:
+            info(f"  {describe_device(device)}")
+
+    if downgrade and options.downgrade:
+        info("Devices that will be downgraded:")
+        for dev in downgrade:
+            info(f"  {describe_device(device)}")
+        to_update += downgrade
+
+    if upgrade:
+        info("Devices that will be upgraded:")
+        for dev in upgrade:
+            info(f"  {describe_device(device)}")
+        to_update += upgrade
+
+    if not to_update:
+        info("No devices need updates")
+        return
+
+    if not confirm("Update these devices?"):
+        return
+
+    for device in to_update:
+        info(f"Updating device on port {device['port']} to firmware version {new_version}, CRC {new_crc}")
+        if pg2util_write_firmware(device, firmware_file):
+            if not options.no_reset:
+                if device.get('recovery_switch_on', True):
+                    info(f"Not resetting device on port {device['port']}, recovery switch is set to recovery mode")
+                else:
+                    pg2util_reset(device)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cache-dir', help='Set cache dir used for downloaded firmware images (default: $HOME/.pg2sdr)', default='~/.pg2sdr')
+    parser.add_argument('--no-cache', help='Disable download cache', action='store_const', const=None, dest='cache_dir')
+    parser.add_argument('--firmware-version', help='Download this specific firmware version (default: latest)')
+    parser.add_argument('--firmware-file', help='Use this specific firmware image file; do not download firmware')
+    parser.add_argument('--serial-prefix', help='Upgrade only devices with this serial number prefix')
+    parser.add_argument('--port', help='Upgrade only the device on this port')
+    parser.add_argument('--recovery', help='Allow writing firmware to devices in recovery mode', action='store_true')
+    parser.add_argument('--downgrade', help='Allow downgrading of firmware to older versions', action='store_true')
+    parser.add_argument('--no-reset', help='Do not reset devices after updating firmware', action='store_true')
+    parser.add_argument('--pg2-util', help='Use an alternative pg2-util executable (default: use pg2-util from $PATH)', default='pg2-util')
+    parser.add_argument('-q', '--quiet', help='Disable most messages, only show errors', action='store_true')
+    parser.add_argument('-v', '--verbose', help='Show extra informational messages', action='store_true')
+    parser.add_argument('-y', '--yes', '--assume-yes', help='Assume "yes" to confirmation prompts, do not ask the user for input', action='store_true')
+    parser.add_argument('-n', '--dryrun', '--dry-run', help='Do everything except actually updating the firmware', action='store_true')
+
+    global options
+    options = parser.parse_args()
+
+    if not pg2util_check():
+        error("Could not find a working pg2-util in PATH. Is pg2sdr-tools installed?")
+        return 1
+
+    devices = pg2util_device_info()
+    if not devices:
+        error("No ProStick Gen 2 devices found")
+        return 1
+
+    with open_firmware_file() as firmware_file:
+        firmware_info = pg2util_image_info(firmware_file)
+        if not firmware_info:
+            error("Could not extract firmware info from firmware image {firmware_file.name} (bad image?)")
+            return 1
+
+        info(f"Updating devices to firmware version {firmware_info['version']}, CRC {firmware_info['dfu_crc']}")
+
+        devices = handle_recovery_mode(devices, firmware_file)
+        handle_updates(devices, firmware_file, firmware_info)
+
+    return (1 if saw_an_error else 0)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+
