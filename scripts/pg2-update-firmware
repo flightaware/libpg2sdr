@@ -113,7 +113,7 @@ def get_asset_from_cache(asset):
 
     except IOError as e:
         # cache file not valid, ignore it
-        verbose('Not using cached file {cache_path} because of an IOError: {e}')
+        verbose(f"Not using cached file {cache_path} because of an IOError: {e}")
         if cached:
             cached.close()
         return None
