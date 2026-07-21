@@ -20,6 +20,62 @@ the copy stored on the flash chip.
 
 You can update the firmware stored on your device in a few different ways:
 
+# Updating using the `pg2-update-firmware` script
+
+The `pg2sdr-tools` package includes a script, `pg2-update-firmware`, which
+automates the manual process described below. It will fetch the current
+latest firmware release from Github, then apply it to any connected
+ProStick Gen 2 devices that require updates.
+
+To use this script, just run `pg2-update-firmware` from the command line
+on the host with the ProStick connected, and follow the prompts:
+
+```bash
+pg2-update-firmware
+```
+
+```
+Updating devices to firmware version 1.0.0.0, CRC 3e285548
+Devices that will be upgraded:
+  Port 1-11: Pro Stick Gen 2 (serial 386297DBD86461DC) (firmware v0.9.7.0, CRC f7842fc6)
+Update these devices? yes
+Updating device on port 1-11 to firmware version 1.0.0.0, CRC 3e285548
+```
+
+## Updating when recovery mode is enabled
+
+To update devices using `pg2-update-firmware` using recovery mode:
+
+1. Disconnect the device
+2. Find the small recovery switch on the edge of the device. Set it so that it
+   is switched towards the USB connector.
+3. Reconnect the device. The LED indicators should show one solid orange
+   LED, and two faint red LEDs. The device is now in recovery mode, waiting
+   to load new firmware.
+4. Run `pg2-update-firmware --recovery`:
+
+```
+Updating devices to firmware version 1.0.0.0, CRC 3e285548
+Devices in recovery mode:
+  Port 1-15: Pro Stick Gen 2 in recovery mode
+Loading firmware for device on port 1-15
+Rescanning USB bus for updated devices
+Devices that will be upgraded:
+  Port 1-4: Pro Stick Gen 2 (serial 386297DBD86461DC) (firmware v0.9.7.0, CRC f7842fc6)
+Update these devices? yes
+Updating device on port 1-4 to firmware version 1.0.0.0, CRC 3e285548
+Not resetting device on port 1-4, recovery switch is set to recovery mode
+```
+
+5. Disconnect the device and move the recovery switch to the other position
+   (switched towards the RF connector)
+6. Reconnect the device.
+
+# Manual update using `pg2-util`
+
+To manually update the firmware without using `pg2-update-firmware`, you will need
+to download an appropriate firmware image and use `pg2-util` to apply it:
+
 ## Prerequisites
 
 You will need the ProStick Gen 2 device to update, connected to a
