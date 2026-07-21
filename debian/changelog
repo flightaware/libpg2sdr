@@ -1,4 +1,4 @@
-libpg2sdr (1.0.2) UNRELEASED; urgency=medium
+libpg2sdr (1.1.0) UNRELEASED; urgency=medium
 
   * Add pg2-update-firmware script
 
