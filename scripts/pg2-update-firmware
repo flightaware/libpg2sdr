@@ -223,12 +223,17 @@ def run_pg2util(args):
     try:
         subprocess.run(allargs,
                        stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL,
                        stderr=stderr,
                        check=True,
                        encoding='us-ascii')
+    except OSError as e:
+        error(f"'{' '.join(allargs)}' failed with error: {e}")
+        return False
     except subprocess.CalledProcessError as e:
         error(f"'{' '.join(allargs)}' returned status code {e.returncode}")
-        info(e.stderr)
+        if e.stderr:
+            info(e.stderr.strip())
         return False
     else:
         return True
@@ -252,9 +257,13 @@ def run_pg2util_json(args):
                                 stderr=stderr,
                                 check=True,
                                 encoding='us-ascii')
+    except OSError as e:
+        error(f"'{' '.join(allargs)}' failed with error: {e}")
+        return None
     except subprocess.CalledProcessError as e:
         error(f"'{' '.join(allargs)}' returned status code {e.returncode}")
-        info(e.stderr)
+        if e.stderr:
+            info(e.stderr.strip())
         return None
 
     if result.stdout:
@@ -271,9 +280,15 @@ def pg2util_check():
                        stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT,
+                       encoding='us-ascii',
                        check=True)
+    except OSError as e:
+        error(f"'pg2-util help' failed with error: {e}")
+        return False
     except subprocess.CalledProcessError as e:
-        error(f"pg2-util help failed with return code {e.returncode} and output:\n{e.stdout}")
+        error(f"'pg2-util help' failed with return code {e.returncode}")
+        if e.stdout:
+            info(e.stdout.strip())
         return False
     else:
         return True
