@@ -131,14 +131,14 @@ def download_to_cache(asset):
         try:
             os.makedirs(cache_dir)
         except IOError as e:
-            warning(f"Cannot create cache directory {cache_dir}: {e}")
+            info(f"Cannot create cache directory {cache_dir}: {e}")
             return None
 
     cached = None
     try:
         cached = open(cache_path, 'w+b')
     except IOError as e:
-        warning(f"Cannot create cache file {cache_path}: {e}")
+        info(f"Cannot create cache file {cache_path}: {e}")
         return None
 
     try:
