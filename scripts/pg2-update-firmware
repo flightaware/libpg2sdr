@@ -199,7 +199,7 @@ def find_firmware_asset():
 
 def open_firmware_file():
     if options.firmware_file:
-        # explicit --firmware, use only that file
+        # explicit --firmware-file, use only that file
         image_file = open(options.firmware_file, 'rb')
     else:
         # otherwise, locate a release via github
@@ -439,7 +439,12 @@ def handle_updates(devices, firmware_file, firmware_info):
                     pg2util_reset(device)
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="""
+Downloads and updates firmware on ProStick Gen 2 devices.
+With no special options, this script will download the latest firmware
+release from the firmware Github repository, and upgrade any connected
+ProStick Gen 2 devices that are using older firmware.
+""")
     parser.add_argument('--cache-dir', help='Set cache dir used for downloaded firmware images (default: $HOME/.pg2sdr)', default='~/.pg2sdr')
     parser.add_argument('--no-cache', help='Disable download cache', action='store_const', const=None, dest='cache_dir')
     parser.add_argument('--firmware-version', help='Download this specific firmware version (default: latest)')
