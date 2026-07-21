@@ -401,24 +401,24 @@ def handle_updates(devices, firmware_file, firmware_info):
 
     if no_update:
         info("Devices with up-to-date firmware:")
-        for dev in no_update:
+        for device in no_update:
             info(f"  {describe_device(device)}")
 
     to_update = []
     if downgrade and not options.downgrade:
         info("Devices with newer firmware which will not be updated (pass --downgrade to update anyway):")
-        for dev in downgrade:
+        for device in downgrade:
             info(f"  {describe_device(device)}")
 
     if downgrade and options.downgrade:
         info("Devices that will be downgraded:")
-        for dev in downgrade:
+        for device in downgrade:
             info(f"  {describe_device(device)}")
         to_update += downgrade
 
     if upgrade:
         info("Devices that will be upgraded:")
-        for dev in upgrade:
+        for device in upgrade:
             info(f"  {describe_device(device)}")
         to_update += upgrade
 
