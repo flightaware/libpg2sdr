@@ -328,7 +328,7 @@ def pg2util_reset(device):
     # reset device
     verbose(f"Resetting device on port {device['port']}")
     if not run_pg2util(['reset', '-p', device['port'], '-w']):
-        error(f"Failed to write firmware to device on port {device['port']}")
+        error(f"Failed to reset device on port {device['port']}")
         return False
     return True
 
