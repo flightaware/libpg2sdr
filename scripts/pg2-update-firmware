@@ -47,7 +47,7 @@ def split_digest(asset):
 
     algo, hexdigest = (x.lower() for x in digest.split(':', 1))
     if algo not in hashlib.algorithms_available:
-        raise ValueError(f"Unsupported digest algorithm: {digest_name}")
+        raise ValueError(f"Unsupported digest algorithm: {algo}")
 
     acceptable_chars = frozenset('0123456789abcdef')
     if not all(x in acceptable_chars for x in hexdigest):
