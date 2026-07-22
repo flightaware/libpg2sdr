@@ -41,9 +41,9 @@ Description: ProStick Gen 2 SDR library documentation
 
 Package: pg2sdr-tools
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: python3-requests, ${shlibs:Depends}, ${misc:Depends}
 Description: ProStick Gen 2 CLI tools
- This package contains pg2-util, a command-line tool for
+ This package contains command-line tools for
  configuring and inspecting the FlightAware ProStick
  Gen 2 software defined radio.
 
