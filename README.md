@@ -33,7 +33,6 @@ signal streaming tool (`pg2-rx`).
 
 ## Developer documentation
 
- * [Library overview](doc/library.md)
  * [Library API (doxygen)](https://flightaware.github.io/libpg2sdr/)
  * [Library internals](doc/internals.md)
 
