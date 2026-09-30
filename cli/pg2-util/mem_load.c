@@ -103,7 +103,7 @@ bool mem_load(const firmware_image_t *image, libusb_device *dev, libusb_device *
     /* wait for the new device to appear */
     post_hotplug = hotplug_await(hotplug_state);
     if (loaded_device)
-        *loaded_device = libusb_ref_device(post_hotplug);
+        *loaded_device = post_hotplug ? libusb_ref_device(post_hotplug) : NULL;
 
  cleanup:
     if (handle)
