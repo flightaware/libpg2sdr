@@ -1,0 +1,475 @@
+/*
+ *  selftest.c - "pg2-util selftest" subcommand
+ *
+ *  Copyright (c) 2026 FlightAware All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions are
+ *  met:
+ *
+ *  1. Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
+ *
+ *  2. Redistributions in binary form must reproduce the above copyright
+ *  notice, this list of conditions and the following disclaimer in the
+ *  documentation and/or other materials provided with the distribution.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "internal/core.h"
+#include "log.h"
+#include "device.h"
+#include "io.h"
+#include "image.h"
+#include "dfu_load.h"
+#include "mem_load.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <getopt.h>
+
+static bool selftest_single_device(libusb_device *dev, firmware_image_t *image);
+static bool do_selftest(const char *image_path, const char *serial_prefix, const char *port_path);
+static void show_selftest_help();
+int subcommand_selftest(int argc, char * const argv[]);
+
+static void show_selftest_help()
+{
+    log_verbose("Usage: %s [OPTIONS] FIRMWARE-IMAGE\n"
+                "Loads the given firmware image to RAM, then runs basic device self-tests.\n"
+                "By default, all detected devices (in DFU or normal mode) will be tested\n"
+                "(use -p to select a single device)\n"
+                "\n"
+                "Available options:\n"
+                "\n"
+                " -h, --help             show this help\n"
+                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -q, --quiet            suppress informational logging, show errors only",
+                argv0);
+}
+
+int subcommand_selftest(int argc, char * const argv[])
+{
+    struct option opts[] = {
+        { "serial", required_argument, 0, 's' },
+        { "port",   required_argument, 0, 'p' },
+        { "help",   no_argument,       0, 'h' },
+        { "quiet",  no_argument,       0, 'q' },
+        { 0, 0, 0, 0 }
+    };
+
+    const char *serial_prefix = NULL;
+    const char *port_path = NULL;
+
+    int opt;
+    while ((opt = getopt_long(argc, argv, "s:p:hq", opts, NULL)) != -1) {
+        switch (opt) {
+        case 's':
+            serial_prefix = optarg;
+            break;
+
+        case 'p':
+            port_path = optarg;
+            break;
+
+        case 'h':
+            show_selftest_help(argv[0]);
+            return EXIT_SUCCESS;
+
+        case 'q':
+            verbose_logging = false;
+            break;
+
+        case '?':
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (optind >= argc) {
+        log_error("a firmware image filename is required");
+        return EXIT_FAILURE;
+    }
+
+    if (optind + 1 < argc) {
+        log_error("only one firmware image filename is expected");
+        return EXIT_FAILURE;
+    }
+
+    return do_selftest(argv[optind], serial_prefix, port_path) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+static bool do_selftest(const char *image_path, const char *serial_prefix, const char *port_path)
+{
+    firmware_io_t *io = NULL;
+    firmware_image_t *image = NULL;
+    pg2sdr_usb_device **devices = NULL;
+    bool success = false;
+
+    if (!(io = io_open_file(image_path)))
+        goto cleanup;
+
+    if (!(image = image_read(io)))
+        goto cleanup;
+
+    ssize_t device_count;
+    if ((device_count = pg2sdr__discover_matching(shared_pg2sdr_ctx, serial_prefix, port_path,
+                                                  DEVTYPE_PG2SDR|DEVTYPE_AIRSPYMINI|DEVTYPE_PROTOTYPE|DEVTYPE_RECOVERY,
+                                                  &devices)) < 0) {
+        log_perror_pg2sdr(device_count, "could not enumerate USB devices");
+        goto cleanup;
+    }
+
+    if (!device_count) {
+        log_error("No matching devices found");
+        goto cleanup;
+    }
+
+    success = true;
+    for (size_t i = 0; i < device_count; ++i) {
+        if (!selftest_single_device(devices[i]->lu_device, image))
+            success = false;
+    }
+
+ cleanup:
+    if (devices)
+        pg2sdr_free_device_list(devices);
+    if (image)
+        image_free(image);
+    if (io)
+        io->close(io);
+
+    return success;
+}
+
+typedef struct {
+    const char *component;
+    const char *checks[10];
+} diag_info;
+
+static diag_info DIAG_USB = {
+    .component = "USB data path",
+    .checks = {
+        "Check J1 (USB connector)",
+        "Check FL1 (ECMF02 ESD protection)",
+    }
+};
+
+static diag_info DIAG_U3 = {
+    .component = "U3 (R860T tuner)",
+    .checks = {
+        "Check 3.3V on U3 pin 2",    /* VCC */
+        "Check 3.3V on U3 pin 11",   /* also VCC */
+        "Check 3.3V on U3 pin 18",   /* also VCC */
+        "Check 28.8MHz on U3 pin 9", /* XTAL_O */
+        "Check 3.3V on U3 pin 6",    /* SCA, weak pullup when idle */
+        "Check 3.3V on U3 pin 7",    /* SDA, weak pullup when idle */
+    }
+};
+
+static diag_info DIAG_U4 = {
+    .component = "U4 (WTL28.8 TCXO)",
+    .checks = {
+        "Check 3.3V on U4 pin 4",      /* Vdd */
+        "Check 28.8MHz on U4 pin 3"    /* OUT */
+    }
+};
+
+static diag_info DIAG_U5 = {
+    .component = "U5 (LPC4370 MCU)",
+    .checks = {
+        /* do we have accessible test points for these? */
+        "Check 3.3V on U5 (what are the test points here?)",
+        "Check 5V on U5 pad E3",          /* VBUS */
+        "Check 12MHz on U5 pads B1-C1",   /* XTAL1, XTAL2 */
+    },
+};
+
+static diag_info DIAG_U6 = {
+    .component = "U6 (AP7374 regulator for VDD3_RF)",
+    .checks = {
+        "Check 5V on U6 pin 1",      /* VIN */
+        "Check 3.3V on U6 pin 5",    /* EN from LPC4370 */
+        "Check 3.3V on U6 pin 3",    /* VOUT */
+    },
+};
+
+static diag_info DIAG_U7 = {
+    .component = "U7 (W25Q80DV flash memory)",
+    .checks = {
+        "Check 3.3V on U7 pin 8",    /* VCC */
+    },
+};
+
+static diag_info DIAG_U8 = {
+    .component = "U8 (AP7374 regulator for VDD3)",
+    .checks = {
+        "Check 5V on U8 pin 1",      /* VIN */
+        "Check 5V on U8 pin 5",      /* EN */
+        "Check 3.3V on U8 pin 3",    /* VOUT */
+    },
+};
+
+static diag_info DIAG_Y1 = {
+    .component = "Y1 (FA-238V 12MHz crystal)",
+    .checks = {
+        "Check 12MHz on Y1 pins 1-2"
+    },
+};
+
+typedef bool (*selftest_test_fn)(libusb_device_handle *handled);
+
+typedef struct {
+    const char *name;
+    selftest_test_fn test;   /* NULL means "load firmware" */
+    unsigned require_passed; /* bitmask of previous steps that must have passed */
+    diag_info *diags[10];
+} selftest_step;
+
+static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, libusb_device_handle **handle);
+static bool selftest_check_clocks(libusb_device_handle *handle);
+static bool selftest_flash(libusb_device_handle *handle);
+static bool selftest_tuner_detect(libusb_device_handle *handle);
+static bool selftest_tuner_978(libusb_device_handle *handle);
+static bool selftest_tuner_1090(libusb_device_handle *handle);
+static bool selftest_adc_20mhz(libusb_device_handle *handle);
+static void selftest_cleanup(libusb_device_handle *handle, bool passed);
+
+static selftest_step selftest_steps[] = {
+    [0] = {
+        .name = "Load firmware",
+        .test = NULL, /* special case meaning "load firmware" */
+        .diags = { &DIAG_USB, &DIAG_U8, &DIAG_Y1, &DIAG_U5 },
+    },
+
+    [1] = {
+        .name = "Check LPC4370 clock rates",
+        .test = selftest_check_clocks,
+        .diags = { &DIAG_U5, &DIAG_Y1 }
+    },
+
+    [2] = {
+        .name = "Check flash memory I/O",
+        .test = selftest_flash,
+        .diags = { &DIAG_U7 },
+    },
+
+    [3] = {
+        .name = "Detect R860T",
+        .test = selftest_tuner_detect,
+        .diags = { &DIAG_U6, &DIAG_U3, &DIAG_U4 },
+    },
+
+    [4] = {
+        .name = "Configure R860T PLL for 978MHz",
+        .test = selftest_tuner_978,
+        .require_passed = (1<<3), /* detect R860T */
+        .diags = { &DIAG_U3, &DIAG_U4 },
+    },
+
+    [5] = {
+        .name = "Configure R860T PLL for 1090MHz",
+        .test = selftest_tuner_1090,
+        .require_passed = (1<<3), /* detect R860T */
+        .diags = { &DIAG_U3, &DIAG_U4 },
+    },
+
+    [6] = {
+        .name = "Configure LPC4370 HSADC for 20MHz",
+        .test = selftest_adc_20mhz,
+        .diags = { &DIAG_Y1, &DIAG_U5 },
+    },
+};
+#define NUM_SELFTEST_STEPS (sizeof(selftest_steps) / sizeof(selftest_steps[0]))
+
+static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
+{
+    fprintf(stderr, "Selftest for port %s: %s", device_ports(dev), device_string(dev));
+
+    bool all_pass = true;
+    libusb_device_handle *handle = NULL;
+
+    unsigned passed = 0;
+    unsigned failed = 0;
+    for (unsigned i = 0; i < NUM_SELFTEST_STEPS; ++i) {
+        const selftest_step *step = &selftest_steps[i];
+        fprintf(stderr, "  %-20s ... ", step->name);
+        fflush(stderr);
+
+        if ((passed & step->require_passed) != step->require_passed) {
+            /* earlier required step failed, skip this step */
+            fprintf(stderr, "skipped (previous test failed)\n");
+            continue;
+        }
+
+        if (step->test && !handle) {
+            /* need firmware, but it's not loaded */
+            fprintf(stderr, "skipped (unable to load firmware)\n");
+            continue;
+        }
+
+        bool success;
+        if (!step->test)
+            success = selftest_load_firmware(dev, image, &handle); /* null test means "load firmware" */
+        else
+            success = step->test(handle);
+
+        if (success) {
+            passed |= (1 << i);
+            fprintf(stderr, "pass\n");
+        } else {
+            failed |= (1 << i);
+            all_pass = false;
+            fprintf(stderr, "\n  %-20s: FAILED\n", step->name);
+            fprintf(stderr, "  Components to check:\n");
+            for (unsigned j = 0; step->diags[j]; ++j) {
+                fprintf(stderr, "    %s:\n", step->diags[i]->component);
+                for (unsigned k = 0; step->diags[j]->checks[k]; ++k) {
+                    fprintf(stderr, "      %s\n", step->diags[j]->checks[k]);
+                }
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+
+    log_verbose("Selftest for port %s: %s    %s", device_ports(dev), device_string(dev), all_pass ? "passed" : "FAILED");
+
+    if (handle) {
+        selftest_cleanup(handle, all_pass);
+        device_close(handle);
+    }
+
+    return all_pass;
+}
+
+static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, libusb_device_handle **handle)
+{
+    libusb_device *newdev = NULL;
+    libusb_device_handle *newhandle = NULL;
+
+    switch (pg2sdr__identify_device(dev)) {
+    case DEVTYPE_RECOVERY:
+        /* patch boot_mode to indicate use of DFU / recovery mode */
+        image_patch_boot_mode(image, BOOT_MODE_RECOVERY);
+        if (!dfu_load(image, dev, &newdev))
+            goto fail;
+        break;
+    case DEVTYPE_PG2SDR:
+    case DEVTYPE_AIRSPYMINI:
+    case DEVTYPE_PROTOTYPE:
+        /* patch boot_mode to indicate use of LOAD_IMAGE */
+        image_patch_boot_mode(image, BOOT_MODE_LOAD_IMAGE);
+        if (!mem_load(image, dev, &newdev))
+            goto fail;
+        break;
+    default:
+        log_error("device does not seem to be a ProStick Gen 2");
+        goto fail;
+    }
+
+    if (!(newhandle = device_open(dev, true)))
+        goto fail;
+
+    int error;
+    if ((error = pg2sdr__ctrl_comms_check(*handle, 1000)) < 0) {
+        log_perror_pg2sdr(error, "USB comms check failed");
+        goto fail;
+    }
+
+    libusb_unref_device(newdev);
+    *handle = newhandle;
+    return true;
+
+ fail:
+    if (newhandle)
+        libusb_close(newhandle);
+    if (newdev)
+        libusb_unref_device(newdev);
+
+    *handle = NULL;
+    return false;
+}
+
+static bool selftest_check_clocks(libusb_device_handle *handle)
+{
+    return false;
+}
+
+static bool selftest_flash(libusb_device_handle *handle)
+{
+    /* test by rewriting the last sector, which shouldn't interfere with any firmware image */
+    const unsigned TEST_SECTOR = 0x0FF000;
+
+    int error;
+    uint8_t buf[256];
+
+    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "FLASH_READ_QUAD failed");
+        return false;
+    }
+
+    if ((error = pg2sdr__ctrl_flash_erase(handle, /* sector address */ TEST_SECTOR, /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "FLASH_ERASE failed");
+        return false;
+    }
+
+    for (unsigned i = 0; i < 256; ++i) {
+        buf[i] = 256-i;
+    }
+
+    if ((error = pg2sdr__ctrl_flash_write(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "FLASH_WRITE failed");
+        return false;
+    }
+
+    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "FLASH_READ_QUAD failed");
+        return false;
+    }
+
+    for (unsigned i = 0; i < 256; ++i) {
+        if (buf[i] != 256-i) {
+            log_error("Flash read test pattern mismatch at offset 0x%02x: expected 0x%02x, got 0x%02x", i, 256-i, buf[i]);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool selftest_tuner_detect(libusb_device_handle *handle)
+{
+    return false;
+}
+
+static bool selftest_tuner_978(libusb_device_handle *handle)
+{
+    return false;
+}
+
+static bool selftest_tuner_1090(libusb_device_handle *handle)
+{
+    return false;
+}
+
+static bool selftest_adc_20mhz(libusb_device_handle *handle)
+{
+    return false;
+}
+
+static void selftest_cleanup(libusb_device_handle *handle, bool passed)
+{
+}
