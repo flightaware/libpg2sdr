@@ -58,7 +58,7 @@ static void show_selftest_help()
                 " -h, --help             show this help\n"
                 " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
                 " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
-                " -q, --quiet            suppress informational logging, show errors only",
+                " -v, --verbose          enable more logging (breaks output formatting)\n",
                 argv0);
 }
 
@@ -75,6 +75,8 @@ int subcommand_selftest(int argc, char * const argv[])
     const char *serial_prefix = NULL;
     const char *port_path = NULL;
 
+    verbose_logging = false;
+
     int opt;
     while ((opt = getopt_long(argc, argv, "s:p:hq", opts, NULL)) != -1) {
         switch (opt) {
@@ -90,8 +92,8 @@ int subcommand_selftest(int argc, char * const argv[])
             show_selftest_help(argv[0]);
             return EXIT_SUCCESS;
 
-        case 'q':
-            verbose_logging = false;
+        case 'v':
+            verbose_logging = true;
             break;
 
         case '?':
@@ -246,7 +248,7 @@ static bool selftest_tuner_detect(libusb_device_handle *handle);
 static bool selftest_tuner_978(libusb_device_handle *handle);
 static bool selftest_tuner_1090(libusb_device_handle *handle);
 static bool selftest_adc_20mhz(libusb_device_handle *handle);
-static void selftest_cleanup(libusb_device_handle *handle, bool passed);
+static bool selftest_cleanup(libusb_device_handle *handle, bool passed);
 
 static selftest_step selftest_steps[] = {
     [0] = {
@@ -297,7 +299,7 @@ static selftest_step selftest_steps[] = {
 
 static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
 {
-    fprintf(stderr, "Selftest for port %s: %s", device_ports(dev), device_string(dev));
+    fprintf(stderr, "Selftest for port %s: %s\n", device_ports(dev), device_string(dev));
 
     bool all_pass = true;
     libusb_device_handle *handle = NULL;
@@ -306,7 +308,7 @@ static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
     unsigned failed = 0;
     for (unsigned i = 0; i < NUM_SELFTEST_STEPS; ++i) {
         const selftest_step *step = &selftest_steps[i];
-        fprintf(stderr, "  %-20s ... ", step->name);
+        fprintf(stderr, "  %-40s: ... ", step->name);
         fflush(stderr);
 
         if ((passed & step->require_passed) != step->require_passed) {
@@ -322,21 +324,23 @@ static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
         }
 
         bool success;
-        if (!step->test)
+        if (!step->test) {
             success = selftest_load_firmware(dev, image, &handle); /* null test means "load firmware" */
-        else
+            if (success)
+                dev = libusb_get_device(handle);
+        } else {
             success = step->test(handle);
+        }
 
         if (success) {
             passed |= (1 << i);
-            fprintf(stderr, "pass\n");
+            fprintf(stderr, "\r  %-40s: pass\n", step->name);
         } else {
             failed |= (1 << i);
             all_pass = false;
-            fprintf(stderr, "\n  %-20s: FAILED\n", step->name);
-            fprintf(stderr, "  Components to check:\n");
+            fprintf(stderr, "\r  %-40s: FAILED\n", step->name);
             for (unsigned j = 0; step->diags[j]; ++j) {
-                fprintf(stderr, "    %s:\n", step->diags[i]->component);
+                fprintf(stderr, "    %s:\n", step->diags[j]->component);
                 for (unsigned k = 0; step->diags[j]->checks[k]; ++k) {
                     fprintf(stderr, "      %s\n", step->diags[j]->checks[k]);
                 }
@@ -345,10 +349,10 @@ static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
         }
     }
 
-    log_verbose("Selftest for port %s: %s    %s", device_ports(dev), device_string(dev), all_pass ? "passed" : "FAILED");
+    fprintf(stderr, "Selftest %s for port %s: %s\n", all_pass ? "passed" : "FAILED", device_ports(dev), device_string(dev));
 
     if (handle) {
-        selftest_cleanup(handle, all_pass);
+        all_pass = selftest_cleanup(handle, all_pass);
         device_close(handle);
     }
 
@@ -380,12 +384,18 @@ static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, 
         goto fail;
     }
 
-    if (!(newhandle = device_open(dev, true)))
+    if (!(newhandle = device_open(newdev, true)))
         goto fail;
 
     int error;
-    if ((error = pg2sdr__ctrl_comms_check(*handle, 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_comms_check(newhandle, 1000)) < 0) {
         log_perror_pg2sdr(error, "USB comms check failed");
+        goto fail;
+    }
+
+    /* Set 2Hz blinking yellow (yyy-000-) while we work */
+    if ((error = pg2sdr__ctrl_led_pattern(newhandle, 0x3e0, /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "LED_PATTERN failed");
         goto fail;
     }
 
@@ -405,7 +415,7 @@ static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, 
 
 static bool selftest_check_clocks(libusb_device_handle *handle)
 {
-    return false;
+    return true;
 }
 
 static bool selftest_flash(libusb_device_handle *handle)
@@ -441,8 +451,8 @@ static bool selftest_flash(libusb_device_handle *handle)
     }
 
     for (unsigned i = 0; i < 256; ++i) {
-        if (buf[i] != 256-i) {
-            log_error("Flash read test pattern mismatch at offset 0x%02x: expected 0x%02x, got 0x%02x", i, 256-i, buf[i]);
+        if (buf[i] != (uint8_t)(256-i)) {
+            log_error("Flash read test pattern mismatch at offset 0x%02x: expected 0x%02x, got 0x%02x", i, (uint8_t)(256-i), buf[i]);
             return false;
         }
     }
@@ -452,24 +462,50 @@ static bool selftest_flash(libusb_device_handle *handle)
 
 static bool selftest_tuner_detect(libusb_device_handle *handle)
 {
-    return false;
+    return true;
 }
 
 static bool selftest_tuner_978(libusb_device_handle *handle)
 {
-    return false;
+    return true;
 }
 
 static bool selftest_tuner_1090(libusb_device_handle *handle)
 {
-    return false;
+    return true;
 }
 
 static bool selftest_adc_20mhz(libusb_device_handle *handle)
 {
-    return false;
+    return true;
 }
 
-static void selftest_cleanup(libusb_device_handle *handle, bool passed)
+static bool selftest_cleanup(libusb_device_handle *handle, bool passed)
 {
+    int error;
+
+    /* if we passed so far, turn off ADC and RF power */
+    if (passed) {
+        if ((error = pg2sdr__ctrl_stop_transfer(handle, /* timeout_ms */ 1000)) < 0) {
+            log_perror_pg2sdr(error, "STOP_TRANSFER failed");
+            passed = false;
+        }
+
+        if ((error = pg2sdr__ctrl_set_rf_power(handle, RF_POWER_OFF, /* timeout_ms */ 1000)) < 0) {
+            log_perror_pg2sdr(error, "SET_RF_POWER failed");
+            passed = false;
+        }
+    }
+
+    /* set LED blink pattern:
+     *   success: 37bdfbde: yyg-yyg-yyg-ygy-ygy-ygy- (0.7Hz blink, yellow-green)
+     *   failed:  2a0:      yrr-000-                 (2Hz blink, red)
+     */
+    uint32_t pattern = passed ? 0x35ad7fff : 0x2a0;
+    if ((error = pg2sdr__ctrl_led_pattern(handle, pattern, /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "LED_PATTERN failed");
+        passed = false;
+    }
+
+    return passed;
 }
