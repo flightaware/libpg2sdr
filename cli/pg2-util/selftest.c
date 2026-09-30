@@ -426,18 +426,25 @@ static bool selftest_flash(libusb_device_handle *handle)
     int error;
     uint8_t buf[256];
 
-    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
-        log_perror_pg2sdr(error, "FLASH_READ_QUAD failed");
-        return false;
-    }
-
     if ((error = pg2sdr__ctrl_flash_erase(handle, /* sector address */ TEST_SECTOR, /* timeout_ms */ 1000)) < 0) {
         log_perror_pg2sdr(error, "FLASH_ERASE failed");
         return false;
     }
 
-    for (unsigned i = 0; i < 256; ++i) {
-        buf[i] = 256-i;
+    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+        log_perror_pg2sdr(error, "FLASH_READ_QUAD failed");
+        return false;
+    }
+
+    for (unsigned i = 0; i < sizeof(buf); ++i) {
+        if (buf[i] != 0xFF) {
+            log_error("Flash read erased sector mismatch at offset 0x%02x: expected 0xFF, got 0x%02x", i, buf[i]);
+            return false;
+        }
+    }
+
+    for (unsigned i = 0; i < sizeof(buf); ++i) {
+        buf[i] = (uint8_t)(256-i);
     }
 
     if ((error = pg2sdr__ctrl_flash_write(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
@@ -450,7 +457,7 @@ static bool selftest_flash(libusb_device_handle *handle)
         return false;
     }
 
-    for (unsigned i = 0; i < 256; ++i) {
+    for (unsigned i = 0; i < sizeof(buf); ++i) {
         if (buf[i] != (uint8_t)(256-i)) {
             log_error("Flash read test pattern mismatch at offset 0x%02x: expected 0x%02x, got 0x%02x", i, (uint8_t)(256-i), buf[i]);
             return false;
