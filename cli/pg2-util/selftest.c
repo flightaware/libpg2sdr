@@ -498,6 +498,24 @@ static bool selftest_flash(libusb_device_handle *handle)
 
 static bool selftest_tuner_detect(libusb_device_handle *handle)
 {
+    int error;
+
+    if ((error = pg2sdr__ctrl_set_rf_power(handle, RF_POWER_RESET, /* timeout_ms */ 0)) < 0) {
+        log_perror_pg2sdr(error, "SET_RF_POWER failed");
+        return false;
+    }
+
+    uint8_t reg0;
+    if ((error = pg2sdr__ctrl_read_tuner_register(handle, /* reg */ 0, CACHE_NORMAL, &reg0, sizeof(reg0), /* timeout_ms */ 0)) < 0) {
+        log_perror_pg2sdr(error, "TUNER_READ failed");
+        return false;
+    }
+
+    if (reg0 != 0x96) {
+        log_error("tuner detection failed: expected register 0 to be 0x96, but was 0x%02x", reg0);
+        return false;
+    }
+
     return true;
 }
 
