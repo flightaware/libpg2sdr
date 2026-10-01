@@ -271,7 +271,7 @@ int pg2sdr__ctrl_comms_check(libusb_device_handle *dev, unsigned timeout_ms)
     return PG2SDR_SUCCESS;
 }
 
-int pg2sdr__ctrl_tuner_update(libusb_device_handle *dev, uint16_t first, uint8_t *payload, uint16_t payload_size, unsigned timeout_ms)
+int pg2sdr__ctrl_tuner_update(libusb_device_handle *dev, uint16_t first, const uint8_t *payload, uint16_t payload_size, unsigned timeout_ms)
 {
     return tuner_control_out(dev,
                              EP0_OUT_TUNER_UPDATE,
