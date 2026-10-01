@@ -48,10 +48,10 @@ int subcommand_selftest(int argc, char * const argv[]);
 
 static void show_selftest_help()
 {
-    log_verbose("Usage: %s [OPTIONS] FIRMWARE-IMAGE\n"
-                "Loads the given firmware image to RAM, then runs basic device self-tests.\n"
-                "By default, all detected devices (in DFU or normal mode) will be tested\n"
-                "(use -p to select a single device)\n"
+    log_verbose("Usage: %s [OPTIONS] [FIRMWARE-IMAGE]\n"
+                "Runs basic device self-tests against all detected devices.\n"
+                "For devices in recovery mode, a firmware image filename should be provided.\n"
+                "Use -p to select a single device to run against\n"
                 "\n"
                 "Available options:\n"
                 "\n"
@@ -101,17 +101,18 @@ int subcommand_selftest(int argc, char * const argv[])
         }
     }
 
+    const char *firmware_path;
     if (optind >= argc) {
-        log_error("a firmware image filename is required");
-        return EXIT_FAILURE;
+        firmware_path = NULL;
+    } else {
+        if (optind + 1 < argc) {
+            log_error("only one firmware image filename is expected");
+            return EXIT_FAILURE;
+        }
+        firmware_path = argv[optind];
     }
 
-    if (optind + 1 < argc) {
-        log_error("only one firmware image filename is expected");
-        return EXIT_FAILURE;
-    }
-
-    return do_selftest(argv[optind], serial_prefix, port_path) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return do_selftest(firmware_path, serial_prefix, port_path) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 static bool do_selftest(const char *image_path, const char *serial_prefix, const char *port_path)
@@ -121,15 +122,17 @@ static bool do_selftest(const char *image_path, const char *serial_prefix, const
     pg2sdr_usb_device **devices = NULL;
     bool success = false;
 
-    if (!(io = io_open_file(image_path)))
-        goto cleanup;
+    if (image_path) {
+        if (!(io = io_open_file(image_path)))
+            goto cleanup;
 
-    if (!(image = image_read(io)))
-        goto cleanup;
+        if (!(image = image_read(io)))
+            goto cleanup;
+    }
 
     ssize_t device_count;
     if ((device_count = pg2sdr__discover_matching(shared_pg2sdr_ctx, serial_prefix, port_path,
-                                                  DEVTYPE_PG2SDR|DEVTYPE_AIRSPYMINI|DEVTYPE_PROTOTYPE|DEVTYPE_RECOVERY,
+                                                  DEVTYPE_PG2SDR|DEVTYPE_RECOVERY,
                                                   &devices)) < 0) {
         log_perror_pg2sdr(device_count, "could not enumerate USB devices");
         goto cleanup;
@@ -241,7 +244,7 @@ typedef struct {
     diag_info *diags[10];
 } selftest_step;
 
-static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, libusb_device_handle **handle);
+static bool selftest_connect(libusb_device *dev, firmware_image_t *image, libusb_device_handle **handle);
 static bool selftest_check_clocks(libusb_device_handle *handle);
 static bool selftest_flash(libusb_device_handle *handle);
 static bool selftest_tuner_detect(libusb_device_handle *handle);
@@ -254,8 +257,8 @@ static bool selftest_cleanup(libusb_device_handle *handle, bool passed);
 
 static selftest_step selftest_steps[] = {
     [0] = {
-        .name = "Load firmware",
-        .test = NULL, /* special case meaning "load firmware" */
+        .name = "Connect to device",
+        .test = NULL, /* special case meaning "connect, loading firmware if needed" */
         .diags = { &DIAG_USB, &DIAG_U8, &DIAG_Y1, &DIAG_U5 },
     },
 
@@ -322,7 +325,7 @@ static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
     unsigned failed = 0;
     for (unsigned i = 0; i < NUM_SELFTEST_STEPS; ++i) {
         const selftest_step *step = &selftest_steps[i];
-        fprintf(stderr, "  %-40s: ... ", step->name);
+        fprintf(stderr, "  %-40s: ", step->name);
         fflush(stderr);
 
         if ((passed & step->require_passed) != step->require_passed) {
@@ -333,13 +336,13 @@ static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
 
         if (step->test && !handle) {
             /* need firmware, but it's not loaded */
-            fprintf(stderr, "skipped (unable to load firmware)\n");
+            fprintf(stderr, "skipped (unable to connect to device)\n");
             continue;
         }
 
         bool success;
         if (!step->test) {
-            success = selftest_load_firmware(dev, image, &handle); /* null test means "load firmware" */
+            success = selftest_connect(dev, image, &handle); /* null test means "connect to device" */
             if (success)
                 dev = libusb_get_device(handle);
         } else {
@@ -373,26 +376,36 @@ static bool selftest_single_device(libusb_device *dev, firmware_image_t *image)
     return all_pass;
 }
 
-static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, libusb_device_handle **handle)
+static bool selftest_connect(libusb_device *dev, firmware_image_t *image, libusb_device_handle **handle)
 {
     libusb_device *newdev = NULL;
     libusb_device_handle *newhandle = NULL;
 
     switch (pg2sdr__identify_device(dev)) {
     case DEVTYPE_RECOVERY:
+        if (!image) {
+            log_error("Selftest of a device in recovery mode requires a firmware image");
+            goto fail;
+        }
+
         /* patch boot_mode to indicate use of DFU / recovery mode */
         image_patch_boot_mode(image, BOOT_MODE_RECOVERY);
         if (!dfu_load(image, dev, &newdev))
             goto fail;
         break;
+
     case DEVTYPE_PG2SDR:
-    case DEVTYPE_AIRSPYMINI:
-    case DEVTYPE_PROTOTYPE:
-        /* patch boot_mode to indicate use of LOAD_IMAGE */
-        image_patch_boot_mode(image, BOOT_MODE_LOAD_IMAGE);
-        if (!mem_load(image, dev, &newdev))
-            goto fail;
+        if (!image) {
+            /* use existing firmware */
+            newdev = libusb_ref_device(dev);
+        } else {
+            /* patch boot_mode to indicate use of LOAD_IMAGE */
+            image_patch_boot_mode(image, BOOT_MODE_LOAD_IMAGE);
+            if (!mem_load(image, dev, &newdev))
+                goto fail;
+        }
         break;
+
     default:
         log_error("device does not seem to be a ProStick Gen 2");
         goto fail;
