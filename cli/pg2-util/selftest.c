@@ -519,14 +519,139 @@ static bool selftest_tuner_detect(libusb_device_handle *handle)
     return true;
 }
 
+static bool selftest_tuner_pll(libusb_device_handle *handle, const uint8_t *regs_and_masks, uint16_t len)
+{
+    int error;
+
+    /* tuner setup */
+    if ((error = pg2sdr__ctrl_tuner_update(handle, /* first */ 5, regs_and_masks, len, /* timeout_ms */ 0))) {
+        log_perror_pg2sdr(error, "TUNER_UPDATE failed");
+        return false;
+    }
+
+    /* wait for PLL lock */
+    uint16_t vco_currents[5] = {4, 3, 2, 1, 0};
+    for (unsigned i = 0; i < sizeof(vco_currents)/sizeof(vco_currents[0]); i++) {
+        error = pg2sdr__ctrl_update_tuner_lock(handle, vco_currents[i], /* lock_timeout_ms */ 50, /* control timeout */ 0);
+        if (error < 0) {
+            log_perror_pg2sdr(error, "TUNER_LOCK control transfer failed");
+            return false;
+        }
+
+        if (error > 0)
+            break;
+    }
+
+    if (error == 0) {
+        log_error("Tuner PLL failed to lock");
+        return false;
+    }
+
+    /* set PLL_AUTO_CLK (R26 bits 3:2) = 2 */
+    static uint8_t auto_clk[] = {
+        /* R26 value */ 0x08,
+        /* R26 mask  */ 0x0C
+    };
+
+    if ((error = pg2sdr__ctrl_tuner_update(handle, /* first */ 26, auto_clk, sizeof(auto_clk), /* timeout_ms */ 0))) {
+        log_perror_pg2sdr(error, "TUNER_UPDATE (PLL_AUTO_CLK) failed");
+        return false;
+    }
+
+    /* success */
+    return true;
+}
+
 static bool selftest_tuner_978(libusb_device_handle *handle)
 {
-    return true;
+    /* pre-baked tuner config for 978MHz */
+    static uint8_t regs_and_masks[27*2] = {
+        /* register values */
+        0x99,  /* R5  PWD_LT=1             PWD_LNA1=0           LNA_GAIN_MODE=1      LNA_GAIN=9            */
+        0x32,  /* R6  PWD_PDET1=0          PWD_PDET2=0          FILT_3DB=1           PW_LNA=2              */
+        0x6C,  /* R7  img_r=0              PW_MIX=1             PW0_MIX=1            MIXGAIN_MODE=0       MIX_GAIN=12           */
+        0xC0,  /* R8  PW_AMP=1             PW0_AMP=1            imr_g_path=0         IMR_G=0               */
+        0x40,  /* R9  PWD_IFFILT=0         PW1_IFFILT=1         imr_p_path=0         IMR_P=0               */
+        0xF0,  /* R10 PW_FILT=1            filter_cur=3         iffilt_q=1           iffilt_fine_lpf=0     */
+        0x8F,  /* R11 iffilt_narrow=1      iffilt_coarse_lpf=0  calibration_trigger=0 iffilt_hpf_corner=15  */
+        0xEF,  /* R12 pwd_adc=1            PW_VGA=1             VGA_GAIN_MODE=0      VGA_GAIN=15           */
+        0x53,  /* R13 LNA_VTH_H=5          LNA_VTH_L=3           */
+        0x75,  /* R14 MIX_VTH_H=7          MIX_VTH_L=5           */
+        0x38,  /* R15 flt_ext_widest=0     clk_out_dis=1        ring_disable=1       clk_agc_dis=0         */
+        0x14,  /* R16 SEL_DIV=0            REF_DIV2=1           xtal_drive=0         det1_cap=1           CAPX=0                */
+        0x40,  /* R17 PW_LDO_A=1           cp_current=0          */
+        0x80,  /* R18 vco_current=4        sdm_dither_dis=0     PWD_SDM=0             */
+        0x0D,  /* R19 vco_mode=0           vco_dac=13            */
+        0xCD,  /* R20 S_I2C=3              N_I2C=13              */
+        0x39,  /* R21 SDM_IN_LSB=57         */
+        0x0E,  /* R22 SDM_IN_MSB=14         */
+        0xB4,  /* R23 PW_LDO_D=2           div_buf_cur=3        OPEN_D=0              */
+        0x40,  /* R24 ring_se23=0          pw_ring=0            ring_n=0              */
+        0xCC,  /* R25 PW_RFFILT=1          rffilt_current=2     SW_AGC=0             ring_seldiv=0         */
+        0x60,  /* R26 RFMUX=1              agc_clock=2          PLL_AUTO_CLK=0       RFFILT=0              */
+        0x00,  /* R27 TF_NCH=0             TF_LP=0               */
+        0x54,  /* R28 PDET3_GAIN=5         discharge_mode=1     rf_source=0           */
+        0xA6,  /* R29 detect_bw=2          PDET1_GAIN=4         PDET2_GAIN=6          */
+        0x0A,  /* R30 sw_pdet=0            FILTER_EXT=0         PDET_CLK=10           */
+        0xC0,  /* R31 lt_att=1             ring_att=0            */
+
+        /* register masks (just update everything) */
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF,
+    };
+
+    return selftest_tuner_pll(handle, regs_and_masks, sizeof(regs_and_masks));
 }
 
 static bool selftest_tuner_1090(libusb_device_handle *handle)
 {
-    return true;
+    /* pre-baked tuner config for 1090MHz */
+    static const uint8_t regs_and_masks[27*2] = {
+        /* register values */
+        0x99,  /* R5  PWD_LT=1             PWD_LNA1=0           LNA_GAIN_MODE=1      LNA_GAIN=9            */
+        0x32,  /* R6  PWD_PDET1=0          PWD_PDET2=0          FILT_3DB=1           PW_LNA=2              */
+        0x6C,  /* R7  img_r=0              PW_MIX=1             PW0_MIX=1            MIXGAIN_MODE=0       MIX_GAIN=12           */
+        0xC0,  /* R8  PW_AMP=1             PW0_AMP=1            imr_g_path=0         IMR_G=0               */
+        0x40,  /* R9  PWD_IFFILT=0         PW1_IFFILT=1         imr_p_path=0         IMR_P=0               */
+        0xF0,  /* R10 PW_FILT=1            filter_cur=3         iffilt_q=1           iffilt_fine_lpf=0     */
+        0x8F,  /* R11 iffilt_narrow=1      iffilt_coarse_lpf=0  calibration_trigger=0 iffilt_hpf_corner=15  */
+        0xEF,  /* R12 pwd_adc=1            PW_VGA=1             VGA_GAIN_MODE=0      VGA_GAIN=15           */
+        0x53,  /* R13 LNA_VTH_H=5          LNA_VTH_L=3           */
+        0x75,  /* R14 MIX_VTH_H=7          MIX_VTH_L=5           */
+        0x38,  /* R15 flt_ext_widest=0     clk_out_dis=1        ring_disable=1       clk_agc_dis=0         */
+        0x14,  /* R16 SEL_DIV=0            REF_DIV2=1           xtal_drive=0         det1_cap=1           CAPX=0                */
+        0x40,  /* R17 PW_LDO_A=1           cp_current=0          */
+        0x80,  /* R18 vco_current=4        sdm_dither_dis=0     PWD_SDM=0             */
+        0x14,  /* R19 vco_mode=0           vco_dac=20            */
+        0x8F,  /* R20 S_I2C=2              N_I2C=15              */
+        0x55,  /* R21 SDM_IN_LSB=85         */
+        0xD5,  /* R22 SDM_IN_MSB=213        */
+        0xB4,  /* R23 PW_LDO_D=2           div_buf_cur=3        OPEN_D=0              */
+        0x40,  /* R24 ring_se23=0          pw_ring=0            ring_n=0              */
+        0xCC,  /* R25 PW_RFFILT=1          rffilt_current=2     SW_AGC=0             ring_seldiv=0         */
+        0x60,  /* R26 RFMUX=1              agc_clock=2          PLL_AUTO_CLK=0       RFFILT=0              */
+        0x00,  /* R27 TF_NCH=0             TF_LP=0               */
+        0x54,  /* R28 PDET3_GAIN=5         discharge_mode=1     rf_source=0           */
+        0xA6,  /* R29 detect_bw=2          PDET1_GAIN=4         PDET2_GAIN=6          */
+        0x0A,  /* R30 sw_pdet=0            FILTER_EXT=0         PDET_CLK=10           */
+        0xC0,  /* R31 lt_att=1             ring_att=0            */
+
+        /* register masks (just update everything) */
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF,
+    };
+
+    return selftest_tuner_pll(handle, regs_and_masks, sizeof(regs_and_masks));
 }
 
 static bool selftest_adc_20mhz(libusb_device_handle *handle)
