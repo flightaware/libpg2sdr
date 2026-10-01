@@ -93,7 +93,7 @@ static void populate_status(libusb_device *dev, port_metadata_t *meta)
 
     ep0_in_board_status_t status;
     int pg2_error;
-    if ((pg2_error = pg2sdr__ctrl_get_status(handle, &status, 0)) < 0) {
+    if ((pg2_error = pg2sdr__ctrl_get_status(handle, &status, /* measure_clocks */ false, /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(pg2_error, "fetching board status failed");
         return;
     }
