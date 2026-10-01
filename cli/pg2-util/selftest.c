@@ -247,7 +247,9 @@ static bool selftest_flash(libusb_device_handle *handle);
 static bool selftest_tuner_detect(libusb_device_handle *handle);
 static bool selftest_tuner_978(libusb_device_handle *handle);
 static bool selftest_tuner_1090(libusb_device_handle *handle);
-static bool selftest_adc_20mhz(libusb_device_handle *handle);
+static bool selftest_adc_20(libusb_device_handle *handle);
+static bool selftest_adc_19_2(libusb_device_handle *handle);
+static bool selftest_adc_16_67(libusb_device_handle *handle);
 static bool selftest_cleanup(libusb_device_handle *handle, bool passed);
 
 static selftest_step selftest_steps[] = {
@@ -290,8 +292,20 @@ static selftest_step selftest_steps[] = {
     },
 
     [6] = {
-        .name = "Configure LPC4370 HSADC for 20MHz",
-        .test = selftest_adc_20mhz,
+        .name = "Configure LPC4370 HSADC for 19.2 MHz",
+        .test = selftest_adc_19_2,
+        .diags = { &DIAG_Y1, &DIAG_U5 },
+    },
+
+    [7] = {
+        .name = "Configure LPC4370 HSADC for 20 MHz",
+        .test = selftest_adc_20,
+        .diags = { &DIAG_Y1, &DIAG_U5 },
+    },
+
+    [8] = {
+        .name = "Configure LPC4370 HSADC for 16.67 MHz",
+        .test = selftest_adc_16_67,
         .diags = { &DIAG_Y1, &DIAG_U5 },
     },
 };
@@ -428,19 +442,22 @@ static bool selftest_check_clocks(libusb_device_handle *handle)
 
     /* IRC - internal RC 12MHz oscillator */
     if (status.clock_irc < (12e6 / tolerance) || status.clock_irc > (12e6 * tolerance)) {
-        log_error("Measured clock out of bounds: IRC = %u Hz", status.clock_irc);
+        log_error("Clock frequency outside normal range: expected IRC = 12 MHz, measured %.3f Hz",
+                  status.clock_irc/1e6);
         okay = false;
     }
 
     /* PLL0USB - 480MHz USB clock derived from the external 12MHz crystal */
     if (status.clock_pll0usb < (480e6 / tolerance) || status.clock_pll0usb > (480e6 * tolerance)) {
-        log_error("Measured clock out of bounds: PLL0USB = %u Hz", status.clock_pll0usb);
+        log_error("Clock frequency outside normal range: expected PLL0USB = 480 MHz, measured %.3f MHz",
+                  status.clock_pll0usb/1e6);
         okay = false;
     }
 
     /* PLL1 - CPU clock, should be at 24MHz after reset */
     if (status.clock_pll1 < (24e6 / tolerance) || status.clock_pll1 > (24e6 * tolerance)) {
-        log_error("Measured clock out of bounds: PLL1 = %u Hz", status.clock_pll1);
+        log_error("Clock frequency outside normal range: expected PLL1 = 24 MHz, measured %.3f Hz",
+                  status.clock_pll1 / 1e6);
         okay = false;
     }
 
@@ -654,9 +671,104 @@ static bool selftest_tuner_1090(libusb_device_handle *handle)
     return selftest_tuner_pll(handle, regs_and_masks, sizeof(regs_and_masks));
 }
 
-static bool selftest_adc_20mhz(libusb_device_handle *handle)
+static bool selftest_adc_rate(libusb_device_handle *handle, const ep0_out_start_transfer_t *config, double expected_rate)
 {
+    int error;
+    if ((error = pg2sdr__ctrl_start_transfer(handle, config, /* timeout_ms */ 0)) < 0) {
+        log_perror_pg2sdr(error, "START_TRANSFER(%.3fMHz) failed", expected_rate/1e6);
+        return false;
+    }
+
+    /* measure actual clock rate from PLL0AUDIO (IDIV_E is not used in this config) */
+    ep0_in_board_status_t status;
+    if ((error = pg2sdr__ctrl_get_status(handle, &status, /* measure_clocks */ true, /* timeout_ms */ 0)) < 0) {
+        log_perror_pg2sdr(error, "GET_STATUS failed");
+        return false;
+    }
+
+    const double tolerance = 1.015; /* IRC trimmed to 1% per the datasheet, allow up to 1.5% */
+    const char *clocksource;
+    double measured;
+    if (config->idiv_divisor == 0) {
+        /* not using IDIV_E */
+        measured = status.clock_pll0audio;
+        clocksource = "PLL0AUDIO";
+    } else {
+        /* using IDIV_E */
+        measured = status.clock_idiv_e;
+        clocksource = "IDIV_E";
+    }
+
+    if (measured < expected_rate / tolerance || measured > expected_rate * tolerance) {
+        log_error("ADC clock frequency out of range: expected %s = %.3f MHz, measured %.3f MHz",
+                  clocksource, expected_rate/1e6, measured / 1e6);
+        return false;
+    }
+
     return true;
+}
+
+static bool selftest_adc_20(libusb_device_handle *handle)
+{
+    /* precalculated ADC settings for 20MHz:
+     *   N=0
+     *   M=15.0 (integer mode)
+     *   P=9
+     *   I=0
+     * =>
+     *   fCCO = 360MHz
+     *   fADC = 20MHz
+     */
+    static ep0_out_start_transfer_t config = {
+        .n_divisor = 0,
+        .m_divisor = (15 << 15),   /* 15.0, 15-bit fixed-point */
+        .p_divisor = 9,
+        .idiv_divisor = 0
+    };
+
+    return selftest_adc_rate(handle, &config, 20e6);
+}
+
+static bool selftest_adc_19_2(libusb_device_handle *handle)
+{
+    /* precalculated ADC settings for 19.2MHz:
+     *   N=0
+     *   M=12.0 (integer mode)
+     *   P=0
+     *   I=15
+     * =>
+     *   fCCO = 288MHz
+     *   fADC = 19.2MHz
+     */
+    static ep0_out_start_transfer_t config = {
+        .n_divisor = 0,
+        .m_divisor = (12 << 15),   /* 12.0, 15-bit fixed-point */
+        .p_divisor = 0,
+        .idiv_divisor = 15
+    };
+
+    return selftest_adc_rate(handle, &config, 19.2e6);
+}
+
+static bool selftest_adc_16_67(libusb_device_handle *handle)
+{
+    /* precalculated ADC settings for 16.666667MHz (for UAT):
+     *   N=2
+     *   M=25.0 (integer mode)
+     *   P=9
+     *   I=0
+     * =>
+     *   fCCO = 300.0MHz
+     *   fADC = 16.67MHz
+     */
+    static ep0_out_start_transfer_t config = {
+        .n_divisor = 2,
+        .m_divisor = (25 << 15),   /* 12.0, 15-bit fixed-point */
+        .p_divisor = 9,
+        .idiv_divisor = 0
+    };
+
+    return selftest_adc_rate(handle, &config, 16.666667e6);
 }
 
 static bool selftest_cleanup(libusb_device_handle *handle, bool passed)
