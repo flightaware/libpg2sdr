@@ -415,7 +415,36 @@ static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, 
 
 static bool selftest_check_clocks(libusb_device_handle *handle)
 {
-    return true;
+    int error;
+    ep0_in_board_status_t status;
+
+    if ((error = pg2sdr__ctrl_get_status(handle, &status, /* measure_clocks */ true, /* timeout_ms */ 0)) < 0) {
+        log_perror_pg2sdr(error, "GET_STATUS failed");
+        return false;
+    }
+
+    const double tolerance = 1.015; /* IRC trimmed to 1% per the datasheet, allow up to 1.5% */
+    bool okay = true;
+
+    /* IRC - internal RC 12MHz oscillator */
+    if (status.clock_irc < (12e6 / tolerance) || status.clock_irc > (12e6 * tolerance)) {
+        log_error("Measured clock out of bounds: IRC = %u Hz", status.clock_irc);
+        okay = false;
+    }
+
+    /* PLL0USB - 480MHz USB clock derived from the external 12MHz crystal */
+    if (status.clock_pll0usb < (480e6 / tolerance) || status.clock_pll0usb > (480e6 * tolerance)) {
+        log_error("Measured clock out of bounds: PLL0USB = %u Hz", status.clock_pll0usb);
+        okay = false;
+    }
+
+    /* PLL1 - CPU clock, should be at 24MHz after reset */
+    if (status.clock_pll1 < (24e6 / tolerance) || status.clock_pll1 > (24e6 * tolerance)) {
+        log_error("Measured clock out of bounds: PLL1 = %u Hz", status.clock_pll1);
+        okay = false;
+    }
+
+    return okay;
 }
 
 static bool selftest_flash(libusb_device_handle *handle)
