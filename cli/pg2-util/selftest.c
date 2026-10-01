@@ -388,13 +388,13 @@ static bool selftest_load_firmware(libusb_device *dev, firmware_image_t *image, 
         goto fail;
 
     int error;
-    if ((error = pg2sdr__ctrl_comms_check(newhandle, 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_comms_check(newhandle, /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "USB comms check failed");
         goto fail;
     }
 
     /* Set 2Hz blinking yellow (yyy-000-) while we work */
-    if ((error = pg2sdr__ctrl_led_pattern(newhandle, 0x3e0, /* timeout_ms */ 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_led_pattern(newhandle, 0x3e0, /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "LED_PATTERN failed");
         goto fail;
     }
@@ -426,12 +426,12 @@ static bool selftest_flash(libusb_device_handle *handle)
     int error;
     uint8_t buf[256];
 
-    if ((error = pg2sdr__ctrl_flash_erase(handle, /* sector address */ TEST_SECTOR, /* timeout_ms */ 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_flash_erase(handle, /* sector address */ TEST_SECTOR, /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "FLASH_ERASE failed");
         return false;
     }
 
-    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "FLASH_READ_QUAD failed");
         return false;
     }
@@ -447,12 +447,12 @@ static bool selftest_flash(libusb_device_handle *handle)
         buf[i] = (uint8_t)(256-i);
     }
 
-    if ((error = pg2sdr__ctrl_flash_write(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_flash_write(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "FLASH_WRITE failed");
         return false;
     }
 
-    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_flash_read_quad(handle, /* page address */ TEST_SECTOR, buf, sizeof(buf), /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "FLASH_READ_QUAD failed");
         return false;
     }
@@ -493,12 +493,12 @@ static bool selftest_cleanup(libusb_device_handle *handle, bool passed)
 
     /* if we passed so far, turn off ADC and RF power */
     if (passed) {
-        if ((error = pg2sdr__ctrl_stop_transfer(handle, /* timeout_ms */ 1000)) < 0) {
+        if ((error = pg2sdr__ctrl_stop_transfer(handle, /* timeout_ms */ 0)) < 0) {
             log_perror_pg2sdr(error, "STOP_TRANSFER failed");
             passed = false;
         }
 
-        if ((error = pg2sdr__ctrl_set_rf_power(handle, RF_POWER_OFF, /* timeout_ms */ 1000)) < 0) {
+        if ((error = pg2sdr__ctrl_set_rf_power(handle, RF_POWER_OFF, /* timeout_ms */ 0)) < 0) {
             log_perror_pg2sdr(error, "SET_RF_POWER failed");
             passed = false;
         }
@@ -509,7 +509,7 @@ static bool selftest_cleanup(libusb_device_handle *handle, bool passed)
      *   failed:  2a0:      yrr-000-                 (2Hz blink, red)
      */
     uint32_t pattern = passed ? 0x35ad7fff : 0x2a0;
-    if ((error = pg2sdr__ctrl_led_pattern(handle, pattern, /* timeout_ms */ 1000)) < 0) {
+    if ((error = pg2sdr__ctrl_led_pattern(handle, pattern, /* timeout_ms */ 0)) < 0) {
         log_perror_pg2sdr(error, "LED_PATTERN failed");
         passed = false;
     }
