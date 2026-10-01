@@ -99,7 +99,7 @@ ssize_t pg2sdr__discover_matching(pg2sdr_context *ctx,
                                   pg2sdr_usb_device ***device_list);
 
 /* control.c */
-int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *status, unsigned timeout_ms);
+int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *status, bool measure_clocks, unsigned timeout_ms);
 int pg2sdr__ctrl_set_rf_power(libusb_device_handle *dev, rf_power_mode_t mode, unsigned timeout_ms);
 int pg2sdr__ctrl_comms_check(libusb_device_handle *usb_handle, unsigned timeout_ms);
 int pg2sdr__ctrl_start_transfer(libusb_device_handle *dev, const ep0_out_start_transfer_t *config, unsigned timeout_ms);

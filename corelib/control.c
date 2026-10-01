@@ -87,7 +87,7 @@ static int tuner_control_in(libusb_device_handle *usb_handle,
     if (error == (PG2SDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
         /* check if an I2C error was seen */
         ep0_in_board_status_t status;
-        if (pg2sdr__ctrl_get_status(usb_handle, &status, timeout_ms) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
+        if (pg2sdr__ctrl_get_status(usb_handle, &status, false, timeout_ms) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
             return PG2SDR_ERROR_TUNER_I2C;
     }
 
@@ -103,7 +103,7 @@ static int tuner_control_out(libusb_device_handle *usb_handle,
     if (error == (PG2SDR_ERROR_LIBUSB_MIN - LIBUSB_ERROR_PIPE)) {
         /* check if an I2C error was seen */
         ep0_in_board_status_t status;
-        if (pg2sdr__ctrl_get_status(usb_handle, &status, timeout_ms) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
+        if (pg2sdr__ctrl_get_status(usb_handle, &status, false, timeout_ms) >= 0 && (status.flags & STATUS_TUNER_I2C_ERROR) != 0)
             return PG2SDR_ERROR_TUNER_I2C;
     }
 
@@ -140,12 +140,12 @@ int pg2sdr__ctrl_stop_transfer(libusb_device_handle *dev, unsigned timeout_ms)
                        timeout_ms);
 }
 
-int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *out, unsigned timeout_ms)
+int pg2sdr__ctrl_get_status(libusb_device_handle *dev, ep0_in_board_status_t *out, bool measure_clocks, unsigned timeout_ms)
 {
     ep0_in_board_status_t status;
     int error = control_in(dev,
                            EP0_IN_BOARD_STATUS,
-                           0,
+                           measure_clocks ? 1 : 0,
                            0,
                            (unsigned char *)&status,
                            sizeof(status),

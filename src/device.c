@@ -139,7 +139,7 @@ static int build_device(pg2sdr_context *ctx, libusb_device *lu_device, char *ser
     dev->control_timeout_ms = meta.control_timeout_ms;
 
     ep0_in_board_status_t status;
-    if ((error = pg2sdr__ctrl_get_status(dev->usb_handle, &status, dev->control_timeout_ms)) < 0)
+    if ((error = pg2sdr__ctrl_get_status(dev->usb_handle, &status, /* measure_clocks */ false, dev->control_timeout_ms)) < 0)
         goto cleanup;
 
     dev->conversion_mode = PG2SDR_MODE_BASEBAND;
