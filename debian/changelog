@@ -1,4 +1,4 @@
-libpg2sdr (1.1.0) UNRELEASED; urgency=medium
+libpg2sdr (1.1.0) stable; urgency=medium
 
   * Add pg2-update-firmware script
   * Fix a segfault when using "pg2-util write" in recovery mode, if the device
@@ -6,7 +6,7 @@ libpg2sdr (1.1.0) UNRELEASED; urgency=medium
   * Add "pg2-util selftest" subcommand
   * Use "Pro Stick" (not "ProStick") consistently everywhere
 
- -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 20 Jul 2026 20:43:19 +0800
+ -- Oliver Jowett <oliver.jowett@flightaware.com>  Wed, 07 Oct 2026 10:19:01 +0800
 
 libpg2sdr (1.0.1) stable; urgency=medium
 
