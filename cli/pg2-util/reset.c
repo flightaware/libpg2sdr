@@ -44,14 +44,14 @@ static bool do_reset(const char *match_serial_prefix, const char *match_ports, b
 static void show_reset_help()
 {
     log_verbose("Usage: %s [OPTIONS]\n"
-                "Reset and reinitialize a ProStick Gen 2 device. The ProStick will attempt\n"
+                "Reset and reinitialize a Pro Stick Gen 2 device. The Pro Stick will attempt\n"
                 "to load firmware from flash, or enter recovery mode.\n"
                 "\n"
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
-                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -s, --serial <prefix>  specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only\n"
                 " -w, --wait             wait for reset process to complete before returning",
                 argv0);

@@ -440,10 +440,10 @@ def handle_updates(devices, firmware_file, firmware_info):
 
 def main():
     parser = argparse.ArgumentParser(description="""
-Downloads and updates firmware on ProStick Gen 2 devices.
+Downloads and updates firmware on Pro Stick Gen 2 devices.
 With no special options, this script will download the latest firmware
 release from the firmware Github repository, and upgrade any connected
-ProStick Gen 2 devices that are using older firmware.
+Pro Stick Gen 2 devices that are using older firmware.
 """)
     parser.add_argument('--cache-dir', help='Set cache dir used for downloaded firmware images (default: $HOME/.pg2sdr)', default='~/.pg2sdr')
     parser.add_argument('--no-cache', help='Disable download cache', action='store_const', const=None, dest='cache_dir')
@@ -469,7 +469,7 @@ ProStick Gen 2 devices that are using older firmware.
 
     devices = pg2util_device_info()
     if not devices:
-        error("No ProStick Gen 2 devices found")
+        error("No Pro Stick Gen 2 devices found")
         return 1
 
     with open_firmware_file() as firmware_file:

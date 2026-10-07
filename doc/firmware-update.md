@@ -1,14 +1,14 @@
-# Updating ProStick Gen 2 firmware
+# Updating Pro Stick Gen 2 firmware
 
-The ProStick Gen 2 contains a firmware image, which is the software
-that runs on the device itself and manages the hardware. Each ProStick
+The Pro Stick Gen 2 contains a firmware image, which is the software
+that runs on the device itself and manages the hardware. Each Pro Stick
 is shipped loaded with the current firmware image at the time of
 manufacture. There may be newer firmware available that fixes bugs,
 adds new features, etc.
 
 There are two copies of the firmware involved:
 
-1. A version stored permanently on a flash chip on the ProStick Gen 2;
+1. A version stored permanently on a flash chip on the Pro Stick Gen 2;
 
 2. A version currently loaded and running on the microcontroller.
    This is the "active" firmware and might be temporarily different to
@@ -25,10 +25,10 @@ You can update the firmware stored on your device in a few different ways:
 The `pg2sdr-tools` package includes a script, `pg2-update-firmware`, which
 automates the manual process described below. It will fetch the current
 latest firmware release from Github, then apply it to any connected
-ProStick Gen 2 devices that require updates.
+Pro Stick Gen 2 devices that require updates.
 
 To use this script, just run `pg2-update-firmware` from the command line
-on the host with the ProStick connected, and follow the prompts:
+on the host with the Pro Stick connected, and follow the prompts:
 
 ```bash
 pg2-update-firmware
@@ -78,7 +78,7 @@ to download an appropriate firmware image and use `pg2-util` to apply it:
 
 ## Prerequisites
 
-You will need the ProStick Gen 2 device to update, connected to a
+You will need the Pro Stick Gen 2 device to update, connected to a
 system with `pg2-util` installed. On Debian-like systems, `pg2-util`
 is part of the `pg2sdr-tools` package. See [Building and installing
 libpg2sdr](install.md) for details on how to install this.
@@ -107,7 +107,7 @@ pg2-util device-info
 
 ```
 Port 1-11:
-  Device type:          ProStick Gen 2
+  Device type:          Pro Stick Gen 2
   Serial number:        386297DBD86461DC
   Recovery switch:      normal
   RF power:             off
@@ -135,7 +135,7 @@ Port 1-11:
 
 ## Stop any processes 
 
-First, stop any tools that are using the ProStick Gen 2, e.g. if you are
+First, stop any tools that are using the Pro Stick Gen 2, e.g. if you are
 using dump1090-fa:
 
 ```bash

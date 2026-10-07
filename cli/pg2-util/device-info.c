@@ -50,15 +50,15 @@ static void show_device_info_help()
 {
     log_verbose("Usage: %s [OPTIONS]\n"
                 "This subcommand gathers information on the active and loaded firmware for\n"
-                "connected ProStick Gen 2 devices, and writes a summary to stdout.\n"
+                "connected Pro Stick Gen 2 devices, and writes a summary to stdout.\n"
                 "By default, information on all connected devices will be shown. To get info\n"
                 "on a specific device only, use the '-s' or '-p' options.\n"
                 "\n"
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
-                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -s, --serial <prefix>  specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only\n"
                 " -j, --json             output machine-readable json to stdout",
                 argv0);
@@ -178,11 +178,11 @@ static void show_port_metadata(port_metadata_t *meta)
 
     const char *typestr;
     switch (meta->device_type) {
-    case DEVTYPE_PG2SDR:     typestr = "ProStick Gen 2"; break;
+    case DEVTYPE_PG2SDR:     typestr = "Pro Stick Gen 2"; break;
     case DEVTYPE_AIRSPYMINI: typestr = "Airspy Mini with PG2 firmware"; break;
-    case DEVTYPE_PROTOTYPE:  typestr = "ProStick Gen 2 (prototype VID/PID)"; break;
-    case DEVTYPE_RECOVERY:   typestr = "ProStick Gen 2 (recovery mode)"; break;
-    default:                 typestr = "Non-ProStick Gen 2 device"; break;
+    case DEVTYPE_PROTOTYPE:  typestr = "Pro Stick Gen 2 (prototype VID/PID)"; break;
+    case DEVTYPE_RECOVERY:   typestr = "Pro Stick Gen 2 (recovery mode)"; break;
+    default:                 typestr = "Non-Pro Stick Gen 2 device"; break;
     }
 
     fprintf(stdout, "  Device type:          %s\n", typestr);

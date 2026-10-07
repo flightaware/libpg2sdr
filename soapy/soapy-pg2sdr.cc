@@ -83,7 +83,7 @@ static SoapySDR::Kwargs DeviceToKwargs(pg2sdr_usb_device *device)
     entry["driver"] = "pg2sdr";
     entry["serial"] = device->serial;
     entry["ports"] = device->ports;
-    entry["label"] = "ProStick Gen 2 @ " + entry["ports"] + " s/n " + entry["serial"];
+    entry["label"] = "Pro Stick Gen 2 @ " + entry["ports"] + " s/n " + entry["serial"];
     return entry;
 }
 

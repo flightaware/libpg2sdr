@@ -1,6 +1,6 @@
 # Limitations & to-do list
 
-The ProStick Gen 2 has some hardware limitations, and the current
+The Pro Stick Gen 2 has some hardware limitations, and the current
 firmware and host library have some software limitations.  Some of
 those can be fixed in the future.
 

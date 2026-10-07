@@ -10,9 +10,9 @@ Build-Depends-Indep: doxygen, graphviz
 Package: libpg2sdr
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: ProStick Gen 2 SDR host library
+Description: Pro Stick Gen 2 SDR host library
  libpg2sdr is a host-side library for configuring
- and receiving data from the FlightAware ProStick
+ and receiving data from the FlightAware Pro Stick
  Gen 2 software defined radio.
  .
  This package contains the shared library needed at
@@ -23,9 +23,9 @@ Package: libpg2sdr-dev
 Architecture: any
 Depends: libpg2sdr (= ${binary:Version}), libusb-1.0-0-dev, ${misc:Depends}
 Recommends: libpg2sdr-doc
-Description: ProStick Gen 2 SDR library development files
+Description: Pro Stick Gen 2 SDR library development files
  libpg2sdr is a host-side library for configuring
- and receiving data from the FlightAware ProStick
+ and receiving data from the FlightAware Pro Stick
  Gen 2 software defined radio.
  .
  This package contains the development files for the
@@ -34,7 +34,7 @@ Description: ProStick Gen 2 SDR library development files
 Package: libpg2sdr-doc
 Architecture: all
 Depends: ${misc:Depends}
-Description: ProStick Gen 2 SDR library documentation
+Description: Pro Stick Gen 2 SDR library documentation
  .
  This package contains general library documentation and
  Doxygen-generated API documentation.
@@ -42,15 +42,15 @@ Description: ProStick Gen 2 SDR library documentation
 Package: pg2sdr-tools
 Architecture: any
 Depends: python3-requests, ${shlibs:Depends}, ${misc:Depends}
-Description: ProStick Gen 2 CLI tools
+Description: Pro Stick Gen 2 CLI tools
  This package contains command-line tools for
- configuring and inspecting the FlightAware ProStick
+ configuring and inspecting the FlightAware Pro Stick
  Gen 2 software defined radio.
 
 Package: soapysdr-module-pg2sdr
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: ProStick Gen 2 device support for SoapySDR
+Description: Pro Stick Gen 2 device support for SoapySDR
  This package provides a SoapySDR hardware support
- module for the FlightAware ProStick Gen 2 software
+ module for the FlightAware Pro Stick Gen 2 software
  defined radio.

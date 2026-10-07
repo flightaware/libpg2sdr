@@ -108,19 +108,19 @@ static const subcommand_t subcommands[] = {
 
     {
         .name = "load-firmware",
-        .brief = "Download a firmware image to a ProStick, once",
+        .brief = "Download a firmware image to a Pro Stick, once",
         .handler = subcommand_load,
     },
 
     {
         .name = "write-firmware",
-        .brief = "Write a firmware image to ProStick flash storage",
+        .brief = "Write a firmware image to Pro Stick flash storage",
         .handler = subcommand_write,
     },
 
     {
         .name = "verify-firmware",
-        .brief = "Compare a firmware image to the contents of ProStick flash storage",
+        .brief = "Compare a firmware image to the contents of Pro Stick flash storage",
         .handler = subcommand_verify,
     },
 
@@ -138,19 +138,19 @@ static const subcommand_t subcommands[] = {
 
     {
         .name = "reset",
-        .brief = "Reset a ProStick device",
+        .brief = "Reset a Pro Stick device",
         .handler = subcommand_reset
     },
 
     {
         .name = "standby",
-        .brief = "Put a ProStick device into standby mode",
+        .brief = "Put a Pro Stick device into standby mode",
         .handler = subcommand_standby
     },
 
     {
         .name = "blink",
-        .brief = "Blink ProStick LEDs in a pattern",
+        .brief = "Blink Pro Stick LEDs in a pattern",
         .handler = subcommand_blink
     },
 
@@ -162,7 +162,7 @@ static const subcommand_t subcommands[] = {
 };
 
 static void usage() {
-    log_verbose("pg2-util: utility to manage ProStick Gen 2 firmware images\n");
+    log_verbose("pg2-util: utility to manage Pro Stick Gen 2 firmware images\n");
     log_verbose("Usage: %s <subcommand> [options..]\n", base_argv0);
     log_verbose("Available subcommands (try '%s help <subcommand>' for details):", base_argv0);
 
