@@ -3,6 +3,7 @@ libpg2sdr (1.1.0) UNRELEASED; urgency=medium
   * Add pg2-update-firmware script
   * Fix a segfault when using "pg2-util write" in recovery mode, if the device
     does not re-enumerate correctly after load the firmware image
+  * Add "pg2-util selftest" subcommand
 
  -- Oliver Jowett <oliver.jowett@flightaware.com>  Mon, 20 Jul 2026 20:43:19 +0800
 
