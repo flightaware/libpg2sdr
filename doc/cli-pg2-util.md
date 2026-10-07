@@ -32,14 +32,14 @@ invoked as `pg2-util <subcommand> ...`:
   image file
 
 * [`pg2-util reset`](#reset-subcommand) --
-  manually resets a ProStick Gen 2 device
+  manually resets a Pro Stick Gen 2 device
 
 * [`pg2-util standby`](#standby-subcommand) --
-  puts a ProStick Gen 2 device into standby mode,
+  puts a Pro Stick Gen 2 device into standby mode,
   powering down the RF stages
 
 * [`pg2-util blink`](#blink-subcommand) --
-  make the indicator LEDs on a particular ProStick
+  make the indicator LEDs on a particular Pro Stick
   blink in a pattern for identification
 
 ## Common options
@@ -51,7 +51,7 @@ All subcommands accept these common options:
 
 ## Device selection
 
-Most subcommands expect to deal with a single ProStick Gen 2
+Most subcommands expect to deal with a single Pro Stick Gen 2
 device. If there is only one device connected, no special options
 are needed. If there is more than one device connected, provide
 command-line options to select exactly one device unambiguously:
@@ -77,7 +77,7 @@ For example, given this device-info output:
 
 ```
 Port 1-11:
-  Device type:          ProStick Gen 2
+  Device type:          Pro Stick Gen 2
   Serial number:        386297DBD86461DC
   [.. etc ..]
 ```
@@ -93,7 +93,7 @@ That device could be selected by passing `-s 386297` or `-p 1-11`
 ## `load-firmware` subcommand
 
 `pg2-util load-firmware FILE` loads a firmware image stored in `FILE`
-from the host to the active memory of a single ProStick Gen 2 device,
+from the host to the active memory of a single Pro Stick Gen 2 device,
 and starts that new firmware. The new firmware will run until the next
 time the device is disconnected or reset, at which point it will
 revert to whatever is stored on flash.
@@ -110,7 +110,7 @@ It can load images to devices in either recovery or normal mode.
 ## `write-firmware` subcommand
 
 `pg2-util write-firmware FILE` copies a firmware image stored in `FILE`
-from the host to the flash storage of a single ProStick Gen 2 device.
+from the host to the flash storage of a single Pro Stick Gen 2 device.
 
 Updating the image stored on flash does not immediately start the
 new firmware version. Changes will take effect when the device is
@@ -129,14 +129,14 @@ Additional options:
 
 `pg2-util verify-firmware FILE` compares the firmware image stored
 in `FILE` to the firmware image in the flash storage of a single
-ProStick Gen 2 device.
+Pro Stick Gen 2 device.
 
 If the flash contents differ, `pg2-util verify-firmware` shows an
 error and returns a non-zero exit status.
 
 ## `device-info` subcommand
 
-`pg2-util device-info` enumerates connected ProStick Gen 2 devices
+`pg2-util device-info` enumerates connected Pro Stick Gen 2 devices
 and shows their current status to stdout. By default it will
 discover and show the status for all connected devices.
 Use the `-p` or `-s` options to show the status for a subset of
@@ -162,7 +162,7 @@ Status output includes, for each device, where available:
 ## `image-info` subcommand
 
 `pg2-util image-info` shows firmware information for a firmware
-file stored on the host. It does not need access to a ProStick Gen 2
+file stored on the host. It does not need access to a Pro Stick Gen 2
 device.
 
 `image-info` supports one additional option:
@@ -173,7 +173,7 @@ device.
 
 ## `reset` subcommand
 
-`pg2-util reset` forcibly resets a ProStick Gen 2 device, causing it
+`pg2-util reset` forcibly resets a Pro Stick Gen 2 device, causing it
 to disconnect from the USB bus and reload firmware as if it had been
 disconnected and reconnected manually. If another process is
 concurrently using the device, that process will get interrupted when
@@ -181,7 +181,7 @@ the device disconnects.
 
 ## `standby` subcommand
 
-`pg2-util standby` turns off RF power and halts the ADC on a ProStick
+`pg2-util standby` turns off RF power and halts the ADC on a Pro Stick
 Gen 2 device. It does not fully reset the device. If another process
 is concurrently using the device, that process will see unexpected
 data-streaming timeouts and a loss of tuner state.
@@ -193,7 +193,7 @@ still running, unnecessarily consuming power and generating heat.
 
 ## `blink` subcommand
 
-`pg2-util blink` controls the LED indicator lights on a ProStick Gen 2
+`pg2-util blink` controls the LED indicator lights on a Pro Stick Gen 2
 device. Changes made by `pg2-util blink` last until the next execution
 of `pg2-util blink` or until the device is reset.
 

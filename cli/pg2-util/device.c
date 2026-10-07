@@ -148,7 +148,7 @@ const char *device_string(libusb_device *dev)
     case DEVTYPE_PG2SDR:
         {
             char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
-            snprintf(buf, sizeof(buf), "ProStick Gen 2 serial %s",
+            snprintf(buf, sizeof(buf), "Pro Stick Gen 2 serial %s",
                      serial ? serial : "<unknown>");
             free(serial);
             return buf;
@@ -166,14 +166,14 @@ const char *device_string(libusb_device *dev)
     case DEVTYPE_PROTOTYPE:
         {
             char *serial = pg2sdr__strdup_serial(shared_pg2sdr_ctx, dev);
-            snprintf(buf, sizeof(buf), "ProStick Gen 2 (prototype VID/PID) serial %s",
+            snprintf(buf, sizeof(buf), "Pro Stick Gen 2 (prototype VID/PID) serial %s",
                      serial ? serial : "<unknown>");
             free(serial);
             return buf;
         }
 
     case DEVTYPE_RECOVERY:
-        return "ProStick Gen 2 or other LPC device in recovery mode";
+        return "Pro Stick Gen 2 or other LPC device in recovery mode";
 
     default:
         {

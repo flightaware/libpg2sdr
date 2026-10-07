@@ -44,19 +44,19 @@ static bool do_standby(const char *match_serial_prefix, const char *match_ports)
 static void show_standby_help()
 {
     log_verbose("Usage: %s [OPTIONS]\n"
-                "Put a ProStick Gen 2 device into standby mode. This will power off the\n"
+                "Put a Pro Stick Gen 2 device into standby mode. This will power off the\n"
                 "RF section of the device, and halt any data streaming.\n"
                 "\n"
                 "Normally, a device goes into standby automatically when a SDR program\n"
                 "on the host stops using the device. However, if the SDR program does not\n"
-                "correctly close the device before exiting, the ProStick can be left in\n"
+                "correctly close the device before exiting, the Pro Stick can be left in\n"
                 "active mode. This 'standby' command can be used to clean up if that happens.\n"
                 "\n"
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
-                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -s, --serial <prefix>  specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only\n",
                 argv0);
 }

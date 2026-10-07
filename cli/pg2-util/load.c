@@ -48,7 +48,7 @@ int subcommand_load(int argc, char * const argv[]);
 static void show_load_help()
 {
     log_verbose("Usage: %s [OPTIONS] FIRMWARE-IMAGE\n"
-                "This subcommand will load and start a new firmware image on a ProStick Gen 2.\n"
+                "This subcommand will load and start a new firmware image on a Pro Stick Gen 2.\n"
                 "Firmware can be loaded in recovery mode, or while running normal firmware.\n"
                 "Loading new firmware does not affect the firmware image stored in flash,\n"
                 "and when the device is next reset or disconnected, it will return to using\n"
@@ -57,8 +57,8 @@ static void show_load_help()
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
-                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -s, --serial <prefix>  specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only",
                 argv0);
 }
@@ -148,7 +148,7 @@ static bool do_load(const char *image_path, const char *serial_prefix, const cha
         success = mem_load(image, dev, NULL);
         break;
     default:
-        log_error("device does not seem to be a ProStick Gen 2");
+        log_error("device does not seem to be a Pro Stick Gen 2");
         success = false;
         break;
     }

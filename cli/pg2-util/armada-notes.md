@@ -89,7 +89,7 @@ from a firmware image file.
 ```
 $ ~/git/libpg2sdr/build/pg2-util device-info
 Port 1-8:
-  Device type:          ProStick Gen 2
+  Device type:          Pro Stick Gen 2
   Serial number:        38265463986061DC
   Active firmware:
     Version:            0.9.3.0

@@ -47,7 +47,7 @@ sudo apt install pg2sdr-tools               # if you need the pg2-util and pg2-r
 sudo apt install soapysdr-module-pg2sdr     # if you need SoapySDR driver support
 ```
 
-3. If you have the ProStick Gen 2 already connected, disconnect and
+3. If you have the Pro Stick Gen 2 already connected, disconnect and
    reconnect it to ensure the system picks up the new device-specific
    udev rules installed by libpg2sdr.
 
@@ -82,7 +82,7 @@ cd libpg2sdr && dpkg-buildpackage -b --no-sign
 sudo dpkg -i libpg2sdr_*.deb libpg2sdr-dev_*.deb pg2sdr-tools_*.deb soapysdr-module-pg2sdr_*.deb
 ```
 
-5. If you have the ProStick Gen 2 already connected, disconnect and
+5. If you have the Pro Stick Gen 2 already connected, disconnect and
    reconnect it to ensure the system picks up the new device-specific
    udev rules installed by libpg2sdr.
 
@@ -213,7 +213,7 @@ SoapySDRUtil --find=driver=pg2sdr
 
 Found device 0
   driver = pg2sdr
-  label = ProStick Gen 2 @ 1-11 s/n 386297DBD86461DC
+  label = Pro Stick Gen 2 @ 1-11 s/n 386297DBD86461DC
   ports = 1-11
   serial = 386297DBD86461DC
 ```

@@ -2,7 +2,7 @@
 
 SoapySDR is a SDR abstraction layer that provides a common interface
 to many different types of SDR. libpg2sdr provides a driver module
-for the ProStick Gen 2 that allows it to be used with SoapySDR.
+for the Pro Stick Gen 2 that allows it to be used with SoapySDR.
 
 ## Basic setup
 
@@ -10,20 +10,20 @@ After [installing libpg2sdr and the SoapySDR driver](install.md),
 use `SoapySDRUtil` to
 [check your install is working correctly](install.md#verify-that-your-soapysdr-driver-installation-is-working).
 
-Now you should be able to use the ProStick Gen 2 with any
+Now you should be able to use the Pro Stick Gen 2 with any
 software that has SoapySDR support.
 
 For interactive applications e.g. `CubicSDR`, usually you will be able to
 directly select the correct device from a dialog:
 
-![CubicSDR device selection dialog with a ProStick Gen 2 device selected](cubicsdr-device-selection.png)
+![CubicSDR device selection dialog with a Pro Stick Gen 2 device selected](cubicsdr-device-selection.png)
 
 For command-line applications, you'll usually need to provide a
 "device string" to identify the device to use. This is a
 comma-separated list of key=value pairs that uniquely identifies a
 SoapySDR device.
 
-For a ProStick Gen 2 device, the device string must include
+For a Pro Stick Gen 2 device, the device string must include
 `driver=pg2sdr` to identify the driver to use. If more than one device
 is connected, you can select a particular device by port or by serial
 number. The exact string to use can be found from `SoapySDRUtil
@@ -40,7 +40,7 @@ SoapySDRUtil --find
 
 Found device 0
   driver = pg2sdr
-  label = ProStick Gen 2 @ 1-11 s/n 386297DBD86461DC
+  label = Pro Stick Gen 2 @ 1-11 s/n 386297DBD86461DC
   ports = 1-11
   serial = 386297DBD86461DC
 ```
@@ -64,7 +64,7 @@ SoapySDRUtil --find=driver=pg2sdr,serial=38629
 
 Found device 0
   driver = pg2sdr
-  label = ProStick Gen 2 @ 1-11 s/n 386297DBD86461DC
+  label = Pro Stick Gen 2 @ 1-11 s/n 386297DBD86461DC
   ports = 1-11
   serial = 386297DBD86461DC
 ```
@@ -73,7 +73,7 @@ Found device 0
 
 SoapySDR provides a way for drivers to expose device-specific
 settings. You can see the available settings in the output of
-`SoapySDRUtil --probe`. The ProStick Gen 2 driver provides these
+`SoapySDRUtil --probe`. The Pro Stick Gen 2 driver provides these
 settings:
 
 * `decimation`: adds additional decimation stages to the receive
@@ -131,13 +131,13 @@ settings:
 ### CubicSDR
 
 [CubicSDR](https://github.com/cjcliffe/cubicsdr) mostly needs no
-special configuration and works fairly well with the ProStick Gen 2.
+special configuration and works fairly well with the Pro Stick Gen 2.
 
 Device settings can be configured from the device selection dialog, or
 from the `Settings` menu after selecting a device.
 
 CubicSDR defaults to enabling automatic gain control when a new device
-is selected. The ProStick Gen 2 does not provide AGC, so ensure that
+is selected. The Pro Stick Gen 2 does not provide AGC, so ensure that
 this option is turned off in the Settings menu:
 
 ![CubicSDR settings menu with deselected Automatic Gain option highlighted](cubicsdr-no-automatic-gain.png)
@@ -162,11 +162,11 @@ standby` after exiting CubicSDR.
 ### dump1090-fa
 
 [dump1090-fa](https://github.com/flightaware/dump1090) has SoapySDR device
-support. To use dump1090-fa with a ProStick Gen 2, pass `--device-type soapy`
+support. To use dump1090-fa with a Pro Stick Gen 2, pass `--device-type soapy`
 and `--device driver=pg2sdr` (or your full SoapySDR device string).
 
 The `--gain` option will set total gain in dB. `dump1090-fa` defaults
-to maximum gain if no gain option is given, which on the ProStick Gen
+to maximum gain if no gain option is given, which on the Pro Stick Gen
 2 tends to overload the receiver to the point where it's completely
 deaf. A gain of about 60 is a better starting point.
 
@@ -186,7 +186,7 @@ dump1090                               \
 
 ```
 Fri Jun  5 10:54:04 2026 +08  dump1090-fa unknown starting up.
-soapy: selected device:  driver=pg2sdr, label=ProStick Gen 2 @ 1-11 s/n 386297DBD86461DC, ports=1-11, serial=386297DBD86461DC
+soapy: selected device:  driver=pg2sdr, label=Pro Stick Gen 2 @ 1-11 s/n 386297DBD86461DC, ports=1-11, serial=386297DBD86461DC
 soapy: driver key:      pg2sdr
 soapy: hardware key:    pg2sdr
 soapy: total gain:      59.2dB; LNA=9.8dB; MIX=16.1dB; VGA=32.9dB; ALL=59.2dB
@@ -199,11 +199,11 @@ soapy: antenna:
 ### dump978-fa
 
 [dump978-fa](https://github.com/flightaware/dump978) has SoapySDR device
-support. To use dump978-fa with a ProStick Gen 2, pass `--sdr driver=pg2sdr`
+support. To use dump978-fa with a Pro Stick Gen 2, pass `--sdr driver=pg2sdr`
 (or your full SoapySDR device string).
 
 The `--sdr-gain` option will set total gain in dB. `dump978-fa` defaults
-to maximum gain if no gain option is given, which on the ProStick Gen
+to maximum gain if no gain option is given, which on the Pro Stick Gen
 2 tends to overload the receiver to the point where it's completely
 deaf. A gain of about 60 is a better starting point.
 

@@ -56,8 +56,8 @@ static void show_selftest_help()
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
-                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -s, --serial <prefix>  specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of Pro Stick to affect\n"
                 " -v, --verbose          enable more logging (breaks output formatting)\n",
                 argv0);
 }
@@ -415,7 +415,7 @@ static bool selftest_connect(libusb_device *dev, firmware_image_t *image, libusb
         break;
 
     default:
-        log_error("device does not seem to be a ProStick Gen 2");
+        log_error("device does not seem to be a Pro Stick Gen 2");
         goto fail;
     }
 

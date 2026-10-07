@@ -54,22 +54,22 @@ static bool verify_image(const firmware_image_t *image, firmware_io_t *io);
 static void show_write_help()
 {
     log_verbose("Usage: %s [OPTIONS] FIRMWARE-IMAGE\n"
-                "This subcommand will write a new ProStick Gen 2 firmware image to flash\n"
-                "storage, updating the firmware used when the ProStick resets or is\n"
+                "This subcommand will write a new Pro Stick Gen 2 firmware image to flash\n"
+                "storage, updating the firmware used when the Pro Stick resets or is\n"
                 "disconnected.\n"
                 "\n"
-                "If the ProStick is currently running other firmware, that firmware is\n"
+                "If the Pro Stick is currently running other firmware, that firmware is\n"
                 "unaffected until the device is reset or disconnected.\n"
                 "\n"
-                "If the ProStick is currently in recovery mode, the provided firmware will\n"
+                "If the Pro Stick is currently in recovery mode, the provided firmware will\n"
                 "first be downloaded to the device (as if 'pg2-util load' had been used)\n"
                 "before writing the new firmware to flash storage.\n"
                 "\n"
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial PREFIX    specify serial number prefix of ProStick to affect\n"
-                " -p, --port BUS-N[.N..] specify connected USB port of ProStick to affect\n"
+                " -s, --serial PREFIX    specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port BUS-N[.N..] specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only\n"
                 " -f, --force-erase      erase all flash sectors, not only changed sectors\n"
                 " -n, --dry-run          run normal checks, but don't modify flash\n",
@@ -142,15 +142,15 @@ static void show_verify_help()
 {
     log_verbose("Usage: %s [OPTIONS] FIRMWARE-IMAGE\n"
                 "This subcommand compares the given FIRMWARE-IMAGE file to the firmware\n"
-                "stored on a ProStick Gen 2's flash storage. If there are any differences\n"
+                "stored on a Pro Stick Gen 2's flash storage. If there are any differences\n"
                 "an error will be reported, and the verify command will exit with a non-zero\n"
                 "exit code.\n"
                 "\n"
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial PREFIX    specify serial number prefix of ProStick to affect\n"
-                " -p, --port BUS-N[.N..] specify connected USB port of ProStick to affect\n"
+                " -s, --serial PREFIX    specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port BUS-N[.N..] specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only",
                 argv0);
 }
@@ -248,7 +248,7 @@ static bool do_write_verify(const char *image_path, const char *serial_prefix, c
         break;
 
     default:
-        log_error("device at %s does not seem to be a ProStick Gen 2", device_ports(dev));
+        log_error("device at %s does not seem to be a Pro Stick Gen 2", device_ports(dev));
         goto cleanup;
     }
 

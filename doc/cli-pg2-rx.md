@@ -1,7 +1,7 @@
 # Command line utilities - pg2-rx
 
 libpg2sdr includes `pg2-rx`, a command-line utility that configure a
-ProStick Gen 2 to receive data, then streams sample data to stdout or
+Pro Stick Gen 2 to receive data, then streams sample data to stdout or
 a file in one of a few different formats.
 
 When installed from Debian packages, `pg2-rx` is installed as part of
@@ -23,8 +23,8 @@ suffixes, e.g. `-f 978.0M` to use a center frequency of 978MHz.
 ## Device selection
 
 `pg2-rx` operates on a single device at a time. If there is only one
-ProStick Gen 2 connected, it will use that device automatically. If
-there is more than one ProStick Gen 2 connected, you must provide
+Pro Stick Gen 2 connected, it will use that device automatically. If
+there is more than one Pro Stick Gen 2 connected, you must provide
 command-line options to select exactly one device:
 
  * `-s`, `--serial` selects a device with a serial number starting
@@ -48,7 +48,7 @@ For example, given this device-info output:
 
 ```
 Port 1-11:
-  Device type:          ProStick Gen 2
+  Device type:          Pro Stick Gen 2
   Serial number:        386297DBD86461DC
   [.. etc ..]
 ```

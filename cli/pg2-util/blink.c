@@ -43,7 +43,7 @@ static bool do_blink(const char *match_serial_prefix, const char *match_ports, u
 static void show_blink_help()
 {
     log_verbose("Usage: %s [OPTIONS] [PATTERN]\n"
-                "Blink LED patterns on a ProStick Gen 2 device.\n"
+                "Blink LED patterns on a Pro Stick Gen 2 device.\n"
                 "\n"
                 "By default, this will blink all LEDs at 2Hz so a device can be visually\n"
                 "identified. Optionally an alternative patterns can be provided.\n"
@@ -65,8 +65,8 @@ static void show_blink_help()
                 "Available options:\n"
                 "\n"
                 " -h, --help             show this help\n"
-                " -s, --serial <prefix>  specify serial number prefix of ProStick to affect\n"
-                " -p, --port <bus-n.n.n> specify connected USB port of ProStick to affect\n"
+                " -s, --serial <prefix>  specify serial number prefix of Pro Stick to affect\n"
+                " -p, --port <bus-n.n.n> specify connected USB port of Pro Stick to affect\n"
                 " -q, --quiet            suppress informational logging, show errors only\n"
                 " -o, --off              disable any existing blink pattern\n",
                 argv0);
